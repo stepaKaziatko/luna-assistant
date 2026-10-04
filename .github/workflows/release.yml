@@ -1,0 +1,132 @@
+name: Release
+
+# Тег vX.Y.Z собирает бандлы и выкладывает их релизом в публичный репозиторий; исходники
+# остаются здесь. Ручной запуск собирает бандлы без публикации — их можно скачать из прогона.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Выложить в публичный репозиторий (запускать на теге)
+        type: boolean
+        default: false
+
+env:
+  RELEASES_REPO: stepaKaziatko/luna-releases
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Версия
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.version.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: version
+        env:
+          PUBLISH_INPUT: ${{ inputs.publish }}
+        run: |
+          publish=false
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version=$(scripts/check-version.sh "$GITHUB_REF_NAME")
+            if [ "$GITHUB_EVENT_NAME" = push ] || [ "$PUBLISH_INPUT" = true ]; then publish=true; fi
+          else
+            version=$(scripts/check-version.sh)
+            if [ "$PUBLISH_INPUT" = true ]; then
+              echo "::error::Публикация идёт только с тега: запустите workflow на теге v$version"
+              exit 1
+            fi
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+
+  macos:
+    name: Luna.app (macOS, universal)
+    needs: version
+    runs-on: macos-15
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: swift test
+        working-directory: apps/macos
+      - name: Собрать бандл
+        env:
+          LUNA_BUILD_NUMBER: ${{ github.run_number }}
+        run: apps/macos/scripts/bundle.sh
+      - name: Бандл запускается
+        run: |
+          lipo apps/macos/build/Luna.app/Contents/MacOS/Luna -verify_arch arm64 x86_64
+          apps/macos/scripts/smoke.sh
+      - name: Упаковать
+        run: |
+          mkdir dist
+          ditto -c -k --keepParent apps/macos/build/Luna.app "dist/Luna-$VERSION-macos-universal.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-universal
+          path: dist/
+          if-no-files-found: error
+
+  # Приложения под другие ОС пока нет — для них собирается ядро без оболочки.
+  # Новая платформа добавляется строкой в matrix.
+  core:
+    name: Ядро (${{ matrix.platform }})
+    needs: version
+    strategy:
+      matrix:
+        include:
+          - platform: linux
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Упаковать ядро
+        run: scripts/pack-core.sh "${{ matrix.platform }}" dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: core-${{ matrix.platform }}
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Выложить релиз
+    needs: [version, macos, core]
+    if: needs.version.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Бандлы — в публичный репозиторий
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: scripts/publish-release.sh "$GITHUB_REF_NAME" dist
+      # Здесь у релиза только заметки: качать из закрытого репозитория никто не должен.
+      - name: Заметки — в этом репозитории
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "Luna $GITHUB_REF_NAME"

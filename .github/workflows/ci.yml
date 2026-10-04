@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Минуты macOS-раннеров в закрытом репозитории стоят вдесятеро дороже, поэтому shell
+  # проверяется, только когда изменение может его затронуть.
+  changes:
+    name: Что изменилось
+    runs-on: ubuntu-latest
+    outputs:
+      shell: ${{ steps.filter.outputs.shell }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: filter
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          shell=true
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] &&
+             ! git diff --name-only "origin/$BASE_REF...HEAD" | grep -qE '^(apps/macos/|core/|protocol/|scripts/|package(-lock)?\.json|\.github/workflows/)'; then
+            shell=false
+          fi
+          echo "shell=$shell" >> "$GITHUB_OUTPUT"
+
+  core:
+    name: Ядро и протокол
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Версия согласована в ядре и приложении
+        run: scripts/check-version.sh
+      - name: Сгенерированные типы протокола соответствуют схеме
+        run: |
+          npm run generate
+          git diff --exit-code -- core/src/rpc/protocol.gen.ts apps/macos/Sources/Luna/Protocol/Protocol.gen.swift
+
+  shell:
+    name: Shell (macOS)
+    needs: changes
+    if: needs.changes.outputs.shell == 'true'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/cache@v6
+        with:
+          path: apps/macos/.build
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('apps/macos/Package.resolved') }}
+      - run: npm ci
+      - run: npm test
+      - run: swift test
+        working-directory: apps/macos
+      - name: Бандл собирается и запускается
+        run: |
+          apps/macos/scripts/bundle.sh debug
+          apps/macos/scripts/smoke.sh
