@@ -105,10 +105,12 @@ test("task.submit с followUpOf: InvalidParams с context, executor и для н
   const core = startCore({ LUNA_DATA_DIR: dir, LUNA_CLAUDE_BIN: claude });
   await core.request("core.hello");
 
-  const done = core.waitFor((message) => message.method === "task.done");
+  // Ждём и ошибку: сломанное ядро должно уронить тест проверкой статуса, а не подвесить прогон.
+  const done = core.waitFor((message) => message.method === "task.done" || message.method === "task.failed");
   const first = (await core.request("task.submit", { prompt: "сводка" })).result?.task as TaskInfo;
   assert.equal(first.threadId, first.id);
   const answered = (await done).params?.task;
+  assert.equal(answered?.status, "done", JSON.stringify(answered?.error));
   assert.ok(answered?.sessionId);
 
   const invalid = async (params: object) => {
@@ -120,10 +122,14 @@ test("task.submit с followUpOf: InvalidParams с context, executor и для н
   await invalid({ prompt: "ещё", followUpOf: "missing" });
   await invalid({ prompt: "ещё", followUpOf: 42 });
 
-  const followUpDone = core.waitFor((message) => message.method === "task.done" && message.params?.task.id !== first.id);
+  const followUpFinished = core.waitFor(
+    (message) => (message.method === "task.done" || message.method === "task.failed") && message.params?.task.id !== first.id,
+  );
   const followUp = (await core.request("task.submit", { prompt: "ещё", followUpOf: first.id })).result?.task as TaskInfo;
   assert.equal(followUp.threadId, first.id);
-  assert.equal((await followUpDone).params?.task.threadId, first.id);
+  const finished = (await followUpFinished).params?.task;
+  assert.equal(finished?.status, "done", JSON.stringify(finished?.error));
+  assert.equal(finished?.threadId, first.id);
   // Каждый запуск начинается с -p; системный промпт внутри argv многострочный.
   const argv = readFileSync(join(dir, "argv"), "utf8").trimEnd().split(/^(?=-p )/m);
   assert.equal(argv.length, 2);
