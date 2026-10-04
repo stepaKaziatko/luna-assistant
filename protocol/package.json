@@ -1,0 +1,11 @@
+{
+  "name": "@luna/protocol",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "node scripts/generate.mjs"
+  },
+  "devDependencies": {
+    "quicktype": "^23.0.0"
+  }
+}

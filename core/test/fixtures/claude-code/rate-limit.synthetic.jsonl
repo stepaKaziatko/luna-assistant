@@ -1,0 +1,4 @@
+{"type":"system","subtype":"init","cwd":"/tmp/luna-fixture","session_id":"11111111-2222-3333-4444-555555555555","tools":["Glob","Grep","Read","WebFetch","WebSearch"],"mcp_servers":[],"model":"claude-fable-5","permissionMode":"default","claude_code_version":"2.1.181"}
+{"type":"rate_limit_event","rate_limit_info":{"status":"rejected","resetsAt":1791066000,"rateLimitType":"five_hour","overageStatus":"rejected","isUsingOverage":false},"session_id":"11111111-2222-3333-4444-555555555555"}
+{"type":"assistant","message":{"model":"<synthetic>","role":"assistant","content":[{"type":"text","text":"You've hit your limit · resets 3pm"}]},"parent_tool_use_id":null,"session_id":"11111111-2222-3333-4444-555555555555","error":"rate_limit"}
+{"type":"result","subtype":"success","is_error":true,"api_error_status":429,"num_turns":1,"result":"You've hit your limit · resets 3pm","session_id":"11111111-2222-3333-4444-555555555555"}

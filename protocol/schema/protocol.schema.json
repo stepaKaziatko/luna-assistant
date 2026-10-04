@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "luna/protocol",
+  "title": "Luna shell <-> core protocol",
+  "description": "Типы полезной нагрузки JSON-RPC 2.0 между shell и core. Транспорт: stdio, одно JSON-сообщение на строку. Методы и их params/result перечислены в protocol/README.md.",
+  "definitions": {
+    "ExecutorId": {
+      "type": "string",
+      "enum": ["claude-code"]
+    },
+    "ExecutorStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "available"],
+      "properties": {
+        "id": { "$ref": "#/definitions/ExecutorId" },
+        "available": { "type": "boolean" },
+        "path": { "type": "string" }
+      }
+    },
+    "AppInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bundleId", "name"],
+      "properties": {
+        "bundleId": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    },
+    "TaskContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "app": { "$ref": "#/definitions/AppInfo" },
+        "url": { "type": "string" },
+        "title": { "type": "string" },
+        "selection": { "type": "string" }
+      }
+    },
+    "TaskStatus": {
+      "type": "string",
+      "enum": ["queued", "running", "done", "failed", "cancelled"]
+    },
+    "TaskErrorKind": {
+      "type": "string",
+      "enum": ["auth", "rate_limit", "not_installed", "unknown"]
+    },
+    "TaskError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "message"],
+      "properties": {
+        "kind": { "$ref": "#/definitions/TaskErrorKind" },
+        "message": { "type": "string" }
+      }
+    },
+    "TaskInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "prompt", "status", "executor", "createdAt"],
+      "properties": {
+        "id": { "type": "string" },
+        "prompt": { "type": "string" },
+        "context": { "$ref": "#/definitions/TaskContext" },
+        "status": { "$ref": "#/definitions/TaskStatus" },
+        "executor": { "$ref": "#/definitions/ExecutorId" },
+        "progress": { "type": "string" },
+        "result": { "type": "string" },
+        "error": { "$ref": "#/definitions/TaskError" },
+        "sessionId": { "type": "string" },
+        "createdAt": { "type": "integer", "description": "Unix time, ms" },
+        "finishedAt": { "type": "integer", "description": "Unix time, ms" }
+      }
+    },
+    "HelloResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "executors"],
+      "properties": {
+        "version": { "type": "string" },
+        "executors": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ExecutorStatus" }
+        }
+      }
+    },
+    "TaskSubmitParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prompt"],
+      "properties": {
+        "prompt": { "type": "string" },
+        "context": { "$ref": "#/definitions/TaskContext" },
+        "executor": { "$ref": "#/definitions/ExecutorId" }
+      }
+    },
+    "TaskSubmitResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task"],
+      "properties": {
+        "task": { "$ref": "#/definitions/TaskInfo" }
+      }
+    },
+    "TaskCancelParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId"],
+      "properties": {
+        "taskId": { "type": "string" }
+      }
+    },
+    "TaskListResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tasks"],
+      "properties": {
+        "tasks": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TaskInfo" }
+        }
+      }
+    },
+    "TaskEventParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task"],
+      "properties": {
+        "task": { "$ref": "#/definitions/TaskInfo" }
+      }
+    }
+  }
+}
