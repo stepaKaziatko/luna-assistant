@@ -223,6 +223,11 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Вливает историю задач после запуска. Задачи истории уже не новость: pill остаётся спокойным.
+    func applyHistory(_ listed: [TaskInfo]) {
+        tasks = TaskHistory.merge(current: tasks, listed: listed)
+    }
+
     func apply(_ hello: HelloResult) {
         let missing = hello.executors.filter { !$0.available }
         problem = missing.isEmpty ? nil : "Claude Code не найден — установите CLI и выполните вход."

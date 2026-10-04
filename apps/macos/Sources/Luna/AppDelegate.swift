@@ -42,6 +42,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     state.apply(hello)
                 } catch {
                     state.problem = error.localizedDescription
+                    return
+                }
+                // История — не повод для неполадки: не загрузилась, и список просто пуст.
+                if let list: TaskListResult = try? await client.request("task.list") {
+                    state.applyHistory(list.tasks)
                 }
             }
         } catch {

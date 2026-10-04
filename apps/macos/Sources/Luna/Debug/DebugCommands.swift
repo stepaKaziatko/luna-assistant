@@ -9,7 +9,8 @@ import AppKit
 /// - `submit:<текст>` — отправить запрос с текущим контекстом;
 /// - `context:<json>` — подменить захваченный контекст (поля TaskContext; `app` обязателен);
 /// - `key:<код клавиши>` и `type:<текст>` — нажатия в открытой панели;
-/// - `dump:<путь>` — состояние приложения в JSON; `snapshot:<путь>` — PNG панели.
+/// - `dump:<путь>` — состояние приложения в JSON; `snapshot:<путь>` — PNG панели;
+/// - `quit` — то же, что «Выйти из Luna» в меню.
 @MainActor
 enum DebugCommands {
     private static var observer: NSObjectProtocol?
@@ -52,6 +53,8 @@ enum DebugCommands {
                 .write(to: URL(fileURLWithPath: argument))
         case "snapshot":
             try? panels.debugSnapshot()?.write(to: URL(fileURLWithPath: argument))
+        case "quit":
+            NSApp.terminate(nil)
         default: break
         }
     }
@@ -66,6 +69,7 @@ enum DebugCommands {
         let issues: [String]
         let selectedTaskId: String?
         let unseen: [String]
+        let pill: String
         let problem: String?
         let accessibilityTrusted: Bool
         let captureMs: Int?
@@ -80,6 +84,7 @@ enum DebugCommands {
             issues = state.captureIssues.map { String(describing: $0) }
             selectedTaskId = state.selectedTaskId
             unseen = state.unseen.sorted()
+            pill = String(describing: state.pillState)
             problem = state.problem
             accessibilityTrusted = AccessibilityProbe.isTrusted
             captureMs = state.lastCaptureDuration.map { Int($0 / .milliseconds(1)) }
