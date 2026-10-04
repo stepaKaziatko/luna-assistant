@@ -131,3 +131,48 @@ test("task.submit с followUpOf: InvalidParams с context, executor и для н
   assert.ok(argv[1]?.trimEnd().endsWith(`--resume ${answered.sessionId}`), argv[1]);
   assert.equal(await core.stop(), 0);
 });
+
+test("уточнение с потерянной сессией: ядро само отправляет переписку заново, задача завершается без ошибки", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "luna-data-"));
+  const fixtures = new URL("./fixtures/claude-code/", import.meta.url);
+  const success = fileURLToPath(new URL("success.jsonl", fixtures));
+  const notFound = fileURLToPath(new URL("session-not-found.jsonl", fixtures));
+  // Подставной исполнитель: stdin каждого запуска — в файл по номеру; с --resume сессии «нет».
+  const claude = join(dir, "claude");
+  writeFileSync(
+    claude,
+    [
+      "#!/bin/sh",
+      `n=$(( $(cat "${dir}/count" 2>/dev/null || echo 0) + 1 )); echo "$n" > "${dir}/count"`,
+      `cat > "${dir}/stdin-$n"`,
+      `case "$*" in *--resume*) echo resume >> "${dir}/calls"; cat "${notFound}"; exit 1;; esac`,
+      `echo new >> "${dir}/calls"`,
+      `cat "${success}"`,
+      "",
+    ].join("\n"),
+  );
+  chmodSync(claude, 0o755);
+  const core = startCore({ LUNA_DATA_DIR: dir, LUNA_CLAUDE_BIN: claude });
+  await core.request("core.hello");
+
+  const done = core.waitFor((message) => message.method === "task.done");
+  const first = (await core.request("task.submit", { prompt: "сводка", context: { url: "https://example.com" } })).result?.task as TaskInfo;
+  assert.ok((await done).params?.task.result);
+
+  const followUpDone = core.waitFor((message) => message.method === "task.done" && message.params?.task.id !== first.id);
+  const followUp = (await core.request("task.submit", { prompt: "а подробнее?", followUpOf: first.id })).result?.task as TaskInfo;
+  const finished = (await followUpDone).params?.task;
+  assert.equal(finished?.id, followUp.id);
+  assert.equal(finished?.status, "done");
+
+  assert.deepEqual(readFileSync(join(dir, "calls"), "utf8").trim().split("\n"), ["new", "resume", "new"]);
+  const resent = readFileSync(join(dir, "stdin-3"), "utf8");
+  assert.ok(resent.startsWith("<context>\nurl: https://example.com\n</context>\n\n<history>\n<question>\nсводка\n</question>"), resent);
+  assert.ok(resent.endsWith("</history>\n\n<task>\nа подробнее?\n</task>"), resent);
+  const methods = core.lines.map((line) => (JSON.parse(line) as Message).method);
+  assert.equal(methods.includes("task.failed"), false);
+  assert.ok(
+    core.lines.some((line) => (JSON.parse(line) as Message).params?.task.progress === "разговор не сохранился, отправляю переписку заново…"),
+  );
+  assert.equal(await core.stop(), 0);
+});

@@ -8,7 +8,7 @@ export type ExecutorEvent =
   | { type: "failed"; error: TaskError };
 
 export interface ExecutorRequest {
-  /** Тело запроса: <context> + <task>; у уточнения — только <task>. */
+  /** Тело запроса: <context> + <task>; у уточнения — только <task>; при повторной отправке переписки — <context> первой задачи, <history> и <task>. */
   prompt: string;
   /** Требования к формату ответа; исполнитель сам решает, как их передать модели. */
   formatRules: string;

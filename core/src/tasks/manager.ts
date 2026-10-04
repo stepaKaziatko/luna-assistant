@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { createTaskWorkdir } from "../context/workdir.ts";
-import type { Executor } from "../executors/executor.ts";
-import { buildPrompt, FORMAT_RULES } from "../prompt/build.ts";
+import type { Executor, ExecutorEvent } from "../executors/executor.ts";
+import { buildPrompt, FORMAT_RULES, type HistoryTurn } from "../prompt/build.ts";
 import type { ExecutorId, TaskInfo, TaskSubmitParams } from "../rpc/protocol.gen.ts";
 import { INTERRUPTED_MESSAGE, type StoredTask, type TaskHistory } from "./history.ts";
 
@@ -22,6 +22,9 @@ export interface TaskManagerOptions {
 
 /** Сколько задач отдаёт `list()`: активные — всегда, остальное — последние завершённые. */
 export const LIST_LIMIT = 200;
+
+/** Прогресс уточнения, сессию которого исполнитель потерял: переписка уходит ему заново. */
+export const RESEND_PROGRESS = "разговор не сохранился, отправляю переписку заново…";
 
 /** Уточнение нельзя принять; `main.ts` отвечает на него `InvalidParams`. */
 export class FollowUpError extends Error {}
@@ -84,8 +87,9 @@ export class TaskManager {
 
   /**
    * Точка продолжения диалога — его последняя задача `done` с `sessionId`. После неё могут идти
-   * только неудачные или отменённые уточнения, кроме потерянной сессии: такой диалог до
-   * повторной отправки переписки (LUNA-25) не продолжается. Пока в диалоге есть активная
+   * только неудачные или отменённые уточнения, кроме потерянной сессии: `session_not_found`
+   * остаётся у задачи, только когда переписку отправить заново было нечем (в диалоге нет ни
+   * одного сохранённого ответа), — такой диалог не продолжается. Пока в диалоге есть активная
    * задача, уточнение не принимается.
    */
   private followUpPoint(taskId: string): { task: TaskInfo; sessionId: string; workdir?: string } {
@@ -192,40 +196,83 @@ export class TaskManager {
       entry.workdir = cwd;
       this.save(entry);
       // У уточнения контекста нет: промпт — только <task>, прежний разговор уже в сессии.
-      const events = executor.run({
+      let outcome = await this.follow(entry, executor.run({
         prompt: buildPrompt(info.prompt, info.context),
         formatRules: FORMAT_RULES,
         cwd,
         signal: abort.signal,
         ...(entry.resume ? { resume: entry.resume } : {}),
-      });
+      }));
 
-      for await (const event of events) {
-        if (isFinal(info)) return;
-        switch (event.type) {
-          case "session":
-            info.sessionId = event.sessionId;
-            this.save(entry);
-            break;
-          case "progress":
-            // Прогресс на диск не пишется: он устаревает раньше, чем его прочтут.
-            info.progress = event.text;
-            this.emit("task.progress", info);
-            break;
-          case "done":
-            this.finish(entry, "task.done", { status: "done", result: event.result });
-            return;
-          case "failed":
-            this.finish(entry, "task.failed", { status: "failed", error: event.error });
-            return;
-        }
+      // Исполнитель потерял сессию уточнения — один раз отправляем ему переписку заново,
+      // новой сессией в той же директории. Отменённая за это время задача не перезапускается.
+      const resend = entry.resume && outcome?.type === "failed" && outcome.error.kind === "session_not_found" && !isFinal(info)
+        ? this.resendPrompt(info)
+        : undefined;
+      if (resend !== undefined) {
+        // Потерянный id пришёл в первом потоке — у задачи его оставлять нельзя.
+        delete info.sessionId;
+        this.save(entry);
+        info.progress = RESEND_PROGRESS;
+        this.emit("task.progress", info);
+        outcome = await this.follow(entry, executor.run({ prompt: resend, formatRules: FORMAT_RULES, cwd, signal: abort.signal }));
       }
-      if (!isFinal(info)) throw new Error("Исполнитель завершился без результата");
+
+      if (isFinal(info)) return;
+      if (outcome?.type === "done") this.finish(entry, "task.done", { status: "done", result: outcome.result });
+      else if (outcome?.type === "failed") this.finish(entry, "task.failed", { status: "failed", error: outcome.error });
+      else throw new Error("Исполнитель завершился без результата");
     } catch (error) {
       if (isFinal(info)) return;
       const message = error instanceof Error ? error.message : String(error);
       this.finish(entry, "task.failed", { status: "failed", error: { kind: "unknown", message } });
     }
+  }
+
+  /**
+   * Ведёт задачу по потоку одного запуска исполнителя: сессия и прогресс — сразу, итог
+   * (`done`/`failed`) возвращается вызывающему. Undefined — поток кончился без итога
+   * или задача уже завершена (отменена). Выход из цикла закрывает поток и процесс исполнителя.
+   */
+  private async follow(
+    entry: Entry,
+    events: AsyncIterable<ExecutorEvent>,
+  ): Promise<Extract<ExecutorEvent, { type: "done" | "failed" }> | undefined> {
+    const { info } = entry;
+    for await (const event of events) {
+      if (isFinal(info)) return undefined;
+      switch (event.type) {
+        case "session":
+          info.sessionId = event.sessionId;
+          this.save(entry);
+          break;
+        case "progress":
+          // Прогресс на диск не пишется: он устаревает раньше, чем его прочтут.
+          info.progress = event.text;
+          this.emit("task.progress", info);
+          break;
+        case "done":
+        case "failed":
+          return event;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Промпт повторной отправки: контекст первой задачи диалога, прежние вопросы и ответы
+   * (только `done` с непустым ответом) и само уточнение. Undefined — отправлять нечего:
+   * в диалоге нет ни одного сохранённого ответа.
+   */
+  private resendPrompt(info: TaskInfo): string | undefined {
+    const earlier = this.thread(info.threadId).filter((task) => task.id !== info.id && task.createdAt <= info.createdAt);
+    const history: HistoryTurn[] = earlier
+      .filter((task) => task.status === "done" && task.result?.trim())
+      .map((task) => ({ question: task.prompt, answer: task.result ?? "" }));
+    if (history.length === 0) return undefined;
+    // Первая задача могла уйти из истории (предел, удаление) — тогда без <context>.
+    const first = earlier.find((task) => task.id === info.threadId);
+    return buildPrompt(info.prompt, first?.context, history);
   }
 
   private finish(entry: Entry, event: TaskEventName, patch: Partial<TaskInfo>): void {
