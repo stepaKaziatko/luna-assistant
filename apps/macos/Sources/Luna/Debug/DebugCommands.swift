@@ -7,8 +7,10 @@ import AppKit
 ///
 /// - `toggleInput`, `lastResult`, `tasks`, `collapse`, `pillClick` — то же, что хоткеи и клик по pill;
 /// - `submit:<текст>` — отправить запрос с текущим контекстом;
+/// - `cancelSelected` — кнопка отмены у выбранной строки списка задач;
 /// - `context:<json>` — подменить захваченный контекст (поля TaskContext; `app` обязателен);
-/// - `key:<код клавиши>` и `type:<текст>` — нажатия в открытой панели;
+/// - `key:<код клавиши>` и `type:<текст>` — нажатия в открытой панели (`key:48` — Tab,
+///   фокус в поле продолжения карточки; `key:36` — ↩);
 /// - `dump:<путь>` — состояние приложения в JSON; `snapshot:<путь>` — PNG панели;
 /// - `quit` — то же, что «Выйти из Luna» в меню.
 @MainActor
@@ -37,6 +39,8 @@ enum DebugCommands {
         case "submit":
             state.draft = argument
             state.submit()
+        case "cancelSelected":
+            if let threadId = state.selectedThreadId { state.cancel(threadId: threadId) }
         case "context":
             guard let context = try? JSONDecoder().decode(TaskContext.self, from: Data(argument.utf8)),
                   let app = context.app else { return }
@@ -59,15 +63,38 @@ enum DebugCommands {
         }
     }
 
-    /// Символы, которые оконный сервер кладёт в событие для служебных клавиш: esc, ↩, ↓, ↑.
-    private static let keyCharacters: [UInt16: String] = [53: "\u{1B}", 36: "\r", 125: "\u{F701}", 126: "\u{F700}"]
+    /// Символы, которые оконный сервер кладёт в событие для служебных клавиш: esc, ↩, ↓, ↑, Tab.
+    private static let keyCharacters: [UInt16: String] = [
+        53: "\u{1B}", 36: "\r", 125: "\u{F701}", 126: "\u{F700}", 48: "\t",
+    ]
+
+    /// Диалог глазами списка задач и карточки.
+    private struct DialogDump: Encodable {
+        let threadId: String
+        let title: String
+        let taskIds: [String]
+        let followUps: Int
+        /// К какой задаче уйдёт уточнение; nil — поля продолжения нет.
+        let continuationPoint: String?
+
+        init(_ dialog: Dialog) {
+            threadId = dialog.threadId
+            title = dialog.title
+            taskIds = dialog.tasks.map(\.id)
+            followUps = dialog.followUpCount
+            continuationPoint = dialog.continuationPoint?.id
+        }
+    }
 
     private struct Dump: Encodable {
         let mode: String
         let draft: String
         let context: TaskContext?
         let issues: [String]
-        let selectedTaskId: String?
+        let selectedThreadId: String?
+        let followUpDraft: String
+        let followUpError: String?
+        let dialogs: [DialogDump]
         let unseen: [String]
         let pill: String
         let problem: String?
@@ -82,7 +109,10 @@ enum DebugCommands {
             draft = state.draft
             context = state.context?.payload
             issues = state.captureIssues.map { String(describing: $0) }
-            selectedTaskId = state.selectedTaskId
+            selectedThreadId = state.selectedThreadId
+            followUpDraft = state.followUpDraft
+            followUpError = state.followUpError
+            dialogs = state.listedDialogs.map(DialogDump.init)
             unseen = state.unseen.sorted()
             pill = String(describing: state.pillState)
             problem = state.problem

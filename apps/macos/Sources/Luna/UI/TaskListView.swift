@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Список активных и завершённых задач: новые сверху, выбор стрелками, открытие по ↩ или клику.
+/// Список диалогов: строка на диалог, новые сверху, выбор стрелками, открытие по ↩ или клику.
 struct TaskListView: View {
     @EnvironmentObject private var state: AppState
     @State private var contentHeight: CGFloat = 0
@@ -31,36 +31,54 @@ struct TaskListView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(spacing: 2) {
-                    ForEach(state.listedTasks, id: \.id) { task in
-                        TaskRow(task: task, isSelected: task.id == state.selectedTaskId, isUnseen: state.unseen.contains(task.id))
-                            .id(task.id)
+                    ForEach(state.listedDialogs) { dialog in
+                        DialogRow(
+                            dialog: dialog,
+                            isSelected: dialog.threadId == state.selectedThreadId,
+                            isUnseen: dialog.tasks.contains { state.unseen.contains($0.id) }
+                        )
+                        .id(dialog.threadId)
                     }
                 }
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
             }
             .frame(height: min(max(contentHeight, 20), Layout.taskListMaxHeight))
-            .onChange(of: state.selectedTaskId) { _, selected in
+            .onChange(of: state.selectedThreadId) { _, selected in
                 if let selected { proxy.scrollTo(selected) }
             }
         }
     }
 }
 
-private struct TaskRow: View {
-    let task: TaskInfo
+/// Заголовок и источник — от первого запроса диалога, состояние и время — от последней задачи.
+private struct DialogRow: View {
+    let dialog: Dialog
     let isSelected: Bool
     let isUnseen: Bool
 
     @EnvironmentObject private var state: AppState
+
+    private var task: TaskInfo { dialog.last }
 
     var body: some View {
         HStack(spacing: 10) {
             indicator.frame(width: 16)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(task.prompt)
-                    .font(.system(size: 13, weight: isUnseen ? .semibold : .regular))
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(dialog.title)
+                        .font(.system(size: 13, weight: isUnseen ? .semibold : .regular))
+                        .lineLimit(1)
+                    if dialog.followUpCount > 0 {
+                        Text("+\(dialog.followUpCount)")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(.white.opacity(0.1), in: Capsule())
+                            .help("Уточнений: \(dialog.followUpCount)")
+                    }
+                }
                 Text(subtitle)
                     .font(.system(size: 11))
                     .foregroundStyle(task.status == .failed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
@@ -68,14 +86,14 @@ private struct TaskRow: View {
             }
             Spacer(minLength: 12)
 
-            if let source = task.context, source.sourceLabel != nil {
+            if let source = dialog.first.context, source.sourceLabel != nil {
                 SourceLabel(source: source)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: 170, alignment: .trailing)
             }
-            if task.isActive {
-                Button(action: { state.cancel(taskId: task.id) }) {
+            if dialog.activeTask != nil {
+                Button(action: { state.cancel(threadId: dialog.threadId) }) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
                         .contentShape(Rectangle())
@@ -88,7 +106,7 @@ private struct TaskRow: View {
         .padding(.vertical, 7)
         .background(.white.opacity(isSelected ? 0.1 : 0), in: RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
-        .onTapGesture { state.open(taskId: task.id) }
+        .onTapGesture { state.open(threadId: dialog.threadId) }
     }
 
     @ViewBuilder

@@ -62,7 +62,8 @@ final class PanelController {
         case .pill: NSSize(width: 360, height: 44)
         case .input: NSSize(width: Layout.cardWidth + 2 * Layout.shadowMargin, height: 260)
         case .tasks: NSSize(width: Layout.cardWidth + 2 * Layout.shadowMargin, height: Layout.taskListMaxHeight + 110)
-        case .result: NSSize(width: Layout.cardWidth + 2 * Layout.shadowMargin, height: Layout.resultMaxHeight + 140)
+        // Запас под шапку и подвал: поле продолжения, ошибку отправки, «Копировать».
+        case .result: NSSize(width: Layout.cardWidth + 2 * Layout.shadowMargin, height: Layout.resultMaxHeight + 200)
         }
     }
 
@@ -72,8 +73,10 @@ final class PanelController {
 }
 
 private extension AppState {
-    /// Навигация по списку задач: ↓, ↑ и ↩/Enter.
+    /// Навигация по списку задач (↓, ↑ и ↩/Enter) и `Tab` в карточке — фокус в поле продолжения.
+    /// Сюда доходят только нажатия, которые не забрало поле ввода.
     func handleListKey(_ keyCode: UInt16) -> Bool {
+        if case .result = mode, keyCode == 48 { return focusFollowUp() }
         guard mode == .tasks else { return false }
         switch keyCode {
         case 125: moveSelection(by: 1)

@@ -31,7 +31,7 @@ final class TaskHistoryTests: XCTestCase {
         XCTAssertEqual(state.tasks.map(\.id), ["a", "b"])
         XCTAssertTrue(state.unseen.isEmpty)
         XCTAssertEqual(state.pillState, .idle)
-        XCTAssertEqual(state.listedTasks.map(\.id), ["b", "a"])
+        XCTAssertEqual(state.listedDialogs.map(\.threadId), ["b", "a"])
     }
 
     func testTaskFromEventStaysUnseenAfterHistoryLoad() {
@@ -47,6 +47,6 @@ final class TaskHistoryTests: XCTestCase {
         let state = AppState()
         state.applyHistory([task("b", .done, createdAt: 2), task("a", .done, createdAt: 1)])
         state.openLastResult()
-        XCTAssertEqual(state.mode, .result(taskId: "b"))
+        XCTAssertEqual(state.mode, .result(threadId: "b"))
     }
 }
