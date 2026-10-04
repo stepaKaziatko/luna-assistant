@@ -8,18 +8,9 @@ import type { TaskError, TaskInfo, TaskSubmitParams } from "../src/rpc/protocol.
 import { openHistory } from "../src/tasks/history.ts";
 import { FollowUpError, TaskManager } from "../src/tasks/manager.ts";
 import { ManualExecutor } from "./support/manual-executor.ts";
+import { nextRun as nextRunOf, until } from "./support/wait.ts";
 
 const quiet = () => {};
-const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
-
-/** Ждёт условия, а не фиксированную паузу: на медленном раннере CI запуск задачи может опоздать. */
-async function until(condition: () => boolean, what = "условие"): Promise<void> {
-  const deadline = Date.now() + 5000;
-  while (!condition()) {
-    if (Date.now() > deadline) assert.fail(`не дождались: ${what}`);
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
-}
 
 /** Ядро на каталоге данных, как в main.ts: история на диске и менеджер поверх неё. */
 async function start(dir = mkdtempSync(join(tmpdir(), "luna-data-"))) {
@@ -49,15 +40,17 @@ async function start(dir = mkdtempSync(join(tmpdir(), "luna-data-"))) {
   };
 
   /** Запуск исполнителя с номером `index` — дожидается его. */
-  const nextRun = async (index: number) => {
-    await until(() => executor.runs.length > index, "запуска исполнителя");
-    const run = executor.runs[index];
-    assert.ok(run);
-    return run;
+  const nextRun = (index: number) => nextRunOf(executor, index);
+
+  /** Отправляет задачу и дожидается запуска исполнителя — после этого её можно отменять. */
+  const startRun = async (params: TaskSubmitParams) => {
+    const started = executor.runs.length;
+    const task = manager.submit(params);
+    return { task, run: await nextRun(started) };
   };
 
   const find = (id: string) => manager.list().find((task) => task.id === id);
-  return { dir, history, executor, manager, finish, nextRun, find };
+  return { dir, history, executor, manager, finish, nextRun, startRun, find };
 }
 
 const rejects = (manager: TaskManager, followUpOf: string) =>
@@ -118,13 +111,11 @@ test("followUpOf отклоняется: задачи нет, не done, без 
   const failed = await core.finish({ prompt: "f" }, { sessionId: "sf", error: { kind: "auth", message: "Not logged in" } });
   rejects(core.manager, failed.task.id);
 
-  const cancelled = core.manager.submit({ prompt: "c" });
-  await settle();
+  const { task: cancelled } = await core.startRun({ prompt: "c" });
   core.manager.cancel(cancelled.id);
   rejects(core.manager, cancelled.id);
 
-  const running = core.manager.submit({ prompt: "r" });
-  await settle();
+  const { task: running } = await core.startRun({ prompt: "r" });
   rejects(core.manager, running.id);
   core.manager.cancel(running.id);
 
@@ -138,9 +129,10 @@ test("followUpOf отклоняется: задачи нет, не done, без 
 
   // Пока уточнение выполняется, следующее не принимается.
   const active = await core.finish({ prompt: "a" }, { sessionId: "sa" });
+  const pendingRun = core.executor.runs.length;
   const pending = core.manager.submit({ prompt: "a2", followUpOf: active.task.id });
   rejects(core.manager, active.task.id);
-  await settle();
+  await core.nextRun(pendingRun);
   rejects(core.manager, active.task.id);
   core.manager.cancel(pending.id);
 
@@ -160,10 +152,8 @@ test("неудачное или отменённое уточнение не з�
     { prompt: "2", followUpOf: first.task.id },
     { error: { kind: "rate_limit", message: "лимит" } },
   );
-  const cancelled = core.manager.submit({ prompt: "3", followUpOf: first.task.id });
-  await settle();
+  const { task: cancelled } = await core.startRun({ prompt: "3", followUpOf: first.task.id });
   core.manager.cancel(cancelled.id);
-  await settle();
 
   const started = core.executor.runs.length;
   const accepted = core.manager.submit({ prompt: "4", followUpOf: first.task.id });

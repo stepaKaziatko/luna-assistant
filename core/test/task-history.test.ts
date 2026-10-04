@@ -7,9 +7,9 @@ import type { TaskInfo } from "../src/rpc/protocol.gen.ts";
 import { INTERRUPTED_MESSAGE, openHistory, type StoredTask, type TaskHistory } from "../src/tasks/history.ts";
 import { TaskManager, type TaskEventName } from "../src/tasks/manager.ts";
 import { ManualExecutor } from "./support/manual-executor.ts";
+import { nextRun, quietPeriod, until } from "./support/wait.ts";
 
 const quiet = () => {};
-const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
 function dataDir(): string {
   return mkdtempSync(join(tmpdir(), "luna-data-"));
@@ -67,15 +67,23 @@ test("выполненная, упавшая и отменённая задач�
   const done = first.manager.submit({ prompt: "сводка", context: { url: "https://github.com/o/r", selection: "текст" } });
   const failed = first.manager.submit({ prompt: "ошибка" });
   const cancelled = first.manager.submit({ prompt: "отмена" });
-  await settle();
+  await until(() => first.executor.runs.length === 3, "запуска трёх задач");
   // Запуски параллельны и могут прийти в любом порядке — ищем по рабочей директории.
-  const runOf = (id: string) => first.executor.runs.find((run) => run.request.cwd.endsWith(id));
-  runOf(done.id)?.push({ type: "session", sessionId: "s1" });
-  runOf(done.id)?.push({ type: "progress", text: "читает README.md" });
-  runOf(done.id)?.push({ type: "done", result: "готово" });
-  runOf(failed.id)?.push({ type: "failed", error: { kind: "auth", message: "Not logged in" } });
+  const runOf = (id: string) => {
+    const run = first.executor.runs.find((candidate) => candidate.request.cwd.endsWith(id));
+    assert.ok(run, `запуск задачи ${id}`);
+    return run;
+  };
+  runOf(done.id).push({ type: "session", sessionId: "s1" });
+  runOf(done.id).push({ type: "progress", text: "читает README.md" });
+  runOf(done.id).push({ type: "done", result: "готово" });
+  runOf(failed.id).push({ type: "failed", error: { kind: "auth", message: "Not logged in" } });
   first.manager.cancel(cancelled.id);
-  await settle();
+  const status = (id: string) => first.history.get(id)?.task.status;
+  await until(
+    () => status(done.id) === "done" && status(failed.id) === "failed" && status(cancelled.id) === "cancelled",
+    "записи итогов трёх задач",
+  );
   const before = first.manager.list();
   first.history.close();
 
@@ -96,7 +104,7 @@ test("выполненная, упавшая и отменённая задач�
 
   // Рабочая директория хранится, но в протокол не выходит.
   const row = second.history.recent(10).find((entry) => entry.task.id === done.id);
-  assert.equal(row?.workdir, runOf(done.id)?.request.cwd);
+  assert.equal(row?.workdir, runOf(done.id).request.cwd);
   assert.equal("workdir" in (restored ?? {}), false);
 });
 
@@ -105,8 +113,9 @@ test("задачи running и queued брошенного менеджера п�
   const first = await start(dir, 1);
   const running = first.manager.submit({ prompt: "долгая" });
   const queued = first.manager.submit({ prompt: "в очереди" });
-  await settle();
-  assert.equal(first.manager.list().find((task) => task.id === running.id)?.status, "running");
+  // Исполнитель запускается после записи статуса running.
+  await nextRun(first.executor, 0);
+  assert.equal(first.history.get(running.id)?.task.status, "running");
 
   const second = await start(dir);
   for (const id of [running.id, queued.id]) {
@@ -122,11 +131,11 @@ test("выход из Luna: выполняющаяся задача записы
   const first = await start(dir, 1);
   const running = first.manager.submit({ prompt: "долгая" });
   const queued = first.manager.submit({ prompt: "в очереди" });
-  await settle();
+  const run = await nextRun(first.executor, 0);
 
   first.manager.shutdown();
-  await settle();
-  assert.equal(first.executor.runs[0]?.request.signal.aborted, true);
+  await quietPeriod();
+  assert.equal(run.request.signal.aborted, true);
   assert.equal(first.executor.runs.length, 1, "задача из очереди не запускается");
   assert.deepEqual(first.events.map((entry) => entry.event), ["task.started"]);
   first.history.close();
@@ -166,8 +175,8 @@ test("активные задачи попадают в list() всегда, в�
   seed?.close();
 
   const { manager } = await start(dir, 1);
+  // Задача активна с момента отправки: ждать запуска не нужно.
   const active = [manager.submit({ prompt: "1" }), manager.submit({ prompt: "2" }), manager.submit({ prompt: "3" })];
-  await settle();
 
   const listed = manager.list();
   assert.equal(listed.length, 200);
@@ -197,9 +206,8 @@ test("повреждённый history.db откладывается, ядро �
     emit: quiet,
   });
   const task = manager.submit({ prompt: "после сбоя" });
-  await settle();
-  executor.runs[0]?.push({ type: "done", result: "ok" });
-  await settle();
+  (await nextRun(executor, 0)).push({ type: "done", result: "ok" });
+  await until(() => history.get(task.id)?.task.status === "done", "записи итога задачи");
   history.close();
 
   const next = await start(dir);
@@ -243,9 +251,8 @@ test("сбой записи не мешает задаче: она выполн�
     emit: (event) => events.push(event),
   });
   const task = manager.submit({ prompt: "x" });
-  await settle();
-  executor.runs[0]?.push({ type: "done", result: "готово" });
-  await settle();
+  (await nextRun(executor, 0)).push({ type: "done", result: "готово" });
+  await until(() => events.includes("task.done"), "завершения задачи");
 
   assert.deepEqual(events, ["task.started", "task.done"]);
   assert.equal(manager.list().find((candidate) => candidate.id === task.id)?.result, "готово");
@@ -262,19 +269,19 @@ test("прогресс исполнителя не пишется на диск"
     history,
     emit: quiet,
   });
-  manager.submit({ prompt: "x" });
-  await settle();
-  executor.runs[0]?.push({ type: "session", sessionId: "s1" });
-  await settle();
+  const task = manager.submit({ prompt: "x" });
+  const run = await nextRun(executor, 0);
+  run.push({ type: "session", sessionId: "s1" });
+  await until(() => history.saves.at(-1)?.sessionId === "s1", "записи сессии");
   const writes = history.saves.length;
 
-  executor.runs[0]?.push({ type: "progress", text: "читает" });
-  executor.runs[0]?.push({ type: "progress", text: "пишет" });
-  await settle();
+  run.push({ type: "progress", text: "читает" });
+  run.push({ type: "progress", text: "пишет" });
+  await until(() => manager.list().find((candidate) => candidate.id === task.id)?.progress === "пишет", "прогресса");
   assert.equal(history.saves.length, writes);
 
-  executor.runs[0]?.push({ type: "done", result: "ok" });
-  await settle();
+  run.push({ type: "done", result: "ok" });
+  await until(() => history.saves.at(-1)?.status === "done", "записи итога");
   assert.deepEqual(history.saves.map((task) => task.status), ["queued", "running", "running", "done"]);
   assert.ok(history.saves.every((task) => task.progress === undefined));
 });
