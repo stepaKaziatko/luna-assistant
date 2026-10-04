@@ -78,8 +78,36 @@ export interface TaskCancelParams {
     taskId: string;
 }
 
+export interface TaskListParams {
+    /**
+     * подстрока запроса или ответа задачи без учёта регистра; пустая — обычный список
+     */
+    query?: string;
+}
+
 export interface TaskListResult {
     tasks: TaskInfo[];
+}
+
+export interface TaskDeleteParams {
+    /**
+     * любая задача диалога: удаляется весь диалог
+     */
+    taskId: string;
+}
+
+export interface TaskDeleteResult {
+    /**
+     * id удалённых задач
+     */
+    deleted: string[];
+}
+
+export interface TaskClearResult {
+    /**
+     * id задач удалённых диалогов: всех, где нет задачи queued или running
+     */
+    deleted: string[];
 }
 
 export interface TaskEventParams {

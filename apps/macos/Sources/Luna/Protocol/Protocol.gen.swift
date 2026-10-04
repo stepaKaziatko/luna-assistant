@@ -91,9 +91,33 @@ struct TaskCancelParams: Codable, Equatable, Sendable {
     let taskId: String
 }
 
+// MARK: - TaskListParams
+struct TaskListParams: Codable, Equatable, Sendable {
+    /// подстрока запроса или ответа задачи без учёта регистра; пустая — обычный список
+    let query: String?
+}
+
 // MARK: - TaskListResult
 struct TaskListResult: Codable, Equatable, Sendable {
     let tasks: [TaskInfo]
+}
+
+// MARK: - TaskDeleteParams
+struct TaskDeleteParams: Codable, Equatable, Sendable {
+    /// любая задача диалога: удаляется весь диалог
+    let taskId: String
+}
+
+// MARK: - TaskDeleteResult
+struct TaskDeleteResult: Codable, Equatable, Sendable {
+    /// id удалённых задач
+    let deleted: [String]
+}
+
+// MARK: - TaskClearResult
+struct TaskClearResult: Codable, Equatable, Sendable {
+    /// id задач удалённых диалогов: всех, где нет задачи queued или running
+    let deleted: [String]
 }
 
 // MARK: - TaskEventParams

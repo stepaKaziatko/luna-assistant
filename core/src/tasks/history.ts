@@ -26,6 +26,15 @@ export interface TaskHistory {
   get(id: string): StoredTask | undefined;
   /** Все задачи диалога в порядке создания. */
   thread(threadId: string): StoredTask[];
+  /**
+   * Задачи, у которых запрос или ответ содержит `query` целиком, без учёта регистра
+   * (в том числе кириллицы), новые первыми. `query` ищется буквально: `%`, `_`, `\` — обычные символы.
+   */
+  search(query: string, limit: number): StoredTask[];
+  /** Удаляет диалоги целиком одной транзакцией; возвращает удалённые задачи. */
+  deleteThreads(threadIds: string[]): StoredTask[];
+  /** Удаляет все диалоги, кроме перечисленных, одной транзакцией; возвращает удалённые задачи. */
+  deleteThreadsExcept(threadIds: string[]): StoredTask[];
   close(): void;
 }
 
@@ -34,6 +43,11 @@ export interface OpenHistoryOptions {
   now?: number;
   limit?: number;
   log?: (message: string) => void;
+}
+
+/** Сведение регистра для поиска: SQLite сам не сводит регистр кириллицы ни в `LIKE`, ни в `lower()`. */
+export function foldCase(text: string): string {
+  return text.toLowerCase();
 }
 
 /** Версия схемы `history.db`: 1 — LUNA-23, 2 — идентификатор диалога. */
@@ -123,11 +137,16 @@ class SqliteHistory implements TaskHistory {
   private readonly select;
   private readonly selectById;
   private readonly selectThread;
+  private readonly selectMatches;
+  private readonly selectThreadIds;
+  private readonly deleteThread;
 
   /** Бросает, если файл — не база SQLite: `DatabaseSync` узнаёт это только на первом запросе. */
   constructor(db: DatabaseSync, now: number, limit: number) {
     this.db = db;
-    db.exec("PRAGMA busy_timeout = 2000;");
+    // Удалённый текст затирается в файле, а не остаётся в свободных страницах.
+    db.exec("PRAGMA busy_timeout = 2000; PRAGMA secure_delete = ON;");
+    db.function("luna_fold", { deterministic: true }, (text) => (typeof text === "string" ? foldCase(text) : null));
     migrate(db);
     this.upsert = db.prepare(`
       INSERT INTO tasks (id, prompt, context, status, executor, result, error, session_id, created_at, finished_at, workdir, thread_id)
@@ -142,6 +161,14 @@ class SqliteHistory implements TaskHistory {
     this.select = db.prepare("SELECT * FROM tasks ORDER BY created_at DESC, rowid DESC LIMIT ?");
     this.selectById = db.prepare("SELECT * FROM tasks WHERE id = ?");
     this.selectThread = db.prepare("SELECT * FROM tasks WHERE thread_id = ? ORDER BY created_at, rowid");
+    // instr, а не LIKE: запрос — подстрока как есть, без шаблонных символов.
+    this.selectMatches = db.prepare(`
+      SELECT * FROM tasks
+      WHERE instr(luna_fold(prompt), $query) > 0 OR instr(luna_fold(result), $query) > 0
+      ORDER BY created_at DESC, rowid DESC LIMIT $limit
+    `);
+    this.selectThreadIds = db.prepare("SELECT DISTINCT thread_id FROM tasks");
+    this.deleteThread = db.prepare("DELETE FROM tasks WHERE thread_id = ?");
 
     db.prepare(`
       UPDATE tasks SET status = 'failed', error = ?, finished_at = ?
@@ -182,8 +209,45 @@ class SqliteHistory implements TaskHistory {
     return this.selectThread.all(threadId).map((row) => toStored(row as unknown as Row));
   }
 
+  search(query: string, limit: number): StoredTask[] {
+    return this.selectMatches.all({ $query: foldCase(query), $limit: limit }).map((row) => toStored(row as unknown as Row));
+  }
+
+  deleteThreads(threadIds: string[]): StoredTask[] {
+    return this.transaction(() => {
+      const deleted: StoredTask[] = [];
+      for (const threadId of new Set(threadIds)) {
+        deleted.push(...this.thread(threadId));
+        this.deleteThread.run(threadId);
+      }
+      return deleted;
+    });
+  }
+
+  deleteThreadsExcept(threadIds: string[]): StoredTask[] {
+    const kept = new Set(threadIds);
+    return this.transaction(() => {
+      const all = this.selectThreadIds.all().map((row) => (row as { thread_id: string | null }).thread_id);
+      return this.deleteThreads(all.filter((threadId): threadId is string => threadId !== null && !kept.has(threadId)));
+    });
+  }
+
   close(): void {
     this.db.close();
+  }
+
+  /** Всё или ничего: сбой посреди удаления не оставляет диалог наполовину. */
+  private transaction<T>(body: () => T): T {
+    if (this.db.isTransaction) return body();
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const result = body();
+      this.db.exec("COMMIT");
+      return result;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 }
 

@@ -17,7 +17,9 @@ npm run generate   # → core/src/rpc/protocol.gen.ts, apps/macos/Sources/Luna/P
 | `core.hello` | — | `HelloResult` |
 | `task.submit` | `TaskSubmitParams` | `TaskSubmitResult` |
 | `task.cancel` | `TaskCancelParams` | `{}` |
-| `task.list` | — | `TaskListResult` |
+| `task.list` | — или `TaskListParams` | `TaskListResult` |
+| `task.delete` | `TaskDeleteParams` | `TaskDeleteResult` |
+| `task.clear` | `{}` | `TaskClearResult` |
 
 `TaskSubmitParams.context` — то, что shell снял в момент вызова панели (`TaskContext`: приложение, URL, заголовок, выделение). Core его нормализует: оставляет известные поля, делает однострочными `app`, `url` и `title`, ограничивает длину.
 
@@ -28,6 +30,12 @@ npm run generate   # → core/src/rpc/protocol.gen.ts, apps/macos/Sources/Luna/P
 `TaskInfo.threadId` — id первой задачи диалога; у задачи без уточнений он равен её `id`. У уточнения — `threadId` и `executor` продолжаемой задачи.
 
 Продолжить можно только последнюю задачу диалога со статусом `done` и с `sessionId`: после неё в диалоге могут быть лишь `failed` и `cancelled`, кроме `failed` с видом `session_not_found` (сессия исполнителя не сохранилась, а переписку отправить заново нечем — в диалоге нет ни одного сохранённого ответа; такой диалог не продолжается), и в диалоге нет задачи `queued` или `running`. Иначе — ошибка `InvalidParams`.
+
+### Поиск и удаление
+
+`task.list` без params (или с пустым, из одних пробелов `query`) отдаёт активные задачи и последние завершённые, всего не больше 200. С `TaskListParams.query` — задачи, у которых `prompt` или `result` содержит запрос целиком как подстроку без учёта регистра (в том числе кириллица; `%`, `_` и `\` — обычные символы), по всей истории, не больше 200 совпавших, новые первыми, — вместе с остальными задачами их диалогов, чтобы диалог показывался целиком.
+
+`task.delete` удаляет диалог задачи `taskId` целиком: записи всех его задач в истории и их рабочие директории внутри каталога данных; `deleted` — id удалённых задач. Неизвестная задача — `{ deleted: [] }`. В диалоге есть задача `queued` или `running` — `InvalidParams`, ничего не удаляется. `task.clear` удаляет все диалоги без таких задач. Удаление необратимо; сессии исполнителя (история Claude Code) не трогаются. Событий об удалении нет.
 
 ## Уведомления (core → shell)
 

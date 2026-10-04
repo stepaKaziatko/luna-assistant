@@ -58,6 +58,17 @@ class FakeHistory implements TaskHistory {
   thread(): StoredTask[] {
     return [];
   }
+  search(): StoredTask[] {
+    return [];
+  }
+  deleteThreads(): StoredTask[] {
+    if (this.failing) throw new Error("database or disk is full");
+    return [];
+  }
+  deleteThreadsExcept(): StoredTask[] {
+    if (this.failing) throw new Error("database or disk is full");
+    return [];
+  }
   close(): void {}
 }
 

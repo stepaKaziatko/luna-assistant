@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, rm } from "node:fs/promises";
+import { join, resolve, sep } from "node:path";
 import { createTaskWorkdir } from "../context/workdir.ts";
 import type { Executor, ExecutorEvent } from "../executors/executor.ts";
 import { buildPrompt, FORMAT_RULES, type HistoryTurn } from "../prompt/build.ts";
 import type { ExecutorId, TaskInfo, TaskSubmitParams } from "../rpc/protocol.gen.ts";
-import { INTERRUPTED_MESSAGE, type StoredTask, type TaskHistory } from "./history.ts";
+import { foldCase, INTERRUPTED_MESSAGE, type StoredTask, type TaskHistory } from "./history.ts";
 
 export type TaskEventName = "task.started" | "task.progress" | "task.done" | "task.failed" | "task.cancelled";
 
@@ -28,6 +28,9 @@ export const RESEND_PROGRESS = "разговор не сохранился, от
 
 /** Уточнение нельзя принять; `main.ts` отвечает на него `InvalidParams`. */
 export class FollowUpError extends Error {}
+
+/** Диалог с выполняющейся задачей удалить нельзя; `main.ts` отвечает `InvalidParams`. */
+export class ActiveDialogError extends Error {}
 
 interface Entry {
   info: TaskInfo;
@@ -150,8 +153,90 @@ export class TaskManager {
     }
   }
 
+  /**
+   * Без запроса — активные задачи и последние завершённые, из этой сессии и из истории, новые
+   * первыми. С запросом — не больше `LIST_LIMIT` задач, у которых запрос или ответ содержит его
+   * без учёта регистра, вместе с остальными задачами их диалогов.
+   */
+  list(params: { query?: string } = {}): TaskInfo[] {
+    const query = params.query?.trim() ?? "";
+    return query === "" ? this.latest() : this.search(query);
+  }
+
+  private search(query: string): TaskInfo[] {
+    const needle = foldCase(query);
+    const matches = (task: TaskInfo) => foldCase(task.prompt).includes(needle) || foldCase(task.result ?? "").includes(needle);
+    const found = new Map<string, TaskInfo>();
+    for (const { info } of this.entries.values()) if (matches(info)) found.set(info.id, info);
+    // Задачи из памяти свежее записей: их совпадение уже решено выше.
+    const stored = this.readHistory((history) => history.search(query, LIST_LIMIT + this.entries.size)) ?? [];
+    for (const { task } of stored) if (!this.entries.has(task.id)) found.set(task.id, task);
+
+    const newestFirst = (a: TaskInfo, b: TaskInfo) => b.createdAt - a.createdAt;
+    const threadIds = new Set([...found.values()].sort(newestFirst).slice(0, LIST_LIMIT).map((task) => task.threadId));
+    // Диалог — одной строкой и целиком: к совпавшим задачам добавляются остальные задачи их диалогов.
+    const result: TaskInfo[] = [];
+    for (const threadId of threadIds) for (const task of this.thread(threadId)) result.push({ ...task });
+    return result.sort(newestFirst);
+  }
+
+  /**
+   * Удаляет диалог задачи целиком: записи в истории, задачи в памяти и рабочие директории.
+   * Возвращает id удалённых задач; неизвестная задача — пустой список. Бросает
+   * `ActiveDialogError`, если в диалоге есть задача в очереди или в работе, и ошибку истории,
+   * если удалить записи не удалось, — тогда ничего не удалено.
+   */
+  async delete(taskId: string): Promise<string[]> {
+    const target = this.entries.get(taskId)?.info ?? this.storedTask(taskId)?.info;
+    if (!target) return [];
+    if (this.thread(target.threadId).some(isActive)) throw new ActiveDialogError("dialog has an active task");
+    return this.remove((history) => history.deleteThreads([target.threadId]), (threadId) => threadId === target.threadId);
+  }
+
+  /** Удаляет все диалоги, в которых нет задачи в очереди или в работе. Возвращает id удалённых задач. */
+  async clear(): Promise<string[]> {
+    const active = new Set([...this.entries.values()].filter(({ info }) => isActive(info)).map(({ info }) => info.threadId));
+    return this.remove((history) => history.deleteThreadsExcept([...active]), (threadId) => !active.has(threadId));
+  }
+
+  /**
+   * Сначала история — её сбой прерывает удаление целиком, затем память, затем директории.
+   * Директория удаляется, только если лежит внутри `tasksDir`; сбой — в stderr, ответ успешный.
+   */
+  private async remove(fromHistory: (history: TaskHistory) => StoredTask[], inThread: (threadId: string) => boolean): Promise<string[]> {
+    const stored = this.options.history ? fromHistory(this.options.history) : [];
+    const deleted = new Map<string, string | undefined>(stored.map(({ task, workdir }) => [task.id, workdir]));
+    const threads = new Set(stored.map(({ task }) => task.threadId));
+    for (const [id, entry] of this.entries) {
+      if (!inThread(entry.info.threadId)) continue;
+      this.entries.delete(id);
+      deleted.set(id, entry.workdir ?? deleted.get(id));
+      threads.add(entry.info.threadId);
+    }
+
+    // У задач старой схемы директория не записана: кандидаты — по id задачи и по id диалога.
+    const dirs = new Set<string>();
+    for (const [id, workdir] of deleted) {
+      if (workdir) dirs.add(workdir);
+      dirs.add(join(this.options.tasksDir, id));
+    }
+    for (const threadId of threads) dirs.add(join(this.options.tasksDir, threadId));
+    const root = resolve(this.options.tasksDir) + sep;
+    await Promise.all(
+      [...dirs].map(async (dir) => {
+        if (!resolve(dir).startsWith(root)) return;
+        try {
+          await rm(dir, { recursive: true, force: true });
+        } catch (error) {
+          log(`рабочая директория ${dir} не удалена: ${describe(error)}`);
+        }
+      }),
+    );
+    return [...deleted.keys()];
+  }
+
   /** Активные задачи и последние завершённые — из этой сессии и из истории, новые первыми. */
-  list(): TaskInfo[] {
+  private latest(): TaskInfo[] {
     const active: TaskInfo[] = [];
     const finished = new Map<string, TaskInfo>();
     // От поздних к ранним: при равном createdAt порядок тот же, что у истории.
@@ -194,6 +279,8 @@ export class TaskManager {
         ? (await mkdir(entry.workdir, { recursive: true }), entry.workdir)
         : await createTaskWorkdir(this.options.tasksDir, info.id);
       entry.workdir = cwd;
+      // Отменённая за это время задача исполнителя не запускает: её диалог могли уже удалить.
+      if (isFinal(info)) return;
       this.save(entry);
       // У уточнения контекста нет: промпт — только <task>, прежний разговор уже в сессии.
       let outcome = await this.follow(entry, executor.run({
@@ -284,7 +371,8 @@ export class TaskManager {
 
   /** Сбой записи не мешает задаче: она выполняется и видна в этой сессии. */
   private save(entry: Entry): void {
-    if (!this.options.history) return;
+    // Удалённая задача не возвращается в историю поздней записью из run() или follow().
+    if (!this.options.history || this.entries.get(entry.info.id) !== entry) return;
     try {
       const { progress: _, ...snapshot } = entry.info;
       this.options.history.save(snapshot, entry.workdir);

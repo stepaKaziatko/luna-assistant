@@ -185,3 +185,49 @@ test("уточнение с потерянной сессией: ядро сам
   );
   assert.equal(await core.stop(), 0);
 });
+
+test("task.list с query, task.delete и task.clear через процесс ядра; удалённое не возвращается после перезапуска", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "luna-data-"));
+  const success = fileURLToPath(new URL("./fixtures/claude-code/success.jsonl", import.meta.url));
+  // Подставной исполнитель: запрос со словом «долгая» не завершается, остальные отдают записанный поток.
+  const claude = join(dir, "claude");
+  writeFileSync(claude, `#!/bin/sh\ncase "$(cat)" in *долгая*) exec sleep 30;; esac\ncat "${success}"\n`);
+  chmodSync(claude, 0o755);
+  const env = { LUNA_DATA_DIR: dir, LUNA_CLAUDE_BIN: claude };
+  const seed = await openHistory(dir, { log: () => {} });
+  seed?.save({ id: "old", threadId: "old", prompt: "Сделай ПЕРЕВОД", status: "done", executor: "claude-code", result: "ok", createdAt: 1, finishedAt: 2 });
+  seed?.save({ id: "keep", threadId: "keep", prompt: "погода", status: "done", executor: "claude-code", result: "ok", createdAt: 3, finishedAt: 4 });
+  seed?.save({ id: "gone", threadId: "gone", prompt: "сводка", status: "done", executor: "claude-code", result: "ok", createdAt: 5, finishedAt: 6 });
+  seed?.close();
+
+  const core = startCore(env);
+  await core.request("core.hello");
+  const list = async (params?: unknown) => ((await core.request("task.list", params)).result?.tasks as TaskInfo[]).map((task) => task.id).sort();
+  const errorCode = async (method: string, params: unknown) =>
+    ((await core.request(method, params)) as Message & { error?: { code: number } }).error?.code;
+
+  assert.deepEqual(await list({ query: "перевод" }), ["old"]);
+  assert.deepEqual(await list({ query: "  " }), ["gone", "keep", "old"]);
+  assert.deepEqual(await list({}), ["gone", "keep", "old"]);
+  assert.equal(await errorCode("task.list", { query: 42 }), -32602);
+  assert.equal(await errorCode("task.delete", {}), -32602);
+
+  // Ждём и ошибку: сломанное ядро роняет тест, а не вешает его.
+  const started = core.waitFor((message) => message.method === "task.started" || message.method === "task.failed");
+  const running = (await core.request("task.submit", { prompt: "долгая" })).result?.task as TaskInfo;
+  assert.equal((await started).method, "task.started");
+  assert.equal(await errorCode("task.delete", { taskId: running.id }), -32602);
+
+  assert.deepEqual((await core.request("task.delete", { taskId: "old" })).result, { deleted: ["old"] });
+  assert.deepEqual((await core.request("task.delete", { taskId: "missing" })).result, { deleted: [] });
+  assert.deepEqual(await list({ query: "перевод" }), []);
+  assert.deepEqual(((await core.request("task.clear")).result?.deleted as string[]).sort(), ["gone", "keep"]);
+  assert.deepEqual(await list(), [running.id]);
+  assert.equal(await core.stop(), 0);
+
+  const second = startCore(env);
+  await second.request("core.hello");
+  const after = (await second.request("task.list")).result?.tasks as TaskInfo[];
+  assert.deepEqual(after.map((task) => [task.id, task.status]), [[running.id, "failed"]]);
+  assert.equal(await second.stop(), 0);
+});

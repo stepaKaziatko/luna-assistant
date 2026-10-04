@@ -7,12 +7,16 @@ import { ErrorCode, RpcError, RpcServer } from "./rpc/jsonrpc.ts";
 import type {
   HelloResult,
   TaskCancelParams,
+  TaskClearResult,
+  TaskDeleteParams,
+  TaskDeleteResult,
+  TaskListParams,
   TaskListResult,
   TaskSubmitParams,
   TaskSubmitResult,
 } from "./rpc/protocol.gen.ts";
 import { openHistory } from "./tasks/history.ts";
-import { FollowUpError, TaskManager } from "./tasks/manager.ts";
+import { ActiveDialogError, FollowUpError, TaskManager } from "./tasks/manager.ts";
 
 const VERSION = "0.2.0";
 
@@ -85,7 +89,29 @@ rpc.method("task.cancel", (params) => {
   return {};
 });
 
-rpc.method("task.list", (): TaskListResult => ({ tasks: tasks.list() }));
+// Оболочка зовёт task.list и без params — тогда это обычный список.
+rpc.method("task.list", (params): TaskListResult => {
+  if (params === undefined || params === null) return { tasks: tasks.list() };
+  const { query } = asObject(params) as Partial<TaskListParams>;
+  if (query !== undefined && typeof query !== "string") throw new RpcError(ErrorCode.InvalidParams, "query must be a string");
+  return { tasks: tasks.list(query === undefined ? {} : { query }) };
+});
+
+rpc.method("task.delete", async (params): Promise<TaskDeleteResult> => {
+  const { taskId } = asObject(params) as Partial<TaskDeleteParams>;
+  if (typeof taskId !== "string") throw new RpcError(ErrorCode.InvalidParams, "taskId must be a string");
+  try {
+    return { deleted: await tasks.delete(taskId) };
+  } catch (error) {
+    if (error instanceof ActiveDialogError) throw new RpcError(ErrorCode.InvalidParams, error.message);
+    throw error;
+  }
+});
+
+rpc.method("task.clear", async (params): Promise<TaskClearResult> => {
+  if (params !== undefined && params !== null) asObject(params);
+  return { deleted: await tasks.clear() };
+});
 
 void cleanupWorkdirs(tasksDir).catch((error) => log(`workdir cleanup failed: ${String(error)}`));
 log(`started v${VERSION}, data dir: ${dataDir}`);
