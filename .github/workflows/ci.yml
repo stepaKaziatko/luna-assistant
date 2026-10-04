@@ -40,6 +40,12 @@ jobs:
              ! printf '%s\n' "$files" | grep -qE '^(apps/macos/|core/|protocol/|scripts/|package(-lock)?\.json|\.github/workflows/)'; then
             shell=false
           fi
+          # Коммит в main с ещё не выпущенной версией собирает и тестирует workflow Release —
+          # второй раз те же тесты на macOS не гоняем.
+          if [ "$GITHUB_EVENT_NAME" = push ] && version=$(scripts/check-version.sh) &&
+             ! git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            shell=false
+          fi
           echo "shell=$shell" >> "$GITHUB_OUTPUT"
 
   core:

@@ -1,16 +1,18 @@
 name: Release
 
-# Тег vX.Y.Z собирает бандлы и выкладывает их релизом в публичный репозиторий; исходники
-# остаются здесь. Ручной запуск собирает бандлы без публикации — их можно скачать из прогона.
+# Коммит в main с версией, у которой ещё нет тега, — это выпуск: бандлы собираются здесь
+# и выкладываются релизом в публичный репозиторий, исходники остаются в этом. Тег ставится
+# последним шагом, поэтому упавший выпуск повторяется перезапуском прогона.
+# Ручной запуск собирает бандлы без публикации — их можно скачать из прогона.
 on:
   push:
-    tags: ['v*']
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      publish:
-        description: Выложить в публичный репозиторий (запускать на теге)
-        type: boolean
-        default: false
+
+# Выпуски идут по одному: следующий прогон должен увидеть тег предыдущего.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 env:
   RELEASES_REPO: stepaKaziatko/luna-releases
@@ -24,30 +26,31 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      build: ${{ steps.version.outputs.build }}
       publish: ${{ steps.version.outputs.publish }}
     steps:
       - uses: actions/checkout@v7
       - id: version
-        env:
-          PUBLISH_INPUT: ${{ inputs.publish }}
         run: |
+          version=$(scripts/check-version.sh)
+          build=true
           publish=false
-          if [ "$GITHUB_REF_TYPE" = tag ]; then
-            version=$(scripts/check-version.sh "$GITHUB_REF_NAME")
-            if [ "$GITHUB_EVENT_NAME" = push ] || [ "$PUBLISH_INPUT" = true ]; then publish=true; fi
-          else
-            version=$(scripts/check-version.sh)
-            if [ "$PUBLISH_INPUT" = true ]; then
-              echo "::error::Публикация идёт только с тега: запустите workflow на теге v$version"
-              exit 1
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+              echo "Версия $version уже выпущена — собирать нечего."
+              build=false
+            else
+              publish=true
             fi
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
           echo "publish=$publish" >> "$GITHUB_OUTPUT"
 
   macos:
     name: Luna.app (macOS, universal)
     needs: version
+    if: needs.version.outputs.build == 'true'
     runs-on: macos-15
     env:
       VERSION: ${{ needs.version.outputs.version }}
@@ -84,6 +87,7 @@ jobs:
   core:
     name: Ядро (${{ matrix.platform }})
     needs: version
+    if: needs.version.outputs.build == 'true'
     strategy:
       matrix:
         include:
@@ -113,6 +117,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      TAG: v${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -122,11 +128,9 @@ jobs:
       - name: Бандлы — в публичный репозиторий
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-        run: scripts/publish-release.sh "$GITHUB_REF_NAME" dist
-      # Здесь у релиза только заметки: качать из закрытого репозитория никто не должен.
-      - name: Заметки — в этом репозитории
+        run: scripts/publish-release.sh "$TAG" dist
+      # Здесь у релиза только тег и заметки: качать из закрытого репозитория никто не должен.
+      - name: Тег и заметки — в этом репозитории
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 ||
-            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "Luna $GITHUB_REF_NAME"
+        run: gh release create "$TAG" --target "$GITHUB_SHA" --generate-notes --title "Luna $TAG"
