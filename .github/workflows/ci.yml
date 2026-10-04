@@ -27,10 +27,17 @@ jobs:
       - id: filter
         env:
           BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
         run: |
+          case "$GITHUB_EVENT_NAME" in
+            pull_request) range="origin/$BASE_REF...HEAD" ;;
+            push) range="$BEFORE..$GITHUB_SHA" ;;
+            *) range= ;;
+          esac
           shell=true
-          if [ "$GITHUB_EVENT_NAME" = pull_request ] &&
-             ! git diff --name-only "origin/$BASE_REF...HEAD" | grep -qE '^(apps/macos/|core/|protocol/|scripts/|package(-lock)?\.json|\.github/workflows/)'; then
+          # Диапазон не разобрать (первый push ветки, переписанная история) — проверяем всё.
+          if [ -n "$range" ] && files=$(git diff --name-only "$range" 2>/dev/null) &&
+             ! printf '%s\n' "$files" | grep -qE '^(apps/macos/|core/|protocol/|scripts/|package(-lock)?\.json|\.github/workflows/)'; then
             shell=false
           fi
           echo "shell=$shell" >> "$GITHUB_OUTPUT"
