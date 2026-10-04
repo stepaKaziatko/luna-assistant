@@ -12,6 +12,15 @@ import { ManualExecutor } from "./support/manual-executor.ts";
 const quiet = () => {};
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
+/** Ждёт условия, а не фиксированную паузу: на медленном раннере CI запуск задачи может опоздать. */
+async function until(condition: () => boolean, what = "условие"): Promise<void> {
+  const deadline = Date.now() + 5000;
+  while (!condition()) {
+    if (Date.now() > deadline) assert.fail(`не дождались: ${what}`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
 /** Ядро на каталоге данных, как в main.ts: история на диске и менеджер поверх неё. */
 async function start(dir = mkdtempSync(join(tmpdir(), "luna-data-"))) {
   const history = await openHistory(dir, { log: quiet });
@@ -30,18 +39,25 @@ async function start(dir = mkdtempSync(join(tmpdir(), "luna-data-"))) {
     params: TaskSubmitParams,
     outcome: { sessionId?: string; result?: string; error?: TaskError } = {},
   ) => {
+    const started = executor.runs.length;
     const task = manager.submit(params);
-    await settle();
-    const run = executor.runs.at(-1);
-    assert.ok(run, "исполнитель запущен");
+    const run = await nextRun(started);
     if (outcome.sessionId) run.push({ type: "session", sessionId: outcome.sessionId });
     run.push(outcome.error ? { type: "failed", error: outcome.error } : { type: "done", result: outcome.result ?? "ok" });
-    await settle();
+    await until(() => find(task.id)?.status !== "running", "завершения задачи");
     return { task, run };
   };
 
+  /** Запуск исполнителя с номером `index` — дожидается его. */
+  const nextRun = async (index: number) => {
+    await until(() => executor.runs.length > index, "запуска исполнителя");
+    const run = executor.runs[index];
+    assert.ok(run);
+    return run;
+  };
+
   const find = (id: string) => manager.list().find((task) => task.id === id);
-  return { dir, history, executor, manager, finish, find };
+  return { dir, history, executor, manager, finish, nextRun, find };
 }
 
 const rejects = (manager: TaskManager, followUpOf: string) =>
@@ -59,10 +75,8 @@ test("уточнение: тот же диалог и исполнитель, т
   assert.equal(followUp.threadId, first.task.id);
   assert.equal(followUp.executor, first.task.executor);
   assert.equal(followUp.context, undefined);
-  await settle();
 
-  const run = core.executor.runs[1];
-  assert.ok(run);
+  const run = await core.nextRun(1);
   assert.equal(run.request.prompt, "<task>\nа покороче?\n</task>");
   assert.equal(run.request.formatRules, FORMAT_RULES);
   assert.equal(run.request.cwd, first.run.request.cwd);
@@ -72,16 +86,16 @@ test("уточнение: тот же диалог и исполнитель, т
   // sessionId уточнения — из его собственного потока.
   run.push({ type: "session", sessionId: "s2" });
   run.push({ type: "done", result: "коротко" });
-  await settle();
+  await until(() => core.find(followUp.id)?.status === "done");
   assert.equal(core.find(followUp.id)?.sessionId, "s2");
   assert.equal(core.history.get(followUp.id)?.workdir, first.run.request.cwd);
 
   // Цепочка из трёх: threadId — id первой задачи, сессия — последнего ответа.
   const third = core.manager.submit({ prompt: "ещё короче", followUpOf: followUp.id });
-  await settle();
   assert.equal(third.threadId, first.task.id);
-  assert.deepEqual(core.executor.runs[2]?.request.resume, { sessionId: "s2" });
-  assert.equal(core.executor.runs[2]?.request.cwd, first.run.request.cwd);
+  const thirdRun = await core.nextRun(2);
+  assert.deepEqual(thirdRun.request.resume, { sessionId: "s2" });
+  assert.equal(thirdRun.request.cwd, first.run.request.cwd);
 });
 
 test("удалённая очисткой директория создаётся заново по тому же пути", async () => {
@@ -92,8 +106,7 @@ test("удалённая очисткой директория создаётс�
   assert.equal(existsSync(cwd), false);
 
   const followUp = core.manager.submit({ prompt: "y", followUpOf: first.task.id });
-  await settle();
-  assert.equal(core.executor.runs[1]?.request.cwd, cwd);
+  assert.equal((await core.nextRun(1)).request.cwd, cwd);
   assert.equal(existsSync(cwd), true);
   assert.equal(core.history.get(followUp.id)?.workdir, cwd);
 });
@@ -152,10 +165,10 @@ test("неудачное или отменённое уточнение не з�
   core.manager.cancel(cancelled.id);
   await settle();
 
+  const started = core.executor.runs.length;
   const accepted = core.manager.submit({ prompt: "4", followUpOf: first.task.id });
   assert.equal(accepted.threadId, first.task.id);
-  await settle();
-  assert.deepEqual(core.executor.runs.at(-1)?.request.resume, { sessionId: "s1" });
+  assert.deepEqual((await core.nextRun(started)).request.resume, { sessionId: "s1" });
 });
 
 test("после перезапуска ядра диалог восстанавливается и продолжается, даже за пределами 200 последних", async () => {
@@ -177,14 +190,14 @@ test("после перезапуска ядра диалог восстанав
 
   const followUp = after.manager.submit({ prompt: "какое число?", followUpOf: second.task.id });
   assert.equal(followUp.threadId, first.task.id);
-  await settle();
-  const run = after.executor.runs[0];
-  assert.equal(run?.request.cwd, first.run.request.cwd);
-  assert.deepEqual(run?.request.resume, { sessionId: "s2" });
+  const run = await after.nextRun(0);
+  assert.equal(run.request.cwd, first.run.request.cwd);
+  assert.deepEqual(run.request.resume, { sessionId: "s2" });
   rejects(after.manager, first.task.id);
 
-  run?.push({ type: "done", result: "417" });
-  await settle();
+  run.push({ type: "done", result: "417" });
+  // Диалог старше 200 последних — в list() его нет, смотрим в историю.
+  await until(() => after.history.get(followUp.id)?.task.status === "done");
   assert.deepEqual(
     after.history.thread(first.task.id).map(({ task }) => [task.id, task.threadId]),
     [first.task.id, second.task.id, followUp.id].map((id) => [id, first.task.id]),
