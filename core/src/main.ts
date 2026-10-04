@@ -11,6 +11,7 @@ import type {
   TaskSubmitParams,
   TaskSubmitResult,
 } from "./rpc/protocol.gen.ts";
+import { openHistory } from "./tasks/history.ts";
 import { TaskManager } from "./tasks/manager.ts";
 
 const VERSION = "0.2.0";
@@ -32,12 +33,16 @@ if (process.env.LUNA_CLAUDE_BIN) claudeOptions.binary = process.env.LUNA_CLAUDE_
 if (process.env.LUNA_CLAUDE_MODEL) claudeOptions.model = process.env.LUNA_CLAUDE_MODEL;
 const executors: Executor[] = [new ClaudeCodeExecutor(claudeOptions)];
 
-const tasksDir = join(defaultDataDir(), "tasks");
+const dataDir = defaultDataDir();
+const tasksDir = join(dataDir, "tasks");
+// История читается и приводится в порядок до первого запроса оболочки.
+const history = await openHistory(dataDir, { log });
 const rpc = new RpcServer(process.stdin, process.stdout);
 const tasks = new TaskManager({
   executors,
   defaultExecutor: "claude-code",
   tasksDir,
+  history,
   emit: (event, task) => rpc.notify(event, { task }),
 });
 
@@ -71,9 +76,11 @@ rpc.method("task.cancel", (params) => {
 rpc.method("task.list", (): TaskListResult => ({ tasks: tasks.list() }));
 
 void cleanupWorkdirs(tasksDir).catch((error) => log(`workdir cleanup failed: ${String(error)}`));
-log(`started v${VERSION}, data dir: ${defaultDataDir()}`);
+log(`started v${VERSION}, data dir: ${dataDir}`);
 
 // stdin закрывается, когда shell завершился: оставлять исполнителей без хозяина нельзя.
+// Незавершённые задачи записываются в историю прерванными — запись синхронная, до выхода.
 await rpc.listen();
-tasks.cancelAll();
+tasks.shutdown();
+history?.close();
 process.exit(0);
