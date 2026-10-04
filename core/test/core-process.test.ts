@@ -4,12 +4,18 @@ import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import type { TaskInfo } from "../src/rpc/protocol.gen.ts";
 import { INTERRUPTED_MESSAGE, openHistory } from "../src/tasks/history.ts";
 
 const MAIN = fileURLToPath(new URL("../src/main.ts", import.meta.url));
+
+// Упавшая проверка не должна оставлять ядро живым: иначе прогон тестов зависает, а не падает.
+const cores: ReturnType<typeof spawn>[] = [];
+after(() => {
+  for (const core of cores) if (core.exitCode === null && core.signalCode === null) core.kill("SIGKILL");
+});
 
 interface Message {
   id?: number;
@@ -24,6 +30,7 @@ function startCore(env: Record<string, string>) {
     env: { ...process.env, ...env },
     stdio: ["pipe", "pipe", "pipe"],
   });
+  cores.push(child);
   child.stderr.resume();
   const lines: string[] = [];
   const waiters: { match: (message: Message) => boolean; resolve: (message: Message) => void }[] = [];
