@@ -4,7 +4,7 @@
 #
 #   GH_TOKEN=… scripts/publish-release.sh v0.2.0 <каталог с бандлами>
 #
-# GH_TOKEN — токен с правом Contents на публичный репозиторий (в CI — секрет RELEASES_TOKEN).
+# GH_TOKEN — токен с правом Contents на публичный репозиторий (в CI — секрет LUNA_RELEASES_TOKEN).
 # RELEASES_REPO — куда выкладывать; по умолчанию stepaKaziatko/luna-releases.
 # LUNA_RELEASE_DRAFT=1 — завести черновик: снаружи его не видно, пока не опубликован.
 set -eu
@@ -16,7 +16,7 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 
 fail() { printf '✗ %s\n' "$*" >&2; exit 1; }
 
-[ -n "${GH_TOKEN:-}" ] || fail "нет GH_TOKEN: заведите секрет RELEASES_TOKEN с правом Contents на $repo"
+[ -n "${GH_TOKEN:-}" ] || fail "нет GH_TOKEN: заведите секрет LUNA_RELEASES_TOKEN с правом Contents на $repo"
 
 cd "$dist"
 rm -f checksums.txt

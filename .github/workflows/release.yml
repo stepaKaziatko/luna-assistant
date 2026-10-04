@@ -127,7 +127,7 @@ jobs:
           merge-multiple: true
       - name: Бандлы — в публичный репозиторий
         env:
-          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          GH_TOKEN: ${{ secrets.LUNA_RELEASES_TOKEN }}
         run: scripts/publish-release.sh "$TAG" dist
       # Здесь у релиза только тег и заметки: качать из закрытого репозитория никто не должен.
       - name: Тег и заметки — в этом репозитории
