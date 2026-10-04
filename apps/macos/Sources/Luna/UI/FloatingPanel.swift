@@ -7,6 +7,9 @@ final class FloatingPanel: NSPanel {
     var onCancel: (() -> Void)?
     /// Клавиши, которые не забрало содержимое панели. Возвращает true, если нажатие обработано.
     var onKeyDown: ((NSEvent) -> Bool)?
+    /// Клавиши, которые панель забирает раньше поля ввода в фокусе (стрелки, ↩, esc, ⌘⌫ списка
+    /// задач). Возвращает true, если нажатие обработано и дальше не идёт.
+    var onKeyIntercept: ((NSEvent) -> Bool)?
     /// В режиме pill панель не должна перехватывать клавиатуру.
     var allowsKey = false
 
@@ -30,6 +33,11 @@ final class FloatingPanel: NSPanel {
         onCancel?()
     }
 
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown, onKeyIntercept?(event) == true { return }
+        super.sendEvent(event)
+    }
+
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 { // Esc
             onCancel?()
@@ -41,6 +49,8 @@ final class FloatingPanel: NSPanel {
     // У приложения-агента нет меню «Правка», поэтому стандартные сочетания
     // редактирования сами до текстового поля не доходят.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // ⌘⌫ приходит сюда раньше, чем в sendEvent: поле поиска не должно стереть строку.
+        if onKeyIntercept?(event) == true { return true }
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let action: Selector? = switch (modifiers, event.charactersIgnoringModifiers?.lowercased()) {
         case (.command, "x"): #selector(NSText.cut(_:))

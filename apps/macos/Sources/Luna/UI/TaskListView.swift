@@ -1,30 +1,64 @@
 import SwiftUI
 
 /// Список диалогов: строка на диалог, новые сверху, выбор стрелками, открытие по ↩ или клику.
+/// Сверху — поиск по всей истории, снизу — очистка истории.
 struct TaskListView: View {
     @EnvironmentObject private var state: AppState
     @State private var contentHeight: CGFloat = 0
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("Задачи").font(.system(size: 12, weight: .medium))
                 Spacer()
-                Text("↑↓ выбрать · ↩ открыть · esc закрыть").font(.system(size: 11))
+                Text("↑↓ выбрать · ↩ открыть · ⌘⌫ удалить · esc закрыть").font(.system(size: 11))
             }
             .foregroundStyle(.secondary)
 
-            if state.tasks.isEmpty {
-                Text("Задач пока нет.")
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                // Клавиши списка панель забирает раньше поля, остальное — обычное редактирование.
+                TextField("Поиск по запросам и ответам", text: $state.searchQuery)
+                    .textFieldStyle(.plain)
+                    .focused($searchFocused)
+            }
+            .font(.system(size: 13))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+
+            if let message = state.listMessage {
+                Label(message, systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .lineLimit(2)
+            }
+
+            if state.listedDialogs.isEmpty {
+                Text(state.isSearching ? "Ничего не найдено." : "Задач пока нет.")
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 6)
             } else {
                 rows
             }
+
+            if state.canClearHistory {
+                HStack {
+                    Spacer()
+                    Button(state.clearConfirming ? "Удалить все завершённые?" : "Очистить историю", action: state.clearHistory)
+                        .buttonStyle(.plain)
+                        .font(.system(size: 11, weight: state.clearConfirming ? .semibold : .regular))
+                        .foregroundStyle(state.clearConfirming ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                        // Клик не уводит фокус из поля поиска.
+                        .focusable(false)
+                }
+            }
         }
         .padding(16)
         .frame(width: Layout.cardWidth, alignment: .leading)
         .hangingCard()
+        .onAppear { searchFocused = true }
     }
 
     private var rows: some View {

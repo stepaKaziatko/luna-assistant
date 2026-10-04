@@ -31,21 +31,48 @@ final class AppState: ObservableObject {
     /// Растёт, когда поле продолжения должно получить фокус (`Tab` в карточке).
     @Published private(set) var followUpFocusRequest = 0
     @Published private(set) var accessibilityHintHidden = UserDefaults.standard.bool(forKey: hideAccessibilityHintKey)
+    /// Текст поля поиска в списке задач; каждое изменение уходит запросом к ядру.
+    @Published var searchQuery = "" {
+        didSet { if searchQuery != oldValue { search() } }
+    }
+    /// Ответ ядра на последний поиск: совпавшие задачи с их диалогами. nil — поиска нет.
+    @Published private(set) var searchResults: [TaskInfo]?
+    /// Первый клик по «Очистить историю» ждёт подтверждения вторым.
+    @Published private(set) var clearConfirming = false
+    /// Подсказка или ошибка в списке задач: удаление активного диалога, сбой ядра.
+    @Published private(set) var listMessage: String?
 
-    var core: CoreClient?
+    var core: CoreRequesting?
 
     private var capture: _Concurrency.Task<CapturedContext.Details, Never>?
     /// Сколько занял последний захват контекста — для диагностики.
     private(set) var lastCaptureDuration: Duration?
     private var captureGeneration = 0
+    /// Ответ на поиск, пришедший после ответа на более новый запрос, отбрасывается.
+    private var searchGeneration = 0
 
     var pillState: PillState {
         PillState.aggregate(tasks: tasks, unseen: unseen, hasProblem: problem != nil)
     }
 
-    /// Диалоги в порядке показа в списке: новые сверху.
+    /// Диалоги в порядке показа в списке: новые сверху. При поиске — найденные; задачи, которые
+    /// уже известны оболочке, показываются в свежем состоянии, вместе с новыми задачами их диалогов.
     var listedDialogs: [Dialog] {
-        Dialog.group(tasks)
+        guard let searchResults else { return Dialog.group(tasks) }
+        let threads = Set(searchResults.map(\.threadId))
+        let known = tasks.filter { threads.contains($0.threadId) }
+        let knownIds = Set(known.map(\.id))
+        return Dialog.group(known + searchResults.filter { !knownIds.contains($0.id) })
+    }
+
+    /// Поиск идёт: в поле есть что-то кроме пробелов.
+    var isSearching: Bool {
+        !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// «Очистить историю» — при пустом поиске и хотя бы одном диалоге без активной задачи.
+    var canClearHistory: Bool {
+        !isSearching && Dialog.group(tasks).contains { $0.activeTask == nil }
     }
 
     func task(id: String) -> TaskInfo? {
@@ -90,12 +117,21 @@ final class AppState: ObservableObject {
     }
 
     func collapse() {
+        resetList()
         mode = .pill
     }
 
+    /// Список открывается с пустым поиском, без подсказок и неподтверждённой очистки.
     func showTasks() {
+        resetList()
         selectedThreadId = listedDialogs.first?.threadId
         mode = .tasks
+    }
+
+    private func resetList() {
+        searchQuery = ""
+        clearConfirming = false
+        listMessage = nil
     }
 
     /// Открывает самый свежий непросмотренный результат, а если таких нет — последнюю задачу.
@@ -108,6 +144,10 @@ final class AppState: ObservableObject {
     }
 
     func open(threadId: String) {
+        // Найденный диалог мог быть не загружен: его задачи вливаются как история, без «непросмотренных».
+        if let found = searchResults?.filter({ $0.threadId == threadId }), !found.isEmpty {
+            tasks = TaskHistory.merge(current: tasks, listed: found)
+        }
         guard dialog(threadId: threadId) != nil else { return }
         show(threadId: threadId)
     }
@@ -276,6 +316,112 @@ final class AppState: ObservableObject {
         _Concurrency.Task {
             let _: EmptyResult? = try? await core.request("task.cancel", TaskCancelParams(taskId: taskId))
         }
+    }
+
+    // MARK: - Поиск, удаление и очистка
+
+    /// Запрос к ядру — в фоне; пока ответа нет, в списке прежние строки.
+    private func search() {
+        searchGeneration += 1
+        let generation = searchGeneration
+        clearConfirming = false
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            searchResults = nil
+            selectedThreadId = listedDialogs.first?.threadId
+            return
+        }
+        guard let core else {
+            listMessage = problem ?? CoreClientError.notRunning.localizedDescription
+            return
+        }
+        _Concurrency.Task {
+            do {
+                let response: TaskListResult = try await core.request("task.list", TaskListParams(query: query))
+                guard generation == searchGeneration else { return }
+                searchResults = response.tasks
+                listMessage = nil
+                selectedThreadId = listedDialogs.first?.threadId
+            } catch {
+                guard generation == searchGeneration else { return }
+                listMessage = "Поиск не удался: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    /// `⌘⌫` в списке: диалог выбранной строки удаляется целиком, без подтверждения.
+    func deleteSelected() {
+        guard let threadId = selectedThreadId, let dialog = listedDialogs.first(where: { $0.threadId == threadId }) else { return }
+        guard dialog.activeTask == nil else {
+            listMessage = "Сначала отмените задачу"
+            return
+        }
+        guard let core else {
+            listMessage = problem ?? CoreClientError.notRunning.localizedDescription
+            return
+        }
+        listMessage = nil
+        _Concurrency.Task {
+            do {
+                let response: TaskDeleteResult = try await core.request("task.delete", TaskDeleteParams(taskId: dialog.last.id))
+                removeDeleted(response.deleted)
+            } catch {
+                listMessage = "Не удалось удалить: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    /// Первый клик — подтверждение, второй — удаление всех диалогов без активных задач.
+    func clearHistory() {
+        guard clearConfirming else {
+            clearConfirming = true
+            return
+        }
+        clearConfirming = false
+        guard let core else {
+            listMessage = problem ?? CoreClientError.notRunning.localizedDescription
+            return
+        }
+        listMessage = nil
+        _Concurrency.Task {
+            do {
+                let response: TaskClearResult = try await core.request("task.clear", NoParams())
+                removeDeleted(response.deleted)
+            } catch {
+                listMessage = "Не удалось удалить: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    /// Убирает ровно то, что удалило ядро; выбор переходит на соседнюю строку.
+    func removeDeleted(_ ids: [String]) {
+        let deleted = Set(ids)
+        guard !deleted.isEmpty else { return }
+        let before = listedDialogs
+        let index = before.firstIndex { $0.threadId == selectedThreadId } ?? 0
+        tasks = TaskHistory.removing(deleted, from: tasks)
+        unseen.subtract(deleted)
+        searchResults = searchResults.map { TaskHistory.removing(deleted, from: $0) }
+        let after = listedDialogs
+        if !after.contains(where: { $0.threadId == selectedThreadId }) {
+            selectedThreadId = after.isEmpty ? nil : after[min(index, after.count - 1)].threadId
+        }
+    }
+
+    /// Клавиши списка задач. Перехватываются раньше поля поиска: стрелки и ↩ не двигают курсор
+    /// в поле, `esc` сначала очищает поиск, `⌘⌫` удаляет диалог, а не текст до начала строки.
+    func handleListKey(keyCode: UInt16, command: Bool) -> Bool {
+        guard mode == .tasks else { return false }
+        switch (keyCode, command) {
+        case (125, false): moveSelection(by: 1)
+        case (126, false): moveSelection(by: -1)
+        case (36, false), (76, false): openSelectedTask()
+        case (53, _):
+            if searchQuery.isEmpty { collapse() } else { searchQuery = "" }
+        case (51, true): deleteSelected()
+        default: return false
+        }
+        return true
     }
 
     /// Применяет снимок задачи из ответа или уведомления ядра.

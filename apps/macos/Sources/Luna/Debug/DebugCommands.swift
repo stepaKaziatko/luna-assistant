@@ -8,9 +8,11 @@ import AppKit
 /// - `toggleInput`, `lastResult`, `tasks`, `collapse`, `pillClick` — то же, что хоткеи и клик по pill;
 /// - `submit:<текст>` — отправить запрос с текущим контекстом;
 /// - `cancelSelected` — кнопка отмены у выбранной строки списка задач;
+/// - `clearHistory` — клик по кнопке «Очистить историю» в списке задач;
 /// - `context:<json>` — подменить захваченный контекст (поля TaskContext; `app` обязателен);
 /// - `key:<код клавиши>` и `type:<текст>` — нажатия в открытой панели (`key:48` — Tab,
-///   фокус в поле продолжения карточки; `key:36` — ↩);
+///   фокус в поле продолжения карточки; `key:36` — ↩); модификаторы — перед кодом через `+`:
+///   `key:cmd+51` — ⌘⌫ (также `shift`, `opt`, `ctrl`);
 /// - `dump:<путь>` — состояние приложения в JSON; `snapshot:<путь>` — PNG панели;
 /// - `quit` — то же, что «Выйти из Luna» в меню.
 @MainActor
@@ -41,15 +43,27 @@ enum DebugCommands {
             state.submit()
         case "cancelSelected":
             if let threadId = state.selectedThreadId { state.cancel(threadId: threadId) }
+        case "clearHistory":
+            state.clearHistory()
         case "context":
             guard let context = try? JSONDecoder().decode(TaskContext.self, from: Data(argument.utf8)),
                   let app = context.app else { return }
             let details = CapturedContext.Details(url: context.url, title: context.title, selection: context.selection)
             state.debugSetContext(CapturedContext(app: app, details: details))
         case "key":
-            if let keyCode = UInt16(argument) {
-                panels.debugKeyDown(keyCode: keyCode, characters: keyCharacters[keyCode] ?? "")
+            var names = argument.split(separator: "+").map(String.init)
+            guard let keyCode = names.popLast().flatMap(UInt16.init) else { return }
+            var modifiers: NSEvent.ModifierFlags = []
+            for name in names {
+                switch name {
+                case "cmd": modifiers.insert(.command)
+                case "shift": modifiers.insert(.shift)
+                case "opt": modifiers.insert(.option)
+                case "ctrl": modifiers.insert(.control)
+                default: return
+                }
             }
+            panels.debugKeyDown(keyCode: keyCode, characters: keyCharacters[keyCode] ?? "", modifiers: modifiers)
         case "type":
             for character in argument { panels.debugKeyDown(keyCode: 0, characters: String(character)) }
         case "dump":
@@ -63,9 +77,9 @@ enum DebugCommands {
         }
     }
 
-    /// Символы, которые оконный сервер кладёт в событие для служебных клавиш: esc, ↩, ↓, ↑, Tab.
+    /// Символы, которые оконный сервер кладёт в событие для служебных клавиш: esc, ↩, ↓, ↑, Tab, ⌫.
     private static let keyCharacters: [UInt16: String] = [
-        53: "\u{1B}", 36: "\r", 125: "\u{F701}", 126: "\u{F700}", 48: "\t",
+        53: "\u{1B}", 36: "\r", 125: "\u{F701}", 126: "\u{F700}", 48: "\t", 51: "\u{7F}",
     ]
 
     /// Диалог глазами списка задач и карточки.
@@ -92,6 +106,12 @@ enum DebugCommands {
         let context: TaskContext?
         let issues: [String]
         let selectedThreadId: String?
+        /// Поле поиска списка задач; `searchResults` — сколько задач в последнем ответе поиска.
+        let searchQuery: String
+        let searchResults: Int?
+        let clearConfirming: Bool
+        let canClearHistory: Bool
+        let listMessage: String?
         let followUpDraft: String
         let followUpError: String?
         let dialogs: [DialogDump]
@@ -110,6 +130,11 @@ enum DebugCommands {
             context = state.context?.payload
             issues = state.captureIssues.map { String(describing: $0) }
             selectedThreadId = state.selectedThreadId
+            searchQuery = state.searchQuery
+            searchResults = state.searchResults?.count
+            clearConfirming = state.clearConfirming
+            canClearHistory = state.canClearHistory
+            listMessage = state.listMessage
             followUpDraft = state.followUpDraft
             followUpError = state.followUpError
             dialogs = state.listedDialogs.map(DialogDump.init)
