@@ -159,9 +159,12 @@ test("уточнение с потерянной сессией: ядро сам
   const first = (await core.request("task.submit", { prompt: "сводка", context: { url: "https://example.com" } })).result?.task as TaskInfo;
   assert.ok((await done).params?.task.result);
 
-  const followUpDone = core.waitFor((message) => message.method === "task.done" && message.params?.task.id !== first.id);
+  // Ждём и ошибку: сломанная повторная отправка должна уронить тест, а не подвесить прогон.
+  const followUpFinished = core.waitFor(
+    (message) => (message.method === "task.done" || message.method === "task.failed") && message.params?.task.id !== first.id,
+  );
   const followUp = (await core.request("task.submit", { prompt: "а подробнее?", followUpOf: first.id })).result?.task as TaskInfo;
-  const finished = (await followUpDone).params?.task;
+  const finished = (await followUpFinished).params?.task;
   assert.equal(finished?.id, followUp.id);
   assert.equal(finished?.status, "done");
 
