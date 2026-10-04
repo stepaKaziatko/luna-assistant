@@ -21,6 +21,14 @@ npm run generate   # → core/src/rpc/protocol.gen.ts, apps/macos/Sources/Luna/P
 
 `TaskSubmitParams.context` — то, что shell снял в момент вызова панели (`TaskContext`: приложение, URL, заголовок, выделение). Core его нормализует: оставляет известные поля, делает однострочными `app`, `url` и `title`, ограничивает длину.
 
+### Диалог
+
+Уточнение — новая задача того же диалога: `task.submit` с `TaskSubmitParams.followUpOf` — id задачи, которую оно продолжает. Исполнитель продолжает свою прежнюю сессию в прежней рабочей директории; в промпт идёт только текст уточнения, экран заново не захватывается. Вместе с `followUpOf` поля `context` и `executor` не передаются.
+
+`TaskInfo.threadId` — id первой задачи диалога; у задачи без уточнений он равен её `id`. У уточнения — `threadId` и `executor` продолжаемой задачи.
+
+Продолжить можно только последнюю задачу диалога со статусом `done` и с `sessionId`: после неё в диалоге могут быть лишь `failed` и `cancelled`, кроме `failed` с видом `session_not_found` (сессия исполнителя не сохранилась — такой диалог не продолжается), и в диалоге нет задачи `queued` или `running`. Иначе — ошибка `InvalidParams`.
+
 ## Уведомления (core → shell)
 
 `task.started`, `task.progress`, `task.done`, `task.failed`, `task.cancelled` — у всех params `TaskEventParams`: полный снимок задачи. Shell обновляет задачу по `id`, не полагаясь на порядок событий.

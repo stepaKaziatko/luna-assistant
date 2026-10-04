@@ -33,7 +33,7 @@ async function start(dir: string, maxConcurrent = 3) {
 }
 
 function stored(id: string, createdAt: number, status: TaskInfo["status"] = "done"): TaskInfo {
-  return { id, prompt: `запрос ${id}`, status, executor: "claude-code", createdAt, finishedAt: createdAt + 1 };
+  return { id, threadId: id, prompt: `запрос ${id}`, status, executor: "claude-code", createdAt, finishedAt: createdAt + 1 };
 }
 
 /** Подменённое хранилище: считает записи, по желанию бросает на каждой. */
@@ -50,6 +50,12 @@ class FakeHistory implements TaskHistory {
     this.saves.push({ ...task });
   }
   recent(): StoredTask[] {
+    return [];
+  }
+  get(): StoredTask | undefined {
+    return undefined;
+  }
+  thread(): StoredTask[] {
     return [];
   }
   close(): void {}

@@ -108,6 +108,7 @@ struct ResultView: View {
         case .auth: "Откройте терминал, запустите `claude` и выполните /login."
         case .rateLimit: "Лимит подписки исчерпан. Попробуйте позже."
         case .notInstalled: "Установите Claude Code: https://claude.com/claude-code"
+        case .sessionNotFound: "Разговор у исполнителя не сохранился. Задайте вопрос заново"
         case .unknown, nil: nil
         }
     }

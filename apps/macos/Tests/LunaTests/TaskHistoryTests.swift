@@ -6,7 +6,7 @@ final class TaskHistoryTests: XCTestCase {
     private func task(_ id: String, _ status: TaskStatus, createdAt: Int, result: String? = nil) -> TaskInfo {
         TaskInfo(
             context: nil, createdAt: createdAt, error: nil, executor: .claudeCode, finishedAt: nil,
-            id: id, progress: nil, prompt: "p", result: result, sessionId: nil, status: status
+            id: id, progress: nil, prompt: "p", result: result, sessionId: nil, status: status, threadId: id
         )
     }
 

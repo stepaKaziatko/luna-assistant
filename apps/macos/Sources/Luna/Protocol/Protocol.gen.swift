@@ -24,6 +24,9 @@ enum ExecutorId: String, Codable, Equatable, Sendable {
 struct TaskSubmitParams: Codable, Equatable, Sendable {
     let context: TaskContext?
     let executor: ExecutorId?
+    /// id задачи диалога, которую продолжает уточнение; вместе с ним context и executor не
+    /// передаются
+    let followUpOf: String?
     let prompt: String
 }
 
@@ -57,6 +60,8 @@ struct TaskInfo: Codable, Equatable, Sendable {
     let prompt: String
     let result, sessionId: String?
     let status: TaskStatus
+    /// id первой задачи диалога; у задачи без уточнений равен id
+    let threadId: String
 }
 
 // MARK: - TaskError
@@ -69,6 +74,7 @@ enum TaskErrorKind: String, Codable, Equatable, Sendable {
     case auth = "auth"
     case notInstalled = "not_installed"
     case rateLimit = "rate_limit"
+    case sessionNotFound = "session_not_found"
     case unknown = "unknown"
 }
 

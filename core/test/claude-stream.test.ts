@@ -35,6 +35,25 @@ test("исчерпан лимит: ошибка rate_limit", () => {
   });
 });
 
+test("сессия для --resume не найдена: session_not_found с человеческим текстом", () => {
+  const events = parseFixture("session-not-found.jsonl");
+  assert.equal(events.length, 2);
+  assert.deepEqual(events[0], { type: "session", sessionId: "3f0c9a52-7d1e-4b8a-9c6f-2e5d8a1b4c70" });
+  const last = events.at(-1);
+  assert.equal(last?.type, "failed");
+  if (last?.type !== "failed") return;
+  assert.equal(last.error.kind, "session_not_found");
+  assert.ok(!last.error.message.includes("error_during_execution"), last.error.message);
+});
+
+test("уточнение в продолжённой сессии: сессия и результат", () => {
+  const events = parseFixture("resume-success.jsonl");
+  assert.equal(events[0]?.type, "session");
+  const last = events.at(-1);
+  assert.equal(last?.type, "done");
+  assert.match(last?.type === "done" ? last.result : "", /417/);
+});
+
 test("описания инструментов", () => {
   const describe = (name: string, input: object): ExecutorEvent[] =>
     new ClaudeStreamParser().push(

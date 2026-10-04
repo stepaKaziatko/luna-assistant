@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { ClaudeCodeExecutor } from "../src/executors/claude-code/adapter.ts";
+import { buildArgs, ClaudeCodeExecutor } from "../src/executors/claude-code/adapter.ts";
 import type { ExecutorEvent } from "../src/executors/executor.ts";
 
 const fixture = (name: string) => fileURLToPath(new URL(`./fixtures/claude-code/${name}`, import.meta.url));
@@ -46,6 +46,38 @@ test("запускает CLI в режиме только чтения и пер
     "--append-system-prompt", "RULES",
     "--model", "sonnet",
   ]);
+});
+
+test("уточнение: прежние флаги и --resume с сессией диалога; без продолжения --resume нет", async () => {
+  const plain = buildArgs("RULES", "sonnet");
+  const resumed = buildArgs("RULES", "sonnet", { sessionId: "6872ce2a-d1fa-476e-b60c-9c963deff778" });
+  assert.deepEqual(resumed, [...plain, "--resume", "6872ce2a-d1fa-476e-b60c-9c963deff778"]);
+  assert.equal(plain.includes("--resume"), false);
+  for (const flag of ["--safe-mode", "--strict-mcp-config", "--tools", "--allowedTools", "--append-system-prompt", "--model"]) {
+    assert.ok(resumed.includes(flag), flag);
+  }
+
+  const { binary, dir } = fakeClaude(`cat "${fixture("resume-success.jsonl")}"`);
+  const events: ExecutorEvent[] = [];
+  for await (const event of new ClaudeCodeExecutor({ binary }).run({
+    prompt: "<task>\nкакое число?\n</task>",
+    formatRules: "RULES",
+    cwd: tmpdir(),
+    signal: new AbortController().signal,
+    resume: { sessionId: "s-1" },
+  })) {
+    events.push(event);
+  }
+  assert.equal(events.at(-1)?.type, "done");
+  assert.deepEqual(readFileSync(join(dir, "argv"), "utf8").trimEnd().split("\n").slice(-2), ["--resume", "s-1"]);
+});
+
+test("сессия не найдена: одна ошибка session_not_found, без второй от кода выхода 1", async () => {
+  const { binary } = fakeClaude(`cat "${fixture("session-not-found.jsonl")}"; echo "No conversation found" >&2; exit 1`);
+  const events = await collect(new ClaudeCodeExecutor({ binary }));
+  const failed = events.filter((event) => event.type === "failed");
+  assert.equal(failed.length, 1);
+  assert.equal(failed[0]?.type === "failed" && failed[0].error.kind, "session_not_found");
 });
 
 test("ненулевой код выхода после result не порождает вторую ошибку", async () => {

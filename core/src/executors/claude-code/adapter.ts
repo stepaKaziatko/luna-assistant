@@ -28,7 +28,8 @@ export interface ClaudeCodeOptions {
   model?: string;
 }
 
-export function buildArgs(formatRules: string, model?: string): string[] {
+/** Аргументы `claude -p`; с `resume` — те же флаги плюс `--resume <sessionId>`. */
+export function buildArgs(formatRules: string, model?: string, resume?: { sessionId: string }): string[] {
   const args = [
     "-p",
     "--output-format", "stream-json",
@@ -42,6 +43,8 @@ export function buildArgs(formatRules: string, model?: string): string[] {
     "--append-system-prompt", formatRules,
   ];
   if (model) args.push("--model", model);
+  // Сессии Claude Code привязаны к рабочей директории: уточнение запускается там же, где задача.
+  if (resume) args.push("--resume", resume.sessionId);
   return args;
 }
 
@@ -72,7 +75,7 @@ export class ClaudeCodeExecutor implements Executor {
     const env = { ...process.env };
     for (const name of PARENT_SESSION_ENV) delete env[name];
 
-    const child = spawn(binary, buildArgs(request.formatRules, this.options.model), {
+    const child = spawn(binary, buildArgs(request.formatRules, this.options.model, request.resume), {
       cwd: request.cwd,
       env,
       stdio: ["pipe", "pipe", "pipe"],

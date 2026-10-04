@@ -12,7 +12,7 @@ import type {
   TaskSubmitResult,
 } from "./rpc/protocol.gen.ts";
 import { openHistory } from "./tasks/history.ts";
-import { TaskManager } from "./tasks/manager.ts";
+import { FollowUpError, TaskManager } from "./tasks/manager.ts";
 
 const VERSION = "0.2.0";
 
@@ -52,9 +52,21 @@ rpc.method("core.hello", async (): Promise<HelloResult> => ({
 }));
 
 rpc.method("task.submit", (params): TaskSubmitResult => {
-  const { prompt, executor, context: rawContext } = asObject(params) as Partial<TaskSubmitParams>;
+  const { prompt, executor, context: rawContext, followUpOf } = asObject(params) as Partial<TaskSubmitParams>;
   if (typeof prompt !== "string" || prompt.trim() === "") {
     throw new RpcError(ErrorCode.InvalidParams, "prompt must be a non-empty string");
+  }
+  if (followUpOf !== undefined) {
+    if (typeof followUpOf !== "string") throw new RpcError(ErrorCode.InvalidParams, "followUpOf must be a string");
+    // Уточнение идёт тому же исполнителю и без нового контекста: диалог — о том, с чего начался.
+    if (rawContext !== undefined) throw new RpcError(ErrorCode.InvalidParams, "context is not allowed with followUpOf");
+    if (executor !== undefined) throw new RpcError(ErrorCode.InvalidParams, "executor is not allowed with followUpOf");
+    try {
+      return { task: tasks.submit({ prompt, followUpOf }) };
+    } catch (error) {
+      if (error instanceof FollowUpError) throw new RpcError(ErrorCode.InvalidParams, error.message);
+      throw error;
+    }
   }
   if (executor !== undefined && !executors.some((candidate) => candidate.id === executor)) {
     throw new RpcError(ErrorCode.InvalidParams, `unknown executor: ${String(executor)}`);

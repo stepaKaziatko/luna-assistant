@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
 import { createTaskWorkdir } from "../context/workdir.ts";
 import type { Executor } from "../executors/executor.ts";
 import { buildPrompt, FORMAT_RULES } from "../prompt/build.ts";
 import type { ExecutorId, TaskInfo, TaskSubmitParams } from "../rpc/protocol.gen.ts";
-import { INTERRUPTED_MESSAGE, type TaskHistory } from "./history.ts";
+import { INTERRUPTED_MESSAGE, type StoredTask, type TaskHistory } from "./history.ts";
 
 export type TaskEventName = "task.started" | "task.progress" | "task.done" | "task.failed" | "task.cancelled";
 
@@ -21,11 +23,16 @@ export interface TaskManagerOptions {
 /** Сколько задач отдаёт `list()`: активные — всегда, остальное — последние завершённые. */
 export const LIST_LIMIT = 200;
 
+/** Уточнение нельзя принять; `main.ts` отвечает на него `InvalidParams`. */
+export class FollowUpError extends Error {}
+
 interface Entry {
   info: TaskInfo;
   abort: AbortController;
-  /** Рабочая директория исполнителя; в протокол не выходит. */
+  /** Рабочая директория исполнителя; в протокол не выходит. У уточнения известна заранее. */
   workdir?: string;
+  /** Сессия исполнителя, которую продолжает уточнение. */
+  resume?: { sessionId: string };
 }
 
 export class TaskManager {
@@ -42,17 +49,30 @@ export class TaskManager {
     this.maxConcurrent = options.maxConcurrent ?? 3;
   }
 
+  /** Бросает `FollowUpError`, если `followUpOf` указывает не на точку продолжения диалога. */
   submit(params: TaskSubmitParams): TaskInfo {
+    const id = randomUUID();
     const info: TaskInfo = {
-      id: randomUUID(),
+      id,
+      threadId: id,
       prompt: params.prompt,
       status: "queued",
       executor: params.executor ?? this.options.defaultExecutor,
       createdAt: Date.now(),
     };
-    if (params.context) info.context = params.context;
-
     const entry: Entry = { info, abort: new AbortController() };
+
+    if (params.followUpOf !== undefined) {
+      const point = this.followUpPoint(params.followUpOf);
+      // Уточнение — в той же сессии и той же директории: сессии Claude Code привязаны к пути.
+      info.threadId = point.task.threadId;
+      info.executor = point.task.executor;
+      entry.workdir = point.workdir ?? join(this.options.tasksDir, point.task.threadId);
+      entry.resume = { sessionId: point.sessionId };
+    } else if (params.context) {
+      info.context = params.context;
+    }
+
     this.entries.set(info.id, entry);
     this.queue.push(entry);
     this.save(entry);
@@ -60,6 +80,38 @@ export class TaskManager {
     // Запуск — на следующем тике, чтобы ответ на task.submit ушёл раньше событий задачи.
     setImmediate(() => this.pump());
     return snapshot;
+  }
+
+  /**
+   * Точка продолжения диалога — его последняя задача `done` с `sessionId`. После неё могут идти
+   * только неудачные или отменённые уточнения, кроме потерянной сессии: такой диалог до
+   * повторной отправки переписки (LUNA-25) не продолжается. Пока в диалоге есть активная
+   * задача, уточнение не принимается.
+   */
+  private followUpPoint(taskId: string): { task: TaskInfo; sessionId: string; workdir?: string } {
+    const target = this.entries.get(taskId) ?? this.storedTask(taskId);
+    if (!target) throw new FollowUpError(`task not found: ${taskId}`);
+    if (target.info.status !== "done") throw new FollowUpError(`task is ${target.info.status}, not done`);
+    const sessionId = target.info.sessionId;
+    if (!sessionId) throw new FollowUpError("task has no executor session");
+
+    const thread = this.thread(target.info.threadId);
+    if (thread.some(isActive)) throw new FollowUpError("dialog has an active task");
+    const later = thread.slice(thread.findIndex((task) => task.id === taskId) + 1);
+    if (later.some((task) => task.status === "done")) throw new FollowUpError("task is not the last answer of its dialog");
+    if (later.some((task) => task.error?.kind === "session_not_found")) {
+      throw new FollowUpError("executor session of this dialog is lost");
+    }
+    return { task: target.info, sessionId, ...(target.workdir ? { workdir: target.workdir } : {}) };
+  }
+
+  /** Задачи диалога в порядке создания: с диска и из памяти, память свежее. */
+  private thread(threadId: string): TaskInfo[] {
+    const tasks = new Map<string, TaskInfo>();
+    for (const { task } of this.storedThread(threadId)) tasks.set(task.id, task);
+    for (const { info } of this.entries.values()) if (info.threadId === threadId) tasks.set(info.id, info);
+    // Сортировка устойчива: при равном времени остаётся порядок записи.
+    return [...tasks.values()].sort((a, b) => a.createdAt - b.createdAt);
   }
 
   /** Возвращает false, если задачи нет или она уже завершена. */
@@ -133,14 +185,19 @@ export class TaskManager {
       info.status = "running";
       this.emit("task.started", info);
 
-      const cwd = await createTaskWorkdir(this.options.tasksDir, info.id);
+      // Директорию уточнения могла удалить очистка — создаётся пустая по тому же пути.
+      const cwd = entry.workdir
+        ? (await mkdir(entry.workdir, { recursive: true }), entry.workdir)
+        : await createTaskWorkdir(this.options.tasksDir, info.id);
       entry.workdir = cwd;
       this.save(entry);
+      // У уточнения контекста нет: промпт — только <task>, прежний разговор уже в сессии.
       const events = executor.run({
         prompt: buildPrompt(info.prompt, info.context),
         formatRules: FORMAT_RULES,
         cwd,
         signal: abort.signal,
+        ...(entry.resume ? { resume: entry.resume } : {}),
       });
 
       for await (const event of events) {
@@ -189,6 +246,26 @@ export class TaskManager {
     }
   }
 
+  /** Сбой чтения истории — как будто задачи там нет: уточнение отклонится, ядро работает. */
+  private storedTask(id: string): { info: TaskInfo; workdir?: string } | undefined {
+    const stored = this.readHistory((history) => history.get(id));
+    return stored ? { info: stored.task, ...(stored.workdir ? { workdir: stored.workdir } : {}) } : undefined;
+  }
+
+  private storedThread(threadId: string): StoredTask[] {
+    return this.readHistory((history) => history.thread(threadId)) ?? [];
+  }
+
+  private readHistory<T>(read: (history: TaskHistory) => T): T | undefined {
+    if (!this.options.history) return undefined;
+    try {
+      return read(this.options.history);
+    } catch (error) {
+      log(`история не читается: ${describe(error)}`);
+      return undefined;
+    }
+  }
+
   private recentHistory() {
     if (!this.options.history) return [];
     try {
@@ -211,6 +288,10 @@ function log(message: string): void {
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function isActive(info: TaskInfo): boolean {
+  return info.status === "queued" || info.status === "running";
 }
 
 function isFinal(info: TaskInfo): boolean {

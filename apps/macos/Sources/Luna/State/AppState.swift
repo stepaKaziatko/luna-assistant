@@ -192,7 +192,7 @@ final class AppState: ObservableObject {
             do {
                 // Быстрая отправка может обогнать захват; он ограничен таймаутами, поэтому дожидаемся.
                 if let pending, captured != nil { captured?.details = await pending.value }
-                let params = TaskSubmitParams(context: captured?.payload, executor: nil, prompt: prompt)
+                let params = TaskSubmitParams(context: captured?.payload, executor: nil, followUpOf: nil, prompt: prompt)
                 let response: TaskSubmitResult = try await core.request("task.submit", params)
                 // События задачи могли прийти раньше ответа — снимок из ответа их не перезаписывает.
                 if task(id: response.task.id) == nil { apply(response.task) }

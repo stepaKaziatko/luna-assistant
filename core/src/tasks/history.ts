@@ -22,6 +22,10 @@ export interface TaskHistory {
   save(task: TaskInfo, workdir?: string): void;
   /** Последние задачи по времени создания, новые первыми. */
   recent(limit: number): StoredTask[];
+  /** Задача по id — среди всей истории, а не только последних. */
+  get(id: string): StoredTask | undefined;
+  /** Все задачи диалога в порядке создания. */
+  thread(threadId: string): StoredTask[];
   close(): void;
 }
 
@@ -31,6 +35,9 @@ export interface OpenHistoryOptions {
   limit?: number;
   log?: (message: string) => void;
 }
+
+/** Версия схемы `history.db`: 1 — LUNA-23, 2 — идентификатор диалога. */
+const SCHEMA_VERSION = 2;
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS tasks (
@@ -44,10 +51,16 @@ const SCHEMA = `
     session_id  TEXT,
     created_at  INTEGER NOT NULL,
     finished_at INTEGER,
-    workdir     TEXT
+    workdir     TEXT,
+    thread_id   TEXT
   );
   CREATE INDEX IF NOT EXISTS tasks_created_at ON tasks (created_at);
-  PRAGMA user_version = 1;
+`;
+
+/** Версия 1 → 2: у задач, записанных до диалогов, диалог из одной задачи. */
+const MIGRATE_V1 = `
+  ALTER TABLE tasks ADD COLUMN thread_id TEXT;
+  UPDATE tasks SET thread_id = id WHERE thread_id IS NULL;
 `;
 
 /**
@@ -108,22 +121,27 @@ class SqliteHistory implements TaskHistory {
   private readonly db: DatabaseSync;
   private readonly upsert;
   private readonly select;
+  private readonly selectById;
+  private readonly selectThread;
 
   /** Бросает, если файл — не база SQLite: `DatabaseSync` узнаёт это только на первом запросе. */
   constructor(db: DatabaseSync, now: number, limit: number) {
     this.db = db;
     db.exec("PRAGMA busy_timeout = 2000;");
-    db.exec(SCHEMA);
+    migrate(db);
     this.upsert = db.prepare(`
-      INSERT INTO tasks (id, prompt, context, status, executor, result, error, session_id, created_at, finished_at, workdir)
-      VALUES ($id, $prompt, $context, $status, $executor, $result, $error, $sessionId, $createdAt, $finishedAt, $workdir)
+      INSERT INTO tasks (id, prompt, context, status, executor, result, error, session_id, created_at, finished_at, workdir, thread_id)
+      VALUES ($id, $prompt, $context, $status, $executor, $result, $error, $sessionId, $createdAt, $finishedAt, $workdir, $threadId)
       ON CONFLICT (id) DO UPDATE SET
         prompt = excluded.prompt, context = excluded.context, status = excluded.status,
         executor = excluded.executor, result = excluded.result, error = excluded.error,
         session_id = excluded.session_id, created_at = excluded.created_at,
-        finished_at = excluded.finished_at, workdir = COALESCE(excluded.workdir, tasks.workdir)
+        finished_at = excluded.finished_at, workdir = COALESCE(excluded.workdir, tasks.workdir),
+        thread_id = excluded.thread_id
     `);
     this.select = db.prepare("SELECT * FROM tasks ORDER BY created_at DESC, rowid DESC LIMIT ?");
+    this.selectById = db.prepare("SELECT * FROM tasks WHERE id = ?");
+    this.selectThread = db.prepare("SELECT * FROM tasks WHERE thread_id = ? ORDER BY created_at, rowid");
 
     db.prepare(`
       UPDATE tasks SET status = 'failed', error = ?, finished_at = ?
@@ -147,11 +165,21 @@ class SqliteHistory implements TaskHistory {
       $createdAt: task.createdAt,
       $finishedAt: task.finishedAt ?? null,
       $workdir: workdir ?? null,
+      $threadId: task.threadId,
     });
   }
 
   recent(limit: number): StoredTask[] {
     return this.select.all(limit).map((row) => toStored(row as unknown as Row));
+  }
+
+  get(id: string): StoredTask | undefined {
+    const row = this.selectById.get(id);
+    return row ? toStored(row as unknown as Row) : undefined;
+  }
+
+  thread(threadId: string): StoredTask[] {
+    return this.selectThread.all(threadId).map((row) => toStored(row as unknown as Row));
   }
 
   close(): void {
@@ -171,11 +199,13 @@ interface Row {
   created_at: number;
   finished_at: number | null;
   workdir: string | null;
+  thread_id: string | null;
 }
 
 function toStored(row: Row): StoredTask {
   const task: TaskInfo = {
     id: row.id,
+    threadId: row.thread_id ?? row.id,
     prompt: row.prompt,
     status: row.status,
     executor: row.executor,
@@ -187,6 +217,26 @@ function toStored(row: Row): StoredTask {
   if (row.session_id !== null) task.sessionId = row.session_id;
   if (row.finished_at !== null) task.finishedAt = row.finished_at;
   return row.workdir === null ? { task } : { task, workdir: row.workdir };
+}
+
+/** Создаёт схему или доводит до текущей версии файл, записанный прежней версией Luna. */
+function migrate(db: DatabaseSync): void {
+  const { user_version: version } = db.prepare("PRAGMA user_version").get() as { user_version: number };
+  if (version === SCHEMA_VERSION) {
+    db.exec(SCHEMA);
+    return;
+  }
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    // Таблица версии 1 уже есть: CREATE TABLE IF NOT EXISTS её не тронет, колонку добавляет миграция.
+    if (version === 1) db.exec(MIGRATE_V1);
+    db.exec(SCHEMA);
+    db.exec(`CREATE INDEX IF NOT EXISTS tasks_thread_id ON tasks (thread_id, created_at); PRAGMA user_version = ${SCHEMA_VERSION};`);
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
 }
 
 /** SQLITE_BUSY и SQLITE_LOCKED, в том числе расширенные коды. */

@@ -22,7 +22,12 @@ interface StreamLine {
   is_error?: boolean;
   api_error_status?: number | null;
   result?: string;
+  /** У `result` с ошибкой выполнения — тексты ошибок CLI. */
+  errors?: unknown[];
 }
+
+/** Так CLI сообщает, что сессии для `--resume` нет (Claude Code 2.1.181). */
+const SESSION_NOT_FOUND = "No conversation found with session ID";
 
 export class ClaudeStreamParser {
   private errorKind: TaskErrorKind | undefined;
@@ -71,6 +76,12 @@ export class ClaudeStreamParser {
   private finish(data: StreamLine): ExecutorEvent {
     if (data.subtype === "success" && !data.is_error) {
       return { type: "done", result: data.result ?? "" };
+    }
+    if (data.errors?.some((error) => typeof error === "string" && error.startsWith(SESSION_NOT_FOUND))) {
+      return {
+        type: "failed",
+        error: { kind: "session_not_found", message: "Claude Code не нашёл прежний разговор этого диалога" },
+      };
     }
     const message = data.result?.trim() || `Claude Code завершился с ошибкой (${data.subtype ?? "unknown"})`;
     const kind = this.errorKind ?? kindFromStatus(data.api_error_status) ?? "unknown";

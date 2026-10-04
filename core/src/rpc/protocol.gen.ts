@@ -17,7 +17,12 @@ export type ExecutorId = "claude-code";
 export interface TaskSubmitParams {
     context?:  TaskContext;
     executor?: ExecutorId;
-    prompt:    string;
+    /**
+     * id задачи диалога, которую продолжает уточнение; вместе с ним context и executor не
+     * передаются
+     */
+    followUpOf?: string;
+    prompt:      string;
 }
 
 export interface TaskContext {
@@ -54,6 +59,10 @@ export interface TaskInfo {
     result?:     string;
     sessionId?:  string;
     status:      TaskStatus;
+    /**
+     * id первой задачи диалога; у задачи без уточнений равен id
+     */
+    threadId: string;
 }
 
 export interface TaskError {
@@ -61,7 +70,7 @@ export interface TaskError {
     message: string;
 }
 
-export type TaskErrorKind = "auth" | "rate_limit" | "not_installed" | "unknown";
+export type TaskErrorKind = "auth" | "rate_limit" | "not_installed" | "session_not_found" | "unknown";
 
 export type TaskStatus = "queued" | "running" | "done" | "failed" | "cancelled";
 

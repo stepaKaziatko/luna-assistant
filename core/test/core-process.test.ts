@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -66,7 +66,7 @@ test("ядро с историей: stdout — только протокол, ta
   const env = { LUNA_DATA_DIR: dir, LUNA_CLAUDE_BIN: claude };
 
   const seed = await openHistory(dir, { log: () => {} });
-  seed?.save({ id: "old", prompt: "вчерашний", status: "done", executor: "claude-code", result: "ответ", createdAt: 1, finishedAt: 2 });
+  seed?.save({ id: "old", threadId: "old", prompt: "вчерашний", status: "done", executor: "claude-code", result: "ответ", createdAt: 1, finishedAt: 2 });
   seed?.close();
 
   const first = startCore(env);
@@ -93,4 +93,41 @@ test("ядро с историей: stdout — только протокол, ta
   assert.deepEqual(interrupted?.error, { kind: "unknown", message: INTERRUPTED_MESSAGE });
   assert.equal(after.find((task) => task.id === "old")?.result, "ответ");
   assert.equal(await second.stop(), 0);
+});
+
+test("task.submit с followUpOf: InvalidParams с context, executor и для неизвестной задачи; уточнение уходит с --resume", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "luna-data-"));
+  const success = fileURLToPath(new URL("./fixtures/claude-code/success.jsonl", import.meta.url));
+  // Подставной исполнитель: каждый запуск дописывает argv в файл и отдаёт записанный поток.
+  const claude = join(dir, "claude");
+  writeFileSync(claude, `#!/bin/sh\necho "$*" >> "${dir}/argv"\ncat > /dev/null\ncat "${success}"\n`);
+  chmodSync(claude, 0o755);
+  const core = startCore({ LUNA_DATA_DIR: dir, LUNA_CLAUDE_BIN: claude });
+  await core.request("core.hello");
+
+  const done = core.waitFor((message) => message.method === "task.done");
+  const first = (await core.request("task.submit", { prompt: "сводка" })).result?.task as TaskInfo;
+  assert.equal(first.threadId, first.id);
+  const answered = (await done).params?.task;
+  assert.ok(answered?.sessionId);
+
+  const invalid = async (params: object) => {
+    const response = (await core.request("task.submit", params)) as Message & { error?: { code: number } };
+    assert.equal(response.error?.code, -32602, JSON.stringify(params));
+  };
+  await invalid({ prompt: "ещё", followUpOf: first.id, context: { url: "https://example.com" } });
+  await invalid({ prompt: "ещё", followUpOf: first.id, executor: "claude-code" });
+  await invalid({ prompt: "ещё", followUpOf: "missing" });
+  await invalid({ prompt: "ещё", followUpOf: 42 });
+
+  const followUpDone = core.waitFor((message) => message.method === "task.done" && message.params?.task.id !== first.id);
+  const followUp = (await core.request("task.submit", { prompt: "ещё", followUpOf: first.id })).result?.task as TaskInfo;
+  assert.equal(followUp.threadId, first.id);
+  assert.equal((await followUpDone).params?.task.threadId, first.id);
+  // Каждый запуск начинается с -p; системный промпт внутри argv многострочный.
+  const argv = readFileSync(join(dir, "argv"), "utf8").trimEnd().split(/^(?=-p )/m);
+  assert.equal(argv.length, 2);
+  assert.ok(!argv[0]?.includes("--resume"));
+  assert.ok(argv[1]?.trimEnd().endsWith(`--resume ${answered.sessionId}`), argv[1]);
+  assert.equal(await core.stop(), 0);
 });

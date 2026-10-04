@@ -5,7 +5,7 @@ final class PillStateTests: XCTestCase {
     private func task(_ id: String, _ status: TaskStatus) -> TaskInfo {
         TaskInfo(
             context: nil, createdAt: 0, error: nil, executor: .claudeCode, finishedAt: nil,
-            id: id, progress: nil, prompt: "p", result: nil, sessionId: nil, status: status
+            id: id, progress: nil, prompt: "p", result: nil, sessionId: nil, status: status, threadId: id
         )
     }
 
