@@ -61,9 +61,8 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 Toggle("Раскрывать при наведении", isOn: $settings.hoverPeek)
-                    .disabled(settings.islandMode == .background)
                 if settings.islandMode == .background {
-                    Text("В фоне шторка выезжает только по событию; наведение на край ничего не открывает.")
+                    Text("В фоне шторка выезжает по событию, наведение на край её не вызывает; над показанной шторкой курсор раскрывает блок.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
