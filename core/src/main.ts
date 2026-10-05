@@ -30,6 +30,12 @@ function log(message: string): void {
   process.stderr.write(`[core] ${message}\n`);
 }
 
+/**
+ * Допустимое значение модели. Оно попадает в argv CLI исполнителя, поэтому первый знак —
+ * буква или цифра (не `-флаг`), пробелы и управляющие символы не проходят.
+ */
+const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:[\]/-]{0,99}$/;
+
 function asObject(params: unknown): Record<string, unknown> {
   if (params === null || typeof params !== "object" || Array.isArray(params)) {
     throw new RpcError(ErrorCode.InvalidParams, "params must be an object");
@@ -68,15 +74,20 @@ rpc.method("core.hello", async (): Promise<HelloResult> => ({
 }));
 
 rpc.method("task.submit", (params): TaskSubmitResult => {
-  const { prompt, executor, context: rawContext, followUpOf } = asObject(params) as Partial<TaskSubmitParams>;
+  const { prompt, executor, context: rawContext, followUpOf, model } = asObject(params) as Partial<TaskSubmitParams>;
   if (typeof prompt !== "string" || prompt.trim() === "") {
     throw new RpcError(ErrorCode.InvalidParams, "prompt must be a non-empty string");
+  }
+  if (model !== undefined && (typeof model !== "string" || !MODEL_PATTERN.test(model))) {
+    throw new RpcError(ErrorCode.InvalidParams, "invalid model");
   }
   if (followUpOf !== undefined) {
     if (typeof followUpOf !== "string") throw new RpcError(ErrorCode.InvalidParams, "followUpOf must be a string");
     // Уточнение идёт тому же исполнителю и без нового контекста: диалог — о том, с чего начался.
     if (rawContext !== undefined) throw new RpcError(ErrorCode.InvalidParams, "context is not allowed with followUpOf");
     if (executor !== undefined) throw new RpcError(ErrorCode.InvalidParams, "executor is not allowed with followUpOf");
+    // Уточнение на другой модели — LUNA-36; до неё значение не принимается, а не теряется молча.
+    if (model !== undefined) throw new RpcError(ErrorCode.InvalidParams, "model is not allowed with followUpOf");
     try {
       return { task: tasks.submit({ prompt, followUpOf }) };
     } catch (error) {
@@ -89,6 +100,7 @@ rpc.method("task.submit", (params): TaskSubmitResult => {
   }
   const submit: TaskSubmitParams = { prompt };
   if (executor !== undefined) submit.executor = executor;
+  if (model !== undefined) submit.model = model;
   const context = normalizeContext(rawContext);
   if (context) submit.context = context;
   return { task: tasks.submit(submit) };

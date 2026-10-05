@@ -329,3 +329,61 @@ test("task.list с query, task.delete и task.clear через процесс я
   assert.deepEqual(after.map((task) => [task.id, task.status]), [[running.id, "failed"]]);
   assert.equal(await second.stop(), 0);
 });
+
+test("task.submit с model: некорректные значения — InvalidParams, допустимые уходят в argv; в task.done — точная модель CLI", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "luna-data-"));
+  const success = fileURLToPath(new URL("./fixtures/claude-code/success.jsonl", import.meta.url));
+  const claude = join(dir, "claude");
+  // Каждый запуск пишет argv построчно, между запусками — пустая строка-разделитель.
+  writeFileSync(claude, `#!/bin/sh\nprintf '%s\\n' "$@" >> "${dir}/argv"\necho "---" >> "${dir}/argv"\ncat > /dev/null\ncat "${success}"\n`);
+  chmodSync(claude, 0o755);
+  const core = startCore({ LUNA_DATA_DIR: dir, LUNA_CLAUDE_BIN: claude });
+  await core.request("core.hello");
+
+  const invalid = async (params: object) => {
+    const response = (await core.request("task.submit", params)) as Message & { error?: { code: number; message: string } };
+    assert.equal(response.error?.code, -32602, JSON.stringify(params));
+    return response.error?.message;
+  };
+  for (const model of ["--x", "a b", "", "a\nb", "a".repeat(101), 42, null, ["sonnet"], "-sonnet", ".sonnet", "a;b", "a$(b)"]) {
+    assert.equal(await invalid({ prompt: "привет", model }), "invalid model", JSON.stringify(model));
+  }
+
+  const accepted = async (model: string) => {
+    const finished = core.waitFor(
+      (message) => (message.method === "task.done" || message.method === "task.failed") && message.params?.task.prompt === model,
+    );
+    const response = (await core.request("task.submit", { prompt: model, model })) as Message & { error?: unknown };
+    assert.equal(response.error, undefined, model);
+    assert.equal((response.result?.task as TaskInfo).model, model);
+    const task = (await finished).params?.task;
+    assert.equal(task?.status, "done", JSON.stringify(task?.error));
+    // Подставной CLI — как `success.jsonl`: init называет точную модель.
+    assert.equal(task?.model, "claude-fable-5");
+  };
+  const long = `a${"b".repeat(99)}`;
+  for (const model of ["sonnet", "claude-opus-4-8[1m]", long]) await accepted(model);
+
+  // Вместе с followUpOf model не принимается до LUNA-36 — и для задачи, которой нет, и для существующей.
+  assert.equal(await invalid({ prompt: "ещё", model: "sonnet", followUpOf: "missing" }), "model is not allowed with followUpOf");
+
+  const runs = readFileSync(join(dir, "argv"), "utf8").split("---\n").filter((run) => run !== "");
+  assert.equal(runs.length, 3);
+  const models = runs.map((run) => {
+    const argv = run.trimEnd().split("\n");
+    return argv[argv.indexOf("--model") + 1];
+  });
+  assert.deepEqual([...models].sort(), ["claude-opus-4-8[1m]", long, "sonnet"].sort());
+  assert.equal(await core.stop(), 0);
+
+  // Без модели в запросе флага нет (LUNA_CLAUDE_MODEL не задан).
+  const plain = startCore({ LUNA_DATA_DIR: dir, LUNA_CLAUDE_BIN: claude, LUNA_CLAUDE_MODEL: "" });
+  await plain.request("core.hello");
+  const done = plain.waitFor((message) => message.method === "task.done" || message.method === "task.failed");
+  const task = ((await plain.request("task.submit", { prompt: "без модели" })).result?.task ?? {}) as TaskInfo;
+  assert.equal("model" in task, false);
+  assert.equal((await done).params?.task.status, "done");
+  const last = readFileSync(join(dir, "argv"), "utf8").split("---\n").filter((run) => run !== "").at(-1) ?? "";
+  assert.equal(last.includes("--model"), false);
+  assert.equal(await plain.stop(), 0);
+});

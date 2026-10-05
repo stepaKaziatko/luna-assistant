@@ -24,7 +24,7 @@ const PARENT_SESSION_ENV = [
 export interface ClaudeCodeOptions {
   /** Путь к бинарнику; по умолчанию ищется `claude` в PATH и типичных местах установки. */
   binary?: string;
-  /** Значение для --model; по умолчанию — модель из настроек CLI. */
+  /** Запасное значение для --model, когда в запросе модели нет; иначе — модель из настроек CLI. */
   model?: string;
 }
 
@@ -75,7 +75,7 @@ export class ClaudeCodeExecutor implements Executor {
     const env = { ...process.env };
     for (const name of PARENT_SESSION_ENV) delete env[name];
 
-    const child = spawn(binary, buildArgs(request.formatRules, this.options.model, request.resume), {
+    const child = spawn(binary, buildArgs(request.formatRules, request.model ?? this.options.model, request.resume), {
       cwd: request.cwd,
       env,
       stdio: ["pipe", "pipe", "pipe"],

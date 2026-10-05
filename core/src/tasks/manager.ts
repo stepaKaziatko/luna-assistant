@@ -39,6 +39,12 @@ interface Entry {
   workdir?: string;
   /** Сессия исполнителя, которую продолжает уточнение. */
   resume?: { sessionId: string };
+  /**
+   * Модель, выбранная при отправке, — в терминах исполнителя. В протокол не выходит: `info.model`
+   * заменяется точной моделью исполнителя, а при повторной отправке переписки он должен
+   * получить именно выбор.
+   */
+  model?: string;
 }
 
 export class TaskManager {
@@ -77,6 +83,11 @@ export class TaskManager {
       entry.resume = { sessionId: point.sessionId };
     } else if (params.context) {
       info.context = params.context;
+    }
+    // Запрет `model` вместе с `followUpOf` — на уровне протокола (main.ts, до LUNA-36); менеджер принимает оба.
+    if (params.model !== undefined) {
+      info.model = params.model;
+      entry.model = params.model;
     }
 
     this.entries.set(info.id, entry);
@@ -288,6 +299,7 @@ export class TaskManager {
         formatRules: FORMAT_RULES,
         cwd,
         signal: abort.signal,
+        ...(entry.model !== undefined ? { model: entry.model } : {}),
         ...(entry.resume ? { resume: entry.resume } : {}),
       }));
 
@@ -302,7 +314,13 @@ export class TaskManager {
         this.save(entry);
         info.progress = RESEND_PROGRESS;
         this.emit("task.progress", info);
-        outcome = await this.follow(entry, executor.run({ prompt: resend, formatRules: FORMAT_RULES, cwd, signal: abort.signal }));
+        outcome = await this.follow(entry, executor.run({
+        prompt: resend,
+        formatRules: FORMAT_RULES,
+        cwd,
+        signal: abort.signal,
+        ...(entry.model !== undefined ? { model: entry.model } : {}),
+      }));
       }
 
       if (isFinal(info)) return;
@@ -331,6 +349,11 @@ export class TaskManager {
       switch (event.type) {
         case "session":
           info.sessionId = event.sessionId;
+          this.save(entry);
+          break;
+        case "model":
+          // Отдельного task.progress нет: модель уходит в ближайшем progress/done/failed.
+          info.model = event.model;
           this.save(entry);
           break;
         case "progress":

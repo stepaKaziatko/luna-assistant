@@ -18,11 +18,17 @@ export interface TaskSubmitParams {
     context?:  TaskContext;
     executor?: ExecutorId;
     /**
-     * id задачи диалога, которую продолжает уточнение; вместе с ним context и executor не
-     * передаются
+     * id задачи диалога, которую продолжает уточнение; вместе с ним context, executor и model
+     * не передаются (model — до LUNA-36)
      */
     followUpOf?: string;
-    prompt:      string;
+    /**
+     * модель для этой задачи; строка непрозрачна для протокола, её смысл знает исполнитель (для
+     * Claude Code — алиас opus/sonnet/haiku или полный идентификатор); не передана — модель по
+     * умолчанию исполнителя; вместе с followUpOf не передаётся (до LUNA-36)
+     */
+    model?: string;
+    prompt: string;
 }
 
 export interface TaskContext {
@@ -54,11 +60,17 @@ export interface TaskInfo {
      */
     finishedAt?: number;
     id:          string;
-    progress?:   string;
-    prompt:      string;
-    result?:     string;
-    sessionId?:  string;
-    status:      TaskStatus;
+    /**
+     * модель, на которой выполняется задача: как выбрана при отправке, а когда исполнитель
+     * сообщил точную — она (алиас sonnet → claude-sonnet-4-6); нет — модель по умолчанию
+     * исполнителя ещё не известна
+     */
+    model?:     string;
+    progress?:  string;
+    prompt:     string;
+    result?:    string;
+    sessionId?: string;
+    status:     TaskStatus;
     /**
      * id первой задачи диалога; у задачи без уточнений равен id
      */

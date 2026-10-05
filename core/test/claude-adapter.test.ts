@@ -118,6 +118,7 @@ test("отмена убивает процесс и не порождает ош
     events.push(event);
     abort.abort();
   }
-  assert.deepEqual(events.map((event) => event.type), ["session"]);
+  // Первая строка потока — init: из неё идут оба события, session и model.
+  assert.deepEqual(events.map((event) => event.type), ["session", "model"]);
   assert.ok(Date.now() - started < 5000, "процесс должен завершиться сразу после отмены");
 });
