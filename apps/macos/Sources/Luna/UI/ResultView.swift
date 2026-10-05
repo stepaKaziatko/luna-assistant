@@ -20,7 +20,6 @@ struct ResultView: View {
         }
         .padding(16)
         .frame(width: Layout.cardWidth, alignment: .leading)
-        .hangingCard()
         .onChange(of: state.followUpFocusRequest) { followUpFocused = true }
     }
 

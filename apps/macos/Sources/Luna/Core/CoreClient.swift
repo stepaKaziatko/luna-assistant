@@ -28,6 +28,8 @@ extension CoreRequesting {
 final class CoreClient: CoreRequesting, @unchecked Sendable {
     /// Любое уведомление task.* несёт полный снимок задачи.
     var onTaskEvent: (@MainActor (TaskInfo) -> Void)?
+    /// `agents.changed` несёт полный список сессий агентов.
+    var onAgentsEvent: (@MainActor ([AgentSession]) -> Void)?
     var onExit: (@MainActor (Int32) -> Void)?
 
     private let launch: CoreLaunch
@@ -113,9 +115,13 @@ final class CoreClient: CoreRequesting, @unchecked Sendable {
         guard let envelope = try? JSONDecoder().decode(Envelope.self, from: line) else { return }
 
         if let method = envelope.method {
-            guard method.hasPrefix("task."),
-                  let event = try? JSONDecoder().decode(Notification<TaskEventParams>.self, from: line) else { return }
-            _Concurrency.Task { @MainActor in self.onTaskEvent?(event.params.task) }
+            if method.hasPrefix("task."),
+               let event = try? JSONDecoder().decode(Notification<TaskEventParams>.self, from: line) {
+                _Concurrency.Task { @MainActor in self.onTaskEvent?(event.params.task) }
+            } else if method == "agents.changed",
+                      let event = try? JSONDecoder().decode(Notification<AgentsEventParams>.self, from: line) {
+                _Concurrency.Task { @MainActor in self.onAgentsEvent?(event.params.sessions) }
+            }
             return
         }
 

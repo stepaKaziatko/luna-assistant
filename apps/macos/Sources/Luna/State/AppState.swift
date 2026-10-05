@@ -5,10 +5,16 @@ import Foundation
 final class AppState: ObservableObject {
     enum Mode: Equatable {
         case pill
+        /// Блок, выехавший из шторки под курсором: агенты и диалоги. Клавиатуру не забирает.
+        case peek
         case input
         case tasks
         /// Карточка диалога: все его задачи, внизу — поле продолжения.
         case result(threadId: String)
+        /// Сессии агентов, запущенные не Luna: в редакторах и терминалах.
+        case agents
+        /// Одна сессия: что агент делает сейчас и переход к её окну.
+        case agent(sessionId: String)
     }
 
     @Published private(set) var mode: Mode = .pill
@@ -48,7 +54,35 @@ final class AppState: ObservableObject {
     /// Повторное «Открыть полностью» у диалога с открытым окном: окно поднимается, второе не создаётся.
     let windowRaised = PassthroughSubject<String, Never>()
 
+    /// Живые сессии агентов в порядке ядра: по проектам, внутри проекта — по времени старта.
+    @Published private(set) var agents: [AgentSession] = []
+    /// Сессии, закончившие ход, пока пользователь на них не смотрел.
+    @Published private(set) var finishedAgents: Set<String> = []
+    /// Сессия, выбранная в списке агентов с клавиатуры.
+    @Published private(set) var selectedAgentId: String?
+    /// Последние шаги сессии открытой карточки агента, старые первыми.
+    @Published private(set) var agentSteps: [AgentStep] = []
+    /// Сессии, открытые в отдельных окнах, в порядке открытия; одно окно на сессию.
+    @Published private(set) var agentWindows: [String] = []
+    /// Подробные ленты сессий, открытых в окнах.
+    @Published private(set) var agentTranscripts: [String: [AgentStep]] = [:]
+    /// Последнее известное состояние сессий, открытых в окнах: окно переживает конец сессии.
+    @Published private(set) var agentWindowSessions: [String: AgentSession] = [:]
+    /// Повторное «В окне» у сессии с открытым окном: окно поднимается, второе не создаётся.
+    let agentWindowRaised = PassthroughSubject<String, Never>()
+    /// Размер видимой части острова; по нему панель знает, что на экране.
+    @Published var islandSize = CGSize(width: 44, height: 6)
+
+    let settings: LunaSettings
     var core: CoreRequesting?
+    /// Переход к окну сессии; в тестах подменяется.
+    var jump: (AgentSession) -> Void = AgentJump.open
+    /// Звук события; настройки звука проверяет проигрыватель. Без него (тесты) Luna молчит.
+    var playSound: (SoundEvent) -> Void = { _ in }
+    /// Открывает окно настроек.
+    var showSettings: () -> Void = {}
+    /// Событие, на которое свёрнутая шторка отзывается коротким оживлением аватаров.
+    var enliven: () -> Void = {}
 
     private var capture: _Concurrency.Task<CapturedContext.Details, Never>?
     /// Сколько занял последний захват контекста — для диагностики.
@@ -56,9 +90,52 @@ final class AppState: ObservableObject {
     private var captureGeneration = 0
     /// Ответ на поиск, пришедший после ответа на более новый запрос, отбрасывается.
     private var searchGeneration = 0
+    private var stepsGeneration = 0
+    private var transcriptGenerations: [String: Int] = [:]
+    /// Первый список сессий — не новость: о том, что было до запуска Luna, звук не сообщает.
+    private var agentsLoaded = false
+
+    init(settings: LunaSettings? = nil) {
+        self.settings = settings ?? LunaSettings()
+    }
 
     var pillState: PillState {
         PillState.aggregate(tasks: tasks, unseen: unseen, hasProblem: problem != nil)
+    }
+
+    var agentsSummary: AgentsSummary {
+        AgentsSummary(sessions: agents, finished: finishedAgents)
+    }
+
+    /// Что показывает развёрнутая шторка; nil — показывать нечего.
+    var pillPresentation: PillPresentation? {
+        PillPresentation.make(tasks: pillState, taskProgress: tasks.last { $0.isActive }?.progress, agents: agentsSummary)
+    }
+
+    /// Счётчики шторки и блока под курсором.
+    var statusChips: [StatusChip] {
+        StatusChip.make(tasks: tasks, unseen: unseen, hasProblem: problem != nil, agents: agentsSummary)
+    }
+
+    /// Диалоги блока под курсором: самые свежие.
+    var peekDialogs: [Dialog] {
+        Array(Dialog.group(tasks).prefix(Self.peekDialogLimit))
+    }
+
+    static let peekDialogLimit = 4
+
+    /// Плитки сессий блока под курсором: не больше двух рядов.
+    var peekAgents: (shown: [AgentSession], hidden: Int) {
+        AgentsSummary.peek(agents, finished: finishedAgents, limit: 2 * Self.agentColumns)
+    }
+
+    func agent(id: String) -> AgentSession? {
+        agents.first { $0.id == id }
+    }
+
+    /// Сессия открытой карточки агента.
+    var shownAgentId: String? {
+        if case .agent(let sessionId) = mode { sessionId } else { nil }
     }
 
     /// Диалоги в порядке показа в списке: новые сверху. При поиске — найденные; задачи, которые
@@ -127,6 +204,21 @@ final class AppState: ObservableObject {
         mode = .pill
     }
 
+    /// Курсор задержался над шторкой. Раскрытую карточку блок не подменяет.
+    func openPeek() {
+        if mode == .pill { mode = .peek }
+    }
+
+    /// Курсор ушёл с блока.
+    func closePeek() {
+        if mode == .peek { collapse() }
+    }
+
+    func openSettings() {
+        collapse()
+        showSettings()
+    }
+
     /// Список открывается с пустым поиском, без подсказок и неподтверждённой очистки.
     func showTasks() {
         resetList()
@@ -158,16 +250,25 @@ final class AppState: ObservableObject {
         show(threadId: threadId)
     }
 
-    /// Клик по pill ведёт к тому, что требует внимания: к единственному диалогу, к списку или к вводу.
+    /// Клик по pill ведёт к тому, что требует внимания: к единственному диалогу или агенту,
+    /// к списку или к вводу. Порядок тот же, что у pill: сначала то, что ждёт человека.
     func pillClicked() {
         var attention: [String] = []
         for task in tasks where (unseen.contains(task.id) || task.isActive) && !attention.contains(task.threadId) {
             attention.append(task.threadId)
         }
-        switch attention.count {
-        case 0: openInput()
-        case 1: show(threadId: attention[0])
-        default: showTasks()
+        let summary = agentsSummary
+        let calling = summary.waiting + summary.finished
+        if case .error = pillState, !attention.isEmpty {
+            attention.count == 1 ? show(threadId: attention[0]) : showTasks()
+        } else if !calling.isEmpty {
+            calling.count == 1 ? openAgent(id: calling[0].id) : showAgents()
+        } else if !attention.isEmpty {
+            attention.count == 1 ? show(threadId: attention[0]) : showTasks()
+        } else if !agents.isEmpty {
+            showAgents()
+        } else {
+            openInput()
         }
     }
 
@@ -180,6 +281,172 @@ final class AppState: ObservableObject {
 
     func openSelectedTask() {
         if let selectedThreadId { open(threadId: selectedThreadId) }
+    }
+
+    // MARK: - Агенты
+
+    func toggleAgents() {
+        switch mode {
+        case .agents, .agent: collapse()
+        default: showAgents()
+        }
+    }
+
+    /// Список открывается на сессии, которая зовёт человека, а если таких нет — на первой.
+    func showAgents() {
+        resetList()
+        let summary = agentsSummary
+        if selectedAgentId.flatMap(agent(id:)) == nil || !summary.waiting.isEmpty {
+            selectedAgentId = (summary.waiting.first ?? summary.finished.first ?? agents.first)?.id
+        }
+        mode = .agents
+    }
+
+    func openAgent(id: String) {
+        guard agent(id: id) != nil else { return }
+        finishedAgents.remove(id)
+        selectedAgentId = id
+        if shownAgentId != id { agentSteps = [] }
+        mode = .agent(sessionId: id)
+        refreshAgentSteps()
+    }
+
+    /// Сколько плиток в ряду сетки агентов.
+    static let agentColumns = 4
+
+    func moveAgentSelection(by offset: Int) {
+        guard !agents.isEmpty else { return }
+        let current = agents.firstIndex { $0.id == selectedAgentId } ?? -1
+        selectedAgentId = agents[min(max(current + offset, 0), agents.count - 1)].id
+    }
+
+    /// Выбор на ряд ниже или выше. Под плиткой неполного последнего ряда пусто — выбор встаёт
+    /// на последнюю плитку; за края сетки он не уходит.
+    func moveAgentSelection(byRows rows: Int) {
+        guard !agents.isEmpty else { return }
+        guard let current = agents.firstIndex(where: { $0.id == selectedAgentId }) else {
+            selectedAgentId = agents[0].id
+            return
+        }
+        let last = agents.count - 1
+        var target = current + rows * Self.agentColumns
+        if target > last, current / Self.agentColumns < last / Self.agentColumns { target = last }
+        if (0...last).contains(target) { selectedAgentId = agents[target].id }
+    }
+
+    /// Поднимает окно, в котором идёт сессия; остров сворачивается — дальше пользователь работает там.
+    func jumpToAgent(id: String) {
+        guard let session = agent(id: id) else { return }
+        finishedAgents.remove(id)
+        collapse()
+        jump(session)
+    }
+
+    /// Клавиши списка и карточки агента: в них нет полей ввода, все нажатия — команды.
+    func handleAgentKey(keyCode: UInt16, command: Bool) -> Bool {
+        switch (mode, keyCode, command) {
+        case (.agents, 124, false): moveAgentSelection(by: 1)
+        case (.agents, 123, false): moveAgentSelection(by: -1)
+        case (.agents, 125, false): moveAgentSelection(byRows: 1)
+        case (.agents, 126, false): moveAgentSelection(byRows: -1)
+        case (.agents, 36, false), (.agents, 76, false):
+            if let selectedAgentId { openAgent(id: selectedAgentId) }
+        case (.agents, 36, true), (.agents, 76, true):
+            if let selectedAgentId { jumpToAgent(id: selectedAgentId) }
+        case (.agents, 53, _): collapse()
+        case (.agent(let id), 36, _), (.agent(let id), 76, _): jumpToAgent(id: id)
+        // Пробел — как у «Быстрого просмотра»: то же самое, но в окне.
+        case (.agent(let id), 49, false): openAgentWindow(id: id)
+        case (.agent, 53, _), (.agent, 123, false), (.agent, 51, false): showAgents()
+        default: return false
+        }
+        return true
+    }
+
+    /// Применяет полный список сессий из ответа или уведомления ядра.
+    func applyAgents(_ sessions: [AgentSession]) {
+        let previous = Dictionary(agents.map { ($0.id, $0.state) }, uniquingKeysWith: { first, _ in first })
+        // Один звук на список: тот, кто зовёт человека, важнее закончившего ход.
+        var cue: SoundEvent?
+        for session in sessions {
+            let before = previous[session.id]
+            // Открытая карточка сессии видна сразу — ни новостью, ни поводом для звука она не становится.
+            let isShown = shownAgentId == session.id
+            if session.state != .idle {
+                finishedAgents.remove(session.id)
+                if session.state == .waiting, before != .waiting, agentsLoaded, !isShown { cue = .attention }
+            } else if let before, before != .idle, !isShown {
+                finishedAgents.insert(session.id)
+                cue = cue ?? .finished
+            }
+        }
+        agentsLoaded = true
+        if let cue { playSound(cue) }
+        if previous != Dictionary(sessions.map { ($0.id, $0.state) }, uniquingKeysWith: { first, _ in first }) { enliven() }
+        let live = Set(sessions.map(\.id))
+        finishedAgents.formIntersection(live)
+        let changed = shownAgentId.flatMap { id in sessions.first { $0.id == id } } != shownAgentId.flatMap(agent(id:))
+        // Окна сессий следуют за своими сессиями; у завершившейся остаётся последнее состояние.
+        for session in sessions where agentWindows.contains(session.id) && agentWindowSessions[session.id] != session {
+            agentWindowSessions[session.id] = session
+            refreshAgentTranscript(session.id)
+        }
+        agents = sessions
+
+        if let selectedAgentId, !live.contains(selectedAgentId) { self.selectedAgentId = sessions.first?.id }
+        if let shownAgentId {
+            // Сессия открытой карточки завершилась — возвращаемся к списку.
+            if !live.contains(shownAgentId) { showAgents() } else if changed { refreshAgentSteps() }
+        }
+    }
+
+    /// Шаги запрашиваются при открытии карточки и при каждом изменении её сессии.
+    private func refreshAgentSteps() {
+        guard let sessionId = shownAgentId, let core else { return }
+        stepsGeneration += 1
+        let generation = stepsGeneration
+        _Concurrency.Task {
+            let params = AgentStepsParams(detail: nil, sessionId: sessionId)
+            guard let response: AgentStepsResult = try? await core.request("agents.steps", params),
+                  generation == stepsGeneration, shownAgentId == sessionId else { return }
+            agentSteps = response.steps
+        }
+    }
+
+    // MARK: - Окна сессий
+
+    /// Сессия в отдельном окне: подробная лента рядом с работой. Остров сворачивается — окно его заменяет.
+    func openAgentWindow(id: String) {
+        guard let session = agent(id: id) else { return }
+        finishedAgents.remove(id)
+        if agentWindows.contains(id) {
+            agentWindowRaised.send(id)
+        } else {
+            agentWindowSessions[id] = session
+            agentWindows.append(id)
+            refreshAgentTranscript(id)
+        }
+        collapse()
+    }
+
+    func closeAgentWindow(id: String) {
+        agentWindows.removeAll { $0 == id }
+        agentTranscripts[id] = nil
+        agentWindowSessions[id] = nil
+        transcriptGenerations[id] = nil
+    }
+
+    /// Подробная лента запрашивается при открытии окна и при каждом изменении его сессии.
+    private func refreshAgentTranscript(_ sessionId: String) {
+        guard let core else { return }
+        let generation = (transcriptGenerations[sessionId] ?? 0) + 1
+        transcriptGenerations[sessionId] = generation
+        _Concurrency.Task {
+            let params = AgentStepsParams(detail: true, sessionId: sessionId)
+            guard let response: AgentStepsResult = try? await core.request("agents.steps", params),
+                  transcriptGenerations[sessionId] == generation, agentWindows.contains(sessionId) else { return }
+            agentTranscripts[sessionId] = response.steps
+        }
     }
 
     // MARK: - Окна «Открыть полностью»
@@ -449,6 +716,8 @@ final class AppState: ObservableObject {
 
     /// Применяет снимок задачи из ответа или уведомления ядра.
     func apply(_ task: TaskInfo) {
+        let before = self.task(id: task.id)?.status
+        if before != task.status { enliven() }
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             tasks[index] = task
         } else {
@@ -458,6 +727,8 @@ final class AppState: ObservableObject {
         let isShown = mode == .result(threadId: task.threadId)
         if (task.status == .done || task.status == .failed) && !isShown {
             unseen.insert(task.id)
+            // Повторное событие о той же завершённой задаче второй раз не звучит.
+            if before != task.status { playSound(task.status == .done ? .done : .failure) }
         }
     }
 
@@ -482,6 +753,18 @@ final class AppState: ObservableObject {
         captureGeneration += 1
         capture = nil
         self.context = context
+    }
+
+    /// Подменяет шаги открытой карточки агента — для проверки интерфейса без ядра.
+    func debugSetAgentSteps(_ steps: [AgentStep]) {
+        stepsGeneration += 1
+        agentSteps = steps
+    }
+
+    /// Подменяет подробную ленту окна сессии.
+    func debugSetAgentTranscript(_ steps: [AgentStep], sessionId: String) {
+        transcriptGenerations[sessionId] = (transcriptGenerations[sessionId] ?? 0) + 1
+        agentTranscripts[sessionId] = steps
     }
     #endif
 }

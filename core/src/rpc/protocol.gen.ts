@@ -113,3 +113,133 @@ export interface TaskClearResult {
 export interface TaskEventParams {
     task: TaskInfo;
 }
+
+export interface AgentListResult {
+    sessions: AgentSession[];
+}
+
+export interface AgentSession {
+    /**
+     * что агент делает сейчас: «читает main.ts»
+     */
+    activity?: string;
+    /**
+     * чей это агент: «claude-code». Строка, а не перечисление: оболочка показывает и незнакомых
+     * агентов
+     */
+    agent: string;
+    cwd:   string;
+    host:  AgentHost;
+    /**
+     * id сессии агента
+     */
+    id: string;
+    /**
+     * ссылка, по которой приложение-хозяин открывает именно эту сессию; есть не у всех хозяев
+     */
+    openUrl?: string;
+    pid:      number;
+    /**
+     * имя проекта: последняя часть cwd
+     */
+    project: string;
+    /**
+     * Unix time, ms
+     */
+    startedAt: number;
+    state:     AgentState;
+    /**
+     * о чём сессия: заголовок от агента, а пока его нет — последний запрос человека
+     */
+    title?: string;
+    /**
+     * несколько последних шагов сессии, старые первыми: по ним оболочка рисует превью работы,
+     * не запрашивая ленту
+     */
+    trail?: AgentStep[];
+    /**
+     * Unix time, ms: последняя смена состояния или запись в журнале сессии
+     */
+    updatedAt: number;
+    /**
+     * чего ждёт агент в состоянии waiting, словами агента
+     */
+    waitingFor?: string;
+}
+
+export interface AgentHost {
+    /**
+     * путь к бандлу приложения-хозяина, если его удалось найти
+     */
+    appPath?: string;
+    kind:     AgentHostKind;
+    /**
+     * имя приложения: «Visual Studio Code», «iTerm2»
+     */
+    name?: string;
+    /**
+     * терминал сессии, например /dev/ttys003
+     */
+    tty?: string;
+    /**
+     * папка, открытая в окне редактора-хозяина; рабочая директория сессии бывает глубже неё
+     */
+    workspace?: string;
+}
+
+/**
+ * ide — редактор с расширением агента; terminal — окно терминала; unknown — хозяин процесса
+ * не определён
+ */
+export type AgentHostKind = "ide" | "terminal" | "unknown";
+
+/**
+ * working — агент занят; waiting — ждёт ответа или разрешения человека; idle — ход завершён
+ */
+export type AgentState = "working" | "waiting" | "idle";
+
+export interface AgentStep {
+    /**
+     * Unix time, ms
+     */
+    at:   number;
+    kind: AgentStepKind;
+    /**
+     * у шага tool — над чем работает инструмент, коротко: имя файла, подпись команды, запрос
+     */
+    target?: string;
+    text:    string;
+    /**
+     * у шага tool — род инструмента: read, edit, write, shell, search, web, agent, plan, ask,
+     * skill, mcp, other. Строка, а не перечисление: незнакомый род оболочка показывает общим
+     * значком
+     */
+    tool?: string;
+}
+
+/**
+ * prompt — запрос человека; tool — вызов инструмента; text — текст агента
+ */
+export type AgentStepKind = "prompt" | "tool" | "text";
+
+export interface AgentStepsParams {
+    /**
+     * true — подробная лента для окна сессии: больше шагов, текст длиннее и с переносами строк
+     */
+    detail?:   boolean;
+    sessionId: string;
+}
+
+export interface AgentStepsResult {
+    /**
+     * последние шаги сессии, старые первыми
+     */
+    steps: AgentStep[];
+}
+
+export interface AgentsEventParams {
+    /**
+     * полный список живых сессий
+     */
+    sessions: AgentSession[];
+}

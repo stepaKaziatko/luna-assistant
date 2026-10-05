@@ -20,6 +20,8 @@ npm run generate   # → core/src/rpc/protocol.gen.ts, apps/macos/Sources/Luna/P
 | `task.list` | — или `TaskListParams` | `TaskListResult` |
 | `task.delete` | `TaskDeleteParams` | `TaskDeleteResult` |
 | `task.clear` | `{}` | `TaskClearResult` |
+| `agents.list` | — | `AgentListResult` |
+| `agents.steps` | `AgentStepsParams` | `AgentStepsResult` |
 
 `TaskSubmitParams.context` — то, что shell снял в момент вызова панели (`TaskContext`: приложение, URL, заголовок, выделение). Core его нормализует: оставляет известные поля, делает однострочными `app`, `url` и `title`, ограничивает длину.
 
@@ -37,8 +39,18 @@ npm run generate   # → core/src/rpc/protocol.gen.ts, apps/macos/Sources/Luna/P
 
 `task.delete` удаляет диалог задачи `taskId` целиком: записи всех его задач в истории и их рабочие директории внутри каталога данных; `deleted` — id удалённых задач. Неизвестная задача — `{ deleted: [] }`. В диалоге есть задача `queued` или `running` — `InvalidParams`, ничего не удаляется. `task.clear` удаляет все диалоги без таких задач. Удаление необратимо; сессии исполнителя (история Claude Code) не трогаются. Событий об удалении нет.
 
+### Агенты
+
+Сессии агентов, запущенные не Luna (в редакторах и терминалах), core находит сам и только читает; задач Luna среди них нет. `agents.list` отдаёт живые сессии: проекты по алфавиту, внутри проекта — по времени старта. `AgentSession.state`: `working` — агент занят (`activity` — чем), `waiting` — ждёт человека (`waitingFor` — чего, словами агента), `idle` — ход завершён. `AgentSession.host` — приложение, в окне которого идёт сессия: редактор (`ide`, с папкой окна `workspace`) или терминал (`terminal`, с `tty`); `openUrl` — ссылка, по которой редактор открывает вкладку именно этой сессии. Переход к окну выполняет shell.
+
+`AgentSession.trail` — несколько последних шагов сессии: по ним shell рисует превью работы на плитке, не запрашивая ленту. У шага `tool` есть род инструмента (`AgentStep.tool`: `read`, `edit`, `shell`, `mcp`…) и цель (`target`: имя файла, подпись команды); род — строка, незнакомый shell показывает общим значком.
+
+`agents.steps` — последние шаги сессии, старые первыми: запросы человека, вызовы инструментов, текст агента. С `detail: true` — подробная лента для окна сессии: шагов больше, текст длиннее и с переносами строк. Неизвестная сессия — пустой список.
+
 ## Уведомления (core → shell)
 
 `task.started`, `task.progress`, `task.done`, `task.failed`, `task.cancelled` — у всех params `TaskEventParams`: полный снимок задачи. Shell обновляет задачу по `id`, не полагаясь на порядок событий.
+
+`agents.changed` — params `AgentsEventParams`: полный список живых сессий. Приходит при любом изменении списка и только после первого `agents.list`: им shell подписывается.
 
 Когда stdin закрывается, core отменяет активные задачи и завершается.

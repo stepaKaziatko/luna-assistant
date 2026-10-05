@@ -90,8 +90,8 @@ struct CopyButton: View {
     }
 }
 
-private extension Theme {
-    /// GitHub-тема без собственного фона: карточка и окно уже тёмные.
+extension Theme {
+    /// GitHub-тема без собственного фона: карточка и окна уже тёмные.
     static let luna = Theme.gitHub
         .text {
             ForegroundColor(.white)

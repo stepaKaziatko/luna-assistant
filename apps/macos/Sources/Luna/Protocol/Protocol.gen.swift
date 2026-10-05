@@ -124,3 +124,106 @@ struct TaskClearResult: Codable, Equatable, Sendable {
 struct TaskEventParams: Codable, Equatable, Sendable {
     let task: TaskInfo
 }
+
+// MARK: - AgentListResult
+struct AgentListResult: Codable, Equatable, Sendable {
+    let sessions: [AgentSession]
+}
+
+// MARK: - AgentSession
+struct AgentSession: Codable, Equatable, Sendable {
+    /// что агент делает сейчас: «читает main.ts»
+    let activity: String?
+    /// чей это агент: «claude-code». Строка, а не перечисление: оболочка показывает и незнакомых
+    /// агентов
+    let agent: String
+    let cwd: String
+    let host: AgentHost
+    /// id сессии агента
+    let id: String
+    /// ссылка, по которой приложение-хозяин открывает именно эту сессию; есть не у всех хозяев
+    let openUrl: String?
+    let pid: Int
+    /// имя проекта: последняя часть cwd
+    let project: String
+    /// Unix time, ms
+    let startedAt: Int
+    let state: AgentState
+    /// о чём сессия: заголовок от агента, а пока его нет — последний запрос человека
+    let title: String?
+    /// несколько последних шагов сессии, старые первыми: по ним оболочка рисует превью работы,
+    /// не запрашивая ленту
+    let trail: [AgentStep]?
+    /// Unix time, ms: последняя смена состояния или запись в журнале сессии
+    let updatedAt: Int
+    /// чего ждёт агент в состоянии waiting, словами агента
+    let waitingFor: String?
+}
+
+// MARK: - AgentHost
+struct AgentHost: Codable, Equatable, Sendable {
+    /// путь к бандлу приложения-хозяина, если его удалось найти
+    let appPath: String?
+    let kind: AgentHostKind
+    /// имя приложения: «Visual Studio Code», «iTerm2»
+    let name: String?
+    /// терминал сессии, например /dev/ttys003
+    let tty: String?
+    /// папка, открытая в окне редактора-хозяина; рабочая директория сессии бывает глубже неё
+    let workspace: String?
+}
+
+/// ide — редактор с расширением агента; terminal — окно терминала; unknown — хозяин процесса
+/// не определён
+enum AgentHostKind: String, Codable, Equatable, Sendable {
+    case ide = "ide"
+    case terminal = "terminal"
+    case unknown = "unknown"
+}
+
+/// working — агент занят; waiting — ждёт ответа или разрешения человека; idle — ход завершён
+enum AgentState: String, Codable, Equatable, Sendable {
+    case idle = "idle"
+    case waiting = "waiting"
+    case working = "working"
+}
+
+// MARK: - AgentStep
+struct AgentStep: Codable, Equatable, Sendable {
+    /// Unix time, ms
+    let at: Int
+    let kind: AgentStepKind
+    /// у шага tool — над чем работает инструмент, коротко: имя файла, подпись команды, запрос
+    let target: String?
+    let text: String
+    /// у шага tool — род инструмента: read, edit, write, shell, search, web, agent, plan, ask,
+    /// skill, mcp, other. Строка, а не перечисление: незнакомый род оболочка показывает общим
+    /// значком
+    let tool: String?
+}
+
+/// prompt — запрос человека; tool — вызов инструмента; text — текст агента
+enum AgentStepKind: String, Codable, Equatable, Sendable {
+    case prompt = "prompt"
+    case text = "text"
+    case tool = "tool"
+}
+
+// MARK: - AgentStepsParams
+struct AgentStepsParams: Codable, Equatable, Sendable {
+    /// true — подробная лента для окна сессии: больше шагов, текст длиннее и с переносами строк
+    let detail: Bool?
+    let sessionId: String
+}
+
+// MARK: - AgentStepsResult
+struct AgentStepsResult: Codable, Equatable, Sendable {
+    /// последние шаги сессии, старые первыми
+    let steps: [AgentStep]
+}
+
+// MARK: - AgentsEventParams
+struct AgentsEventParams: Codable, Equatable, Sendable {
+    /// полный список живых сессий
+    let sessions: [AgentSession]
+}

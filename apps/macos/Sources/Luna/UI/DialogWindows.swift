@@ -63,8 +63,9 @@ final class DialogPanel: NSPanel {
     }
 }
 
-/// Окна «Открыть полностью»: по панели на каждый диалог из `AppState.openWindows`.
-/// Состояние решает, какие окна открыты; контроллер только создаёт, поднимает и закрывает панели.
+/// Окна «Открыть полностью»: по панели на каждый диалог из `AppState.openWindows` и на каждую сессию
+/// агента из `AppState.agentWindows`. Состояние решает, какие окна открыты; контроллер только создаёт,
+/// поднимает и закрывает панели.
 @MainActor
 final class DialogWindows: NSObject, NSWindowDelegate {
     static let defaultSize = NSSize(width: 720, height: 800)
@@ -75,6 +76,8 @@ final class DialogWindows: NSObject, NSWindowDelegate {
 
     private let state: AppState
     private var panels: [String: DialogPanel] = [:]
+    /// Окна сессий агентов — по id сессии.
+    private var agentPanels: [String: DialogPanel] = [:]
     private var subscriptions: Set<AnyCancellable> = []
 
     init(state: AppState) {
@@ -91,6 +94,44 @@ final class DialogWindows: NSObject, NSWindowDelegate {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.panels[$0]?.orderFrontRegardless() }
             .store(in: &subscriptions)
+        state.$agentWindows
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.syncAgents($0) }
+            .store(in: &subscriptions)
+        state.agentWindowRaised
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.agentPanels[$0]?.orderFrontRegardless() }
+            .store(in: &subscriptions)
+    }
+
+    private func syncAgents(_ open: [String]) {
+        for (sessionId, panel) in agentPanels where !open.contains(sessionId) {
+            agentPanels[sessionId] = nil
+            panel.close()
+        }
+        for sessionId in open where agentPanels[sessionId] == nil {
+            showAgent(sessionId)
+        }
+    }
+
+    private func showAgent(_ sessionId: String) {
+        let panel = DialogPanel()
+        panel.title = state.agent(id: sessionId)?.displayTitle ?? "Luna"
+        panel.delegate = self
+        panel.onClose = { [weak state] in state?.closeAgentWindow(id: sessionId) }
+        let content = FirstMouseHostingView(
+            rootView: AgentWindowView(sessionId: sessionId)
+                .environmentObject(state)
+                .environmentObject(state.settings)
+                .onExitCommand { [weak state] in state?.closeAgentWindow(id: sessionId) }
+        )
+        content.sizingOptions = []
+        panel.contentView = content
+        panel.setFrame(frame(cascade: panels.count + agentPanels.count), display: false)
+        agentPanels[sessionId] = panel
+        // Не makeKey: клавиатура остаётся у приложения пользователя.
+        panel.orderFrontRegardless()
     }
 
     private func sync(_ open: [String]) {
@@ -116,7 +157,7 @@ final class DialogWindows: NSObject, NSWindowDelegate {
         // Размер окна задаёт пользователь, а не содержимое.
         content.sizingOptions = []
         panel.contentView = content
-        panel.setFrame(frame(cascade: panels.count), display: false)
+        panel.setFrame(frame(cascade: panels.count + agentPanels.count), display: false)
         panels[threadId] = panel
         // Не makeKey: клавиатура остаётся у карточки или у приложения пользователя.
         panel.orderFrontRegardless()
@@ -149,9 +190,13 @@ final class DialogWindows: NSObject, NSWindowDelegate {
 
     /// Кнопка закрытия: окно уходит из состояния. Закрытие из `sync` сюда не доходит — панель уже снята.
     func windowWillClose(_ notification: Notification) {
-        guard let threadId = threadId(of: notification.object) else { return }
-        panels[threadId] = nil
-        state.closeWindow(threadId: threadId)
+        if let threadId = threadId(of: notification.object) {
+            panels[threadId] = nil
+            state.closeWindow(threadId: threadId)
+        } else if let sessionId = agentPanels.first(where: { $0.value === notification.object as AnyObject? })?.key {
+            agentPanels[sessionId] = nil
+            state.closeAgentWindow(id: sessionId)
+        }
     }
 
     /// Запоминается только размер, который пользователь оставил мышью.
@@ -177,6 +222,23 @@ extension DialogWindows {
                 DebugWindow(threadId: threadId, frame: NSStringFromRect($0.frame), isVisible: $0.isVisible, isKey: $0.isKeyWindow)
             }
         }
+    }
+
+    /// Окна сессий агентов в порядке открытия.
+    var debugAgentWindows: [DebugWindow] {
+        state.agentWindows.compactMap { sessionId in
+            agentPanels[sessionId].map {
+                DebugWindow(threadId: sessionId, frame: NSStringFromRect($0.frame), isVisible: $0.isVisible, isKey: $0.isKeyWindow)
+            }
+        }
+    }
+
+    /// PNG окна сессии агента.
+    func debugAgentSnapshot(sessionId: String) -> Data? {
+        guard let view = agentPanels[sessionId]?.contentView,
+              let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        return bitmap.representation(using: .png, properties: [:])
     }
 
     /// Клик в окно так, как его доставил бы оконный сервер: окно становится ключевым.

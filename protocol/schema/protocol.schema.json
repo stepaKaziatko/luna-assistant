@@ -169,6 +169,114 @@
       "properties": {
         "task": { "$ref": "#/definitions/TaskInfo" }
       }
+    },
+    "AgentState": {
+      "type": "string",
+      "description": "working — агент занят; waiting — ждёт ответа или разрешения человека; idle — ход завершён",
+      "enum": ["working", "waiting", "idle"]
+    },
+    "AgentHostKind": {
+      "type": "string",
+      "description": "ide — редактор с расширением агента; terminal — окно терминала; unknown — хозяин процесса не определён",
+      "enum": ["ide", "terminal", "unknown"]
+    },
+    "AgentHost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "$ref": "#/definitions/AgentHostKind" },
+        "name": { "type": "string", "description": "имя приложения: «Visual Studio Code», «iTerm2»" },
+        "appPath": { "type": "string", "description": "путь к бандлу приложения-хозяина, если его удалось найти" },
+        "workspace": { "type": "string", "description": "папка, открытая в окне редактора-хозяина; рабочая директория сессии бывает глубже неё" },
+        "tty": { "type": "string", "description": "терминал сессии, например /dev/ttys003" }
+      }
+    },
+    "AgentSession": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "agent", "pid", "cwd", "project", "state", "host", "startedAt", "updatedAt"],
+      "properties": {
+        "id": { "type": "string", "description": "id сессии агента" },
+        "agent": { "type": "string", "description": "чей это агент: «claude-code». Строка, а не перечисление: оболочка показывает и незнакомых агентов" },
+        "pid": { "type": "integer" },
+        "cwd": { "type": "string" },
+        "project": { "type": "string", "description": "имя проекта: последняя часть cwd" },
+        "title": { "type": "string", "description": "о чём сессия: заголовок от агента, а пока его нет — последний запрос человека" },
+        "state": { "$ref": "#/definitions/AgentState" },
+        "waitingFor": { "type": "string", "description": "чего ждёт агент в состоянии waiting, словами агента" },
+        "activity": { "type": "string", "description": "что агент делает сейчас: «читает main.ts»" },
+        "trail": {
+          "type": "array",
+          "description": "несколько последних шагов сессии, старые первыми: по ним оболочка рисует превью работы, не запрашивая ленту",
+          "items": { "$ref": "#/definitions/AgentStep" }
+        },
+        "host": { "$ref": "#/definitions/AgentHost" },
+        "openUrl": { "type": "string", "description": "ссылка, по которой приложение-хозяин открывает именно эту сессию; есть не у всех хозяев" },
+        "startedAt": { "type": "integer", "description": "Unix time, ms" },
+        "updatedAt": { "type": "integer", "description": "Unix time, ms: последняя смена состояния или запись в журнале сессии" }
+      }
+    },
+    "AgentStepKind": {
+      "type": "string",
+      "description": "prompt — запрос человека; tool — вызов инструмента; text — текст агента",
+      "enum": ["prompt", "tool", "text"]
+    },
+    "AgentStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "text", "at"],
+      "properties": {
+        "kind": { "$ref": "#/definitions/AgentStepKind" },
+        "text": { "type": "string" },
+        "tool": { "type": "string", "description": "у шага tool — род инструмента: read, edit, write, shell, search, web, agent, plan, ask, skill, mcp, other. Строка, а не перечисление: незнакомый род оболочка показывает общим значком" },
+        "target": { "type": "string", "description": "у шага tool — над чем работает инструмент, коротко: имя файла, подпись команды, запрос" },
+        "at": { "type": "integer", "description": "Unix time, ms" }
+      }
+    },
+    "AgentListResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sessions"],
+      "properties": {
+        "sessions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/AgentSession" }
+        }
+      }
+    },
+    "AgentStepsParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sessionId"],
+      "properties": {
+        "sessionId": { "type": "string" },
+        "detail": { "type": "boolean", "description": "true — подробная лента для окна сессии: больше шагов, текст длиннее и с переносами строк" }
+      }
+    },
+    "AgentStepsResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["steps"],
+      "properties": {
+        "steps": {
+          "type": "array",
+          "description": "последние шаги сессии, старые первыми",
+          "items": { "$ref": "#/definitions/AgentStep" }
+        }
+      }
+    },
+    "AgentsEventParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sessions"],
+      "properties": {
+        "sessions": {
+          "type": "array",
+          "description": "полный список живых сессий",
+          "items": { "$ref": "#/definitions/AgentSession" }
+        }
+      }
     }
   }
 }
