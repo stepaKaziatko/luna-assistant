@@ -15,7 +15,7 @@ final class IslandModeTests: XCTestCase {
     private func task(_ id: String, _ status: TaskStatus) -> TaskInfo {
         TaskInfo(
             context: nil, createdAt: 0, error: nil, executor: .claudeCode, finishedAt: nil, id: id,
-            progress: nil, prompt: "запрос \(id)", result: nil, sessionId: nil, status: status, threadId: id
+            model: nil, progress: nil, prompt: "запрос \(id)", result: nil, sessionId: nil, status: status, threadId: id
         )
     }
 

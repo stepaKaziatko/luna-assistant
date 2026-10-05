@@ -20,14 +20,16 @@ struct InputView: View {
 
             if hasChips { ContextChips() }
 
+            // Ошибка — над нижней строкой: выбор модели остаётся доступным, когда ядро отклонило запрос.
+            if let problem = state.problem {
+                Label(problem, systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .lineLimit(2)
+            }
+
             HStack {
-                if let problem = state.problem {
-                    Label(problem, systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                        .lineLimit(2)
-                } else {
-                    Text("Claude Code")
-                }
+                ModelPicker()
                 Spacer()
                 Text("↩ отправить · esc закрыть")
             }
@@ -41,5 +43,48 @@ struct InputView: View {
 
     private var hasChips: Bool {
         state.context?.payload != nil || !state.captureIssues.isEmpty
+    }
+}
+
+/// «Claude Code · Модель» — единственный элемент выбора в нижней строке панели ввода. Исполнитель
+/// в нём пока подпись; его переключатель (LUNA-17) станет частью этого же элемента, а не вторым.
+/// Меню — «По умолчанию» и список моделей, текущая отмечена; выбор пишется в настройки сразу.
+private struct ModelPicker: View {
+    @EnvironmentObject private var settings: LunaSettings
+
+    private let executor = ExecutorId.claudeCode.rawValue
+
+    var body: some View {
+        Menu {
+            choice(title: ModelName.defaultTitle, model: nil)
+            Divider()
+            ForEach(settings.models(for: executor), id: \.self) { model in
+                choice(title: ModelName.short(model), model: model)
+            }
+        } label: {
+            Text("Claude Code · \(current)")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.visible)
+        .fixedSize()
+        .help("Модель, на которой уйдёт вопрос")
+    }
+
+    private var current: String {
+        settings.model(for: executor).map(ModelName.short) ?? ModelName.defaultTitle
+    }
+
+    private func choice(title: String, model: String?) -> some View {
+        Button {
+            settings.setModel(model, for: executor)
+        } label: {
+            if settings.model(for: executor) == model {
+                Label(title, systemImage: "checkmark")
+            } else {
+                Text(title)
+            }
+        }
     }
 }

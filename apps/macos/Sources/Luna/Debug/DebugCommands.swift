@@ -12,7 +12,8 @@ import AppKit
 /// - `settings` — открыть окно настроек, `settingsTab:<general|avatar|sounds>` — выбрать вкладку,
 ///   `settingsClose` — закрыть, `settingsSnapshot:<путь>` — его PNG;
 /// - `set:<настройка>=<значение>` — поменять настройку: `islandMode` (`always`/`background`), `hoverPeek`, `pillAvatars`, `pillText`, `animateAvatars`,
-///   `soundsEnabled` (`true`/`false`), `soundVolume` (0…1), `tint`, `accessory`, `sound.<событие>` (имя или пусто);
+///   `soundsEnabled` (`true`/`false`), `soundVolume` (0…1), `tint`, `accessory`, `sound.<событие>` (имя или пусто),
+///   `model` — выбор модели Claude Code в панели ввода (значение из списка; пусто или чужое — «По умолчанию»);
 ///   Шторка в режиме «В фоне»: `dump` показывает `panel.isVisible` (окно на экране; после ухода шторки
 ///   становится `false` через полсекунды, когда доиграет анимация), `panel.pointerPolling` и `motion.timer`;
 /// - `agent:<id сессии>` — открыть карточку сессии агента; `agentJump:<id>` — перейти к её окну;
@@ -27,7 +28,8 @@ import AppKit
 /// - `settingsKey:<модификаторы+код>` — нажатие клавиши в окне настроек (`settingsKey:cmd+12` — ⌘Q);
 /// - `hit:<x>,<y>:<путь>` — достаётся ли панели клик в точке экрана (`true`/`false` в файл): прозрачная
 ///   часть окна острова должна пропускать клики;
-/// - `submit:<текст>` — отправить запрос с текущим контекстом;
+/// - `submit:<текст>` — отправить запрос с текущим контекстом и выбранной в панели моделью;
+///   `submitModel:<модель>:<текст>` — то же с указанной моделью в обход списка (проверка ответа ядра на плохое значение);
 /// - `cancelSelected` — кнопка отмены у выбранной строки списка задач;
 /// - `clearHistory` — клик по кнопке «Очистить историю» в списке задач;
 /// - `context:<json>` — подменить захваченный контекст (поля TaskContext; `app` обязателен);
@@ -146,6 +148,11 @@ enum DebugCommands {
         case "set":
             let fields = argument.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
             if fields.count == 2 { set(fields[0], to: fields[1], in: state.settings) }
+        case "submitModel":
+            let fields = argument.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+            guard fields.count == 2 else { return }
+            state.draft = fields[1]
+            state.submit(model: fields[0])
         case "collapse": state.collapse()
         case "pillClick": state.pillClicked()
         case "submit":
@@ -227,6 +234,7 @@ enum DebugCommands {
         case "soundVolume": if let volume = Double(value) { settings.soundVolume = min(1, max(0, volume)) }
         case "tint": if let tint = AvatarTint(rawValue: value) { settings.tint = tint }
         case "accessory": if let accessory = AvatarAccessory(rawValue: value) { settings.accessory = accessory }
+        case "model": settings.setModel(value.isEmpty ? nil : value, for: ExecutorId.claudeCode.rawValue)
         default:
             if name.hasPrefix("sound."), let event = SoundEvent(rawValue: String(name.dropFirst(6))) {
                 settings.setSound(value.isEmpty ? nil : value, for: event)
@@ -284,8 +292,12 @@ enum DebugCommands {
         let finishedAgents: [String]
         let selectedAgentId: String?
         let agentSteps: Int
-        /// Настройки пользователя и окно настроек.
+        /// Настройки пользователя и окно настроек. `model` — выбор модели в панели ввода (пусто — «По умолчанию»).
         let settings: [String: String]
+        /// Список моделей панели ввода.
+        let models: [String]
+        /// Какую модель показывают задачам: `TaskInfo.model` по id задачи.
+        let taskModels: [String: String]
         let settingsVisible: Bool
         /// Какие звуки Luna проиграла бы с запуска, по порядку.
         let sounds: [String]
@@ -342,8 +354,11 @@ enum DebugCommands {
                 "tint": state.settings.tint.rawValue,
                 "accessory": state.settings.accessory.rawValue,
             ]
+            values["model"] = state.selectedModel ?? ""
             for event in SoundEvent.allCases { values["sound.\(event.rawValue)"] = state.settings.sound(for: event) ?? "" }
             settings = values
+            models = state.settings.models(for: ExecutorId.claudeCode.rawValue)
+            taskModels = Dictionary(uniqueKeysWithValues: state.tasks.compactMap { task in task.model.map { (task.id, $0) } })
             self.settingsVisible = settingsVisible
             self.sounds = sounds
             problem = state.problem

@@ -87,7 +87,7 @@ struct ResultView: View {
         }
         if dialog.last.status == .done {
             HStack {
-                Text(caption(dialog.last))
+                Text(dialog.last.resultCaption)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -120,9 +120,5 @@ struct ResultView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
-    }
-
-    private func caption(_ task: TaskInfo) -> String {
-        task.durationSeconds.map { "Claude Code · \($0) с" } ?? "Claude Code"
     }
 }

@@ -584,7 +584,15 @@ final class AppState: ObservableObject {
 
     // MARK: - Задачи
 
+    /// Модель, на которой уйдёт следующий вопрос: последний выбор в панели ввода; nil — «По умолчанию».
+    var selectedModel: String? { settings.model(for: ExecutorId.claudeCode.rawValue) }
+
     func submit() {
+        submit(model: selectedModel)
+    }
+
+    /// `model` — значение для `TaskSubmitParams.model`; nil — поле не передаётся.
+    func submit(model: String?) {
         let prompt = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !prompt.isEmpty else { return }
         guard let core else {
@@ -600,7 +608,7 @@ final class AppState: ObservableObject {
             do {
                 // Быстрая отправка может обогнать захват; он ограничен таймаутами, поэтому дожидаемся.
                 if let pending, captured != nil { captured?.details = await pending.value }
-                let params = TaskSubmitParams(context: captured?.payload, executor: nil, followUpOf: nil, prompt: prompt)
+                let params = TaskSubmitParams(context: captured?.payload, executor: nil, followUpOf: nil, model: model, prompt: prompt)
                 let response: TaskSubmitResult = try await core.request("task.submit", params)
                 // События задачи могли прийти раньше ответа — снимок из ответа их не перезаписывает.
                 if task(id: response.task.id) == nil { apply(response.task) }
@@ -629,7 +637,7 @@ final class AppState: ObservableObject {
         _Concurrency.Task {
             defer { isSendingFollowUp = false }
             do {
-                let params = TaskSubmitParams(context: nil, executor: nil, followUpOf: point.id, prompt: prompt)
+                let params = TaskSubmitParams(context: nil, executor: nil, followUpOf: point.id, model: nil, prompt: prompt)
                 let response: TaskSubmitResult = try await core.request("task.submit", params)
                 if task(id: response.task.id) == nil { apply(response.task) }
             } catch {
