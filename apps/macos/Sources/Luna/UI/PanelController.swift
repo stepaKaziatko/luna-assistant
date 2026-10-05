@@ -13,7 +13,12 @@ final class PanelController {
     private var subscriptions: Set<AnyCancellable> = []
     /// Отложенное уменьшение окна после сворачивания острова.
     private var shrink: DispatchWorkItem?
+    /// Отложенное `orderOut` после ухода шторки: сначала анимация.
+    private var hide: DispatchWorkItem?
     private var pointerTimer: Timer?
+    /// Рамка, где панель стояла в последний раз: по ней, а не по `panel.screen` снятой с экрана панели,
+    /// шторка находит свой монитор при появлении.
+    private var restingFrame: NSRect?
     private var hover = HoverIntent()
     /// Меню Luna для правого клика по шторке — то же, что у значка в строке меню.
     private let makeMenu: () -> NSMenu
@@ -54,10 +59,55 @@ final class PanelController {
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
             .sink { [weak self] _ in self?.place(for: state.mode) }
             .store(in: &subscriptions)
+        // Показ и скрытие шторки в режиме «В фоне»; опрос курсора зависит от того же.
+        state.$islandShown
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.presenceChanged($0) }
+            .store(in: &subscriptions)
         state.settings.$hoverPeek
             .removeDuplicates()
-            .sink { [weak self] in self?.trackPointer($0) }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.updatePointerTracking() }
             .store(in: &subscriptions)
+        state.settings.$islandMode
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.updatePointerTracking() }
+            .store(in: &subscriptions)
+        // Скрытая шторка стоит с первого кадра: ни таймера оживлений, ни вспышки при запуске.
+        MotionGate.shared.setActive(state.islandShown)
+    }
+
+    // MARK: - Показ и скрытие
+
+    private func presenceChanged(_ shown: Bool) {
+        hide?.cancel()
+        hide = nil
+        updatePointerTracking()
+        if shown {
+            MotionGate.shared.setActive(true)
+            // Окно показывается раньше анимации: без `makeKey` и без активации приложения.
+            if !panel.isVisible {
+                place(for: state.mode)
+                panel.orderFrontRegardless()
+            }
+            // Следующий такт: остров уже на экране прозрачным и плавно проявляется.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, state.islandShown else { return }
+                state.islandPresented = true
+            }
+        } else {
+            state.islandPresented = false
+            let work = DispatchWorkItem { [weak self] in
+                guard let self, !state.islandShown else { return }
+                panel.orderOut(nil)
+                MotionGate.shared.setActive(false)
+            }
+            hide = work
+            // Анимация уходит целиком, и только потом окно снимается с экрана.
+            DispatchQueue.main.asyncAfter(deadline: .now() + IslandMotion.collapseDuration + 0.05, execute: work)
+        }
     }
 
     // MARK: - Курсор
@@ -65,11 +115,18 @@ final class PanelController {
     /// Положение курсора опрашивается, а не приходит событиями: панель не ключевая, окно острова
     /// больше видимой фигуры, и события мыши над прозрачной частью достаются приложениям под ней.
     /// Приём Coucou; у Luna опрос реже — ей нужно только «над островом или нет».
-    private func trackPointer(_ enabled: Bool) {
+    private func updatePointerTracking() {
+        let needed = IslandPresence.needsPointerPolling(
+            mode: state.settings.islandMode, isShown: state.islandShown, hoverPeek: state.settings.hoverPeek
+        )
+        guard needed != (pointerTimer != nil) else { return }
         pointerTimer?.invalidate()
         pointerTimer = nil
         hover = HoverIntent()
-        guard enabled else { return }
+        guard needed else {
+            MotionGate.shared.pointerNear = false
+            return
+        }
         let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.pointerMoved() }
         }
@@ -86,7 +143,12 @@ final class PanelController {
         #endif
         // Курсор рядом — шторка оживает: к ней, похоже, идут.
         MotionGate.shared.pointerNear = islandFrame.insetBy(dx: -Self.nearMargin, dy: -Self.nearMargin).contains(pointer)
-        switch hover.update(inside: islandFrame.contains(pointer), at: ProcessInfo.processInfo.systemUptime) {
+        let inside = islandFrame.contains(pointer)
+        // В «В фоне» курсор над шторкой удерживает её; срок проверяется здесь же, на каждом опросе.
+        state.pointerMoved(overIsland: inside)
+        guard pointerTimer != nil else { return }
+        let action = state.settings.hoverPeek ? hover.update(inside: inside, at: ProcessInfo.processInfo.systemUptime) : nil
+        switch action {
         case .open:
             // С зажатой кнопкой мимо шторки что-то тащат — блок не мешает.
             if NSEvent.pressedMouseButtons == 0 { state.openPeek() }
@@ -130,9 +192,11 @@ final class PanelController {
         shrink?.cancel()
         if mode == .pill {
             panel.allowsKey = false
+            let wasVisible = panel.isVisible
             // orderOut отдаёт клавиатуру обратно приложению пользователя.
             if panel.isKeyWindow { panel.orderOut(nil) }
-            panel.orderFrontRegardless()
+            // Скрытая шторка на экран не возвращается; уходящая — доигрывает анимацию, окно снимет `presenceChanged`.
+            if state.islandShown || wasVisible { panel.orderFrontRegardless() }
             // Остров сворачивается внутри большого окна; окно уменьшается, когда анимация закончилась.
             let work = DispatchWorkItem { [weak self] in self?.place(for: .pill) }
             shrink = work
@@ -144,6 +208,11 @@ final class PanelController {
             panel.orderFrontRegardless()
         } else {
             panel.allowsKey = true
+            // Панель, вызванная при скрытой шторке, появляется вместе с ней.
+            hide?.cancel()
+            hide = nil
+            state.islandPresented = true
+            MotionGate.shared.setActive(true)
             place(for: mode)
             panel.makeKeyAndOrderFront(nil)
         }
@@ -152,7 +221,7 @@ final class PanelController {
     private func place(for mode: AppState.Mode) {
         // Раскрываемся на мониторе с курсором; pill и блок под курсором остаются там, где шторка.
         let stays = mode == .pill || mode == .peek
-        let screen = stays ? (panel.screen ?? Self.screenWithMouse()) : Self.screenWithMouse()
+        let screen = stays ? (restingScreen ?? Self.screenWithMouse()) : Self.screenWithMouse()
         guard let screen else { return }
 
         let size = mode == .pill ? Layout.pillPanel : Layout.expandedPanel
@@ -160,8 +229,16 @@ final class PanelController {
         let top = min(screen.visibleFrame.maxY, screen.frame.maxY - screen.safeAreaInsets.top)
         let origin = NSPoint(x: screen.frame.midX - size.width / 2, y: top - size.height)
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
+        restingFrame = panel.frame
         // Остров прижат к верхней середине окна — туда смотрят аватары, когда следят за курсором.
         IslandPointer.anchor = CGPoint(x: screen.frame.midX, y: top)
+    }
+
+    /// Монитор, где шторка стояла в последний раз; nil — не стояла или монитор отключён.
+    private var restingScreen: NSScreen? {
+        guard let frame = restingFrame else { return nil }
+        let top = NSPoint(x: frame.midX, y: frame.maxY - 1)
+        return NSScreen.screens.first { NSMouseInRect(top, $0.frame, false) }
     }
 
     private static func screenWithMouse() -> NSScreen? {
@@ -201,7 +278,8 @@ extension PanelController {
     var debugPanelInfo: [String: String] {
         [
             "frame": NSStringFromRect(panel.frame), "isKey": String(panel.isKeyWindow), "isVisible": String(panel.isVisible),
-            "menuOpen": String(openMenu != nil),
+            "menuOpen": String(openMenu != nil), "pointerPolling": String(pointerTimer != nil),
+            "islandShown": String(state.islandShown),
         ]
     }
 

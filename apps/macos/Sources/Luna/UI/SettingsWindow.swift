@@ -6,7 +6,7 @@ import SwiftUI
 /// закрылось — активным снова становится то, с которым пользователь работал.
 @MainActor
 final class SettingsWindow: NSObject, NSWindowDelegate {
-    static let size = CGSize(width: 480, height: 520)
+    static let size = CGSize(width: 480, height: 580)
 
     private let settings: LunaSettings
     private let sounds: SoundPlayer

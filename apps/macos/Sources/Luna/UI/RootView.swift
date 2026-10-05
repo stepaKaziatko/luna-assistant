@@ -44,6 +44,12 @@ enum IslandMotion {
 
     /// Сколько длится сворачивание: после него окно острова можно уменьшить.
     static let collapseDuration: TimeInterval = 0.45
+
+    /// Шторка появляется и прячется в режиме «В фоне». Появление — как рост острова, уход — как сжатие;
+    /// при «Уменьшении движения» — растворение.
+    static func presence(appearing: Bool, reduced: Bool) -> Animation {
+        resize(growing: appearing, reduced: reduced)
+    }
 }
 
 /// Общий такт покадровых анимаций острова: аватары, столбики, блики. Все они тикают в одни и те же
@@ -82,6 +88,11 @@ final class MotionGate: ObservableObject {
 
     private var burstEnd = Date.distantPast
     private var timer: Timer?
+    /// Шторка на экране. Скрытой оживлять некого: таймер снят, `burst()` ничего не делает.
+    private(set) var isActive = true
+
+    /// Заведён ли таймер оживлений.
+    var isScheduling: Bool { timer != nil }
 
     init() {
         let center = NSWorkspace.shared.notificationCenter
@@ -93,6 +104,11 @@ final class MotionGate: ObservableObject {
                 MainActor.assumeIsolated { self?.isAsleep = asleep }
             }
         }
+        startTimer()
+    }
+
+    private func startTimer() {
+        guard timer == nil else { return }
         let timer = Timer(timeInterval: Self.burstPeriod, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.burst() }
         }
@@ -101,15 +117,33 @@ final class MotionGate: ObservableObject {
         self.timer = timer
     }
 
+    /// Шторка скрыта или показана. Скрытая — без таймера и без вспышек; показанная — снова с таймером
+    /// и одной вспышкой, чтобы появившаяся шторка ожила.
+    func setActive(_ active: Bool) {
+        guard active != isActive else { return }
+        isActive = active
+        if active {
+            startTimer()
+            burst()
+        } else {
+            timer?.invalidate()
+            timer = nil
+            burstEnd = .distantPast
+            pointerNear = false
+            update()
+        }
+    }
+
     /// Короткое оживление: что-то произошло или просто пришло время моргнуть.
     func burst() {
+        guard isActive else { return }
         burstEnd = Date().addingTimeInterval(Self.burstLength)
         update()
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.burstLength + 0.05) { [weak self] in self?.update() }
     }
 
     private func update() {
-        let lively = pointerNear || Date() < burstEnd
+        let lively = isActive && (pointerNear || Date() < burstEnd)
         if lively != isLively { isLively = lively }
     }
 }
@@ -193,6 +227,13 @@ struct RootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // Появление и уход шторки в режиме «В фоне»: съезжает от края и растворяется; при
+        // «Уменьшении движения» — только растворение.
+        .opacity(state.islandPresented ? 1 : 0)
+        .offset(y: state.islandPresented || reduceMotion ? 0 : -size.height)
+        .animation(
+            IslandMotion.presence(appearing: state.islandPresented, reduced: reduceMotion), value: state.islandPresented
+        )
         .animation(.default, value: state.mode)
         .onExitCommand { state.collapse() }
         .environment(\.colorScheme, .dark)

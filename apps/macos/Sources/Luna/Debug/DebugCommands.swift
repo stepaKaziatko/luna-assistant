@@ -11,8 +11,10 @@ import AppKit
 /// - `click:<dx>,<dy>` — клик по острову; точка — от его верхней середины, x вправо, y вниз;
 /// - `settings` — открыть окно настроек, `settingsTab:<general|avatar|sounds>` — выбрать вкладку,
 ///   `settingsClose` — закрыть, `settingsSnapshot:<путь>` — его PNG;
-/// - `set:<настройка>=<значение>` — поменять настройку: `hoverPeek`, `pillAvatars`, `pillText`, `animateAvatars`,
+/// - `set:<настройка>=<значение>` — поменять настройку: `islandMode` (`always`/`background`), `hoverPeek`, `pillAvatars`, `pillText`, `animateAvatars`,
 ///   `soundsEnabled` (`true`/`false`), `soundVolume` (0…1), `tint`, `accessory`, `sound.<событие>` (имя или пусто);
+///   Шторка в режиме «В фоне»: `dump` показывает `panel.isVisible` (окно на экране; после ухода шторки
+///   становится `false` через полсекунды, когда доиграет анимация), `panel.pointerPolling` и `motion.timer`;
 /// - `agent:<id сессии>` — открыть карточку сессии агента; `agentJump:<id>` — перейти к её окну;
 /// - `agentsSet:<json>` — подменить список сессий (массив AgentSession), `agentSteps:<json>` — шаги
 ///   открытой карточки (массив AgentStep): интерфейс агентов проверяется без живых сессий;
@@ -216,6 +218,7 @@ enum DebugCommands {
 
     private static func set(_ name: String, to value: String, in settings: LunaSettings) {
         switch name {
+        case "islandMode": if let mode = IslandMode(rawValue: value) { settings.islandMode = mode }
         case "hoverPeek": settings.hoverPeek = value == "true"
         case "pillAvatars": settings.pillAvatars = value == "true"
         case "pillText": settings.pillText = value == "true"
@@ -290,6 +293,8 @@ enum DebugCommands {
         let accessibilityTrusted: Bool
         let captureMs: Int?
         let panel: [String: String]
+        /// Таймер оживлений шторки: заведён, только пока шторка показана.
+        let motion: [String: String]
         /// Окна «Открыть полностью»: диалог, рамка, видимость, ключевое ли.
         let windows: [DialogWindows.DebugWindow]
         /// Окна сессий агентов; `threadId` у них — id сессии. `agentTranscripts` — сколько шагов в ленте каждого.
@@ -327,6 +332,7 @@ enum DebugCommands {
             selectedAgentId = state.selectedAgentId
             agentSteps = state.agentSteps.count
             var values = [
+                "islandMode": state.settings.islandMode.rawValue,
                 "hoverPeek": String(state.settings.hoverPeek),
                 "pillAvatars": String(state.settings.pillAvatars),
                 "pillText": String(state.settings.pillText),
@@ -344,6 +350,7 @@ enum DebugCommands {
             accessibilityTrusted = AccessibilityProbe.isTrusted
             captureMs = state.lastCaptureDuration.map { Int($0 / .milliseconds(1)) }
             self.panel = panel
+            motion = ["timer": String(MotionGate.shared.isScheduling)]
             self.windows = windows
             self.agentWindows = agentWindows
             agentTranscripts = state.agentTranscripts.mapValues(\.count)

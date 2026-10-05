@@ -55,10 +55,22 @@ struct SettingsView: View {
 
     private var general: some View {
         Form {
-            Section("Шторка") {
+            Section {
+                Picker("Показывать шторку", selection: $settings.islandMode) {
+                    ForEach(IslandMode.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
                 Toggle("Раскрывать при наведении", isOn: $settings.hoverPeek)
+                    .disabled(settings.islandMode == .background)
+                if settings.islandMode == .background {
+                    Text("В фоне шторка выезжает только по событию; наведение на край ничего не открывает.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Toggle("Аватары агентов в шторке", isOn: $settings.pillAvatars)
                 Toggle("Подпись рядом со счётчиками", isOn: $settings.pillText)
+            } header: {
+                Text("Шторка")
             }
             Section("Сочетания клавиш") {
                 KeyboardShortcuts.Recorder("Спросить", name: .toggleInput)

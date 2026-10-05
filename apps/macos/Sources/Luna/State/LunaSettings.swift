@@ -7,6 +7,8 @@ import Foundation
 final class LunaSettings: ObservableObject {
     private let defaults: UserDefaults
 
+    /// Как Luna ведёт себя в покое: шторка всегда на экране или только по событию.
+    @Published var islandMode: IslandMode { didSet { defaults.set(islandMode.rawValue, forKey: Key.islandMode) } }
     /// Блок с агентами и диалогами выезжает, когда курсор задержался над шторкой.
     @Published var hoverPeek: Bool { didSet { defaults.set(hoverPeek, forKey: Key.hoverPeek) } }
     /// Аватары сессий агентов в свёрнутой шторке.
@@ -25,6 +27,7 @@ final class LunaSettings: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        islandMode = defaults.string(forKey: Key.islandMode).flatMap(IslandMode.init) ?? .always
         hoverPeek = defaults.object(forKey: Key.hoverPeek) as? Bool ?? true
         pillAvatars = defaults.object(forKey: Key.pillAvatars) as? Bool ?? true
         pillText = defaults.object(forKey: Key.pillText) as? Bool ?? false
@@ -54,6 +57,7 @@ final class LunaSettings: ObservableObject {
     }
 
     private enum Key {
+        static let islandMode = "islandMode"
         static let hoverPeek = "hoverPeek"
         static let pillAvatars = "pillAvatars"
         static let pillText = "pillText"
