@@ -17,7 +17,9 @@ final class AppState: ObservableObject {
         case agent(sessionId: String)
     }
 
-    @Published private(set) var mode: Mode = .pill
+    @Published private(set) var mode: Mode = .pill {
+        didSet { if mode != oldValue { presence.panelChanged(from: oldValue, to: mode, now: clock()); syncPresence() } }
+    }
     @Published var draft = ""
     /// В порядке создания.
     @Published private(set) var tasks: [TaskInfo] = []
@@ -72,13 +74,22 @@ final class AppState: ObservableObject {
     let agentWindowRaised = PassthroughSubject<String, Never>()
     /// Размер видимой части острова; по нему панель знает, что на экране.
     @Published var islandSize = CGSize(width: 44, height: 6)
+    /// Должна ли шторка быть на экране: в «Всегда» — да, в «В фоне» — по событию и пока открыта панель.
+    /// Решает `IslandPresence`; панель исполняет.
+    @Published private(set) var islandShown: Bool
+    /// Остров на экране в полной силе: его выставляет панель, когда окно уже показано, а убирает — когда
+    /// начинает прятать. От него зависят плавное появление и скрытие.
+    @Published var islandPresented: Bool
 
     let settings: LunaSettings
     var core: CoreRequesting?
     /// Переход к окну сессии; в тестах подменяется.
     var jump: (AgentSession) -> Void = AgentJump.open
     /// Звук события; настройки звука проверяет проигрыватель. Без него (тесты) Luna молчит.
+    /// Из логики состояния его зовёт только `notify`.
     var playSound: (SoundEvent) -> Void = { _ in }
+    /// Время для отсчёта паузы шторки; в тестах подменяется.
+    var clock: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     /// Открывает окно настроек.
     var showSettings: () -> Void = {}
     /// Событие, на которое свёрнутая шторка отзывается коротким оживлением аватаров.
@@ -94,9 +105,44 @@ final class AppState: ObservableObject {
     private var transcriptGenerations: [String: Int] = [:]
     /// Первый список сессий — не новость: о том, что было до запуска Luna, звук не сообщает.
     private var agentsLoaded = false
+    private var presence: IslandPresence
+    private var presenceSubscription: AnyCancellable?
 
     init(settings: LunaSettings? = nil) {
-        self.settings = settings ?? LunaSettings()
+        let settings = settings ?? LunaSettings()
+        self.settings = settings
+        presence = IslandPresence(mode: settings.islandMode)
+        islandShown = presence.isShown
+        islandPresented = presence.isShown
+        // Переключение действует сразу. `$islandMode` публикует значение до записи, поэтому берём пришедшее.
+        presenceSubscription = settings.$islandMode.dropFirst().removeDuplicates().sink { [weak self] mode in
+            MainActor.assumeIsolated { self?.setIslandMode(mode) }
+        }
+    }
+
+    // MARK: - Показ шторки
+
+    /// Событие, о котором Luna сообщает: звук (его решает проигрыватель по настройкам) и показ шторки
+    /// в режиме «В фоне». Список событий один — `SoundEvent`; настройки звука на показ не влияют.
+    func notify(_ event: SoundEvent) {
+        playSound(event)
+        presence.event(now: clock())
+        syncPresence()
+    }
+
+    /// Очередной опрос курсора: над шторкой он или нет.
+    func pointerMoved(overIsland inside: Bool) {
+        presence.update(pointerInside: inside, now: clock())
+        syncPresence()
+    }
+
+    private func setIslandMode(_ mode: IslandMode) {
+        presence.setMode(mode, panel: self.mode, now: clock())
+        syncPresence()
+    }
+
+    private func syncPresence() {
+        if islandShown != presence.isShown { islandShown = presence.isShown }
     }
 
     var pillState: PillState {
@@ -381,7 +427,7 @@ final class AppState: ObservableObject {
             }
         }
         agentsLoaded = true
-        if let cue { playSound(cue) }
+        if let cue { notify(cue) }
         if previous != Dictionary(sessions.map { ($0.id, $0.state) }, uniquingKeysWith: { first, _ in first }) { enliven() }
         let live = Set(sessions.map(\.id))
         finishedAgents.formIntersection(live)
@@ -728,7 +774,7 @@ final class AppState: ObservableObject {
         if (task.status == .done || task.status == .failed) && !isShown {
             unseen.insert(task.id)
             // Повторное событие о той же завершённой задаче второй раз не звучит.
-            if before != task.status { playSound(task.status == .done ? .done : .failure) }
+            if before != task.status { notify(task.status == .done ? .done : .failure) }
         }
     }
 

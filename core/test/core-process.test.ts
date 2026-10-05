@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -137,6 +137,56 @@ test("ядро с историей: stdout — только протокол, ta
   assert.equal(interrupted?.status, "failed");
   assert.deepEqual(interrupted?.error, { kind: "unknown", message: INTERRUPTED_MESSAGE });
   assert.equal(after.find((task) => task.id === "old")?.result, "ответ");
+  assert.equal(await second.stop(), 0);
+});
+
+/** Жив ли процесс: сигнал 0 ничего не шлёт, а только проверяет, есть ли такой pid. */
+function isAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+test("выход оболочки (EOF в stdin ядра): процесс исполнителя завершается, задача после перезапуска failed", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "luna-data-"));
+  // Подставной исполнитель пишет свой pid и висит: после выхода Luna он не должен остаться сиротой.
+  const claude = join(dir, "claude");
+  writeFileSync(claude, `#!/bin/sh\necho $$ > "${dir}/executor.pid"\nexec sleep 30\n`);
+  chmodSync(claude, 0o755);
+  const env = { LUNA_DATA_DIR: dir, LUNA_CLAUDE_BIN: claude };
+
+  const first = startCore(env);
+  await first.request("core.hello");
+  const started = first.waitFor((message) => message.method === "task.started");
+  const submitted = (await first.request("task.submit", { prompt: "долгая" })).result?.task as TaskInfo;
+  await started;
+  // Запуск процесса и запись pid — отдельные шаги: ждём файл, а не угадываем.
+  const pidFile = join(dir, "executor.pid");
+  const deadline = Date.now() + WAIT_TIMEOUT_MS;
+  while (!existsSync(pidFile) || readFileSync(pidFile, "utf8").trim() === "") {
+    assert.ok(Date.now() < deadline, "исполнитель не записал свой pid");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  const executorPid = Number(readFileSync(pidFile, "utf8").trim());
+  assert.ok(isAlive(executorPid), "до выхода исполнитель должен работать");
+
+  // Так выглядит выход Luna для ядра: оболочка закрыла его stdin.
+  assert.equal(await first.stop(), 0);
+  const killedBy = Date.now() + 5_000;
+  while (isAlive(executorPid) && Date.now() < killedBy) await new Promise((resolve) => setTimeout(resolve, 50));
+  const survived = isAlive(executorPid);
+  if (survived) process.kill(executorPid, "SIGKILL");
+  assert.ok(!survived, "исполнитель пережил выход ядра больше 5 с");
+
+  const second = startCore(env);
+  await second.request("core.hello");
+  const after = (await second.request("task.list")).result?.tasks as TaskInfo[];
+  const interrupted = after.find((task) => task.id === submitted.id);
+  assert.equal(interrupted?.status, "failed");
+  assert.deepEqual(interrupted?.error, { kind: "unknown", message: INTERRUPTED_MESSAGE });
   assert.equal(await second.stop(), 0);
 });
 

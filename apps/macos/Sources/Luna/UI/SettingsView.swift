@@ -26,6 +26,8 @@ struct SettingsView: View {
     @EnvironmentObject private var settings: LunaSettings
     @EnvironmentObject private var navigation: SettingsNavigation
     let sounds: SoundPlayer
+    /// Завершает Luna: у приложения без Dock и главного меню выйти должно быть откуда-то ещё, кроме значка.
+    let quit: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -53,16 +55,32 @@ struct SettingsView: View {
 
     private var general: some View {
         Form {
-            Section("Шторка") {
+            Section {
+                Picker("Показывать шторку", selection: $settings.islandMode) {
+                    ForEach(IslandMode.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
                 Toggle("Раскрывать при наведении", isOn: $settings.hoverPeek)
+                if settings.islandMode == .background {
+                    Text("В фоне шторка выезжает по событию, наведение на край её не вызывает; над показанной шторкой курсор раскрывает блок.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Toggle("Аватары агентов в шторке", isOn: $settings.pillAvatars)
                 Toggle("Подпись рядом со счётчиками", isOn: $settings.pillText)
+            } header: {
+                Text("Шторка")
             }
             Section("Сочетания клавиш") {
                 KeyboardShortcuts.Recorder("Спросить", name: .toggleInput)
                 KeyboardShortcuts.Recorder("Последний результат", name: .openLastResult)
                 KeyboardShortcuts.Recorder("Список задач", name: .toggleTasks)
                 KeyboardShortcuts.Recorder("Агенты", name: .toggleAgents)
+            }
+            Section {
+                Button("Выйти из Luna", action: quit)
+            } footer: {
+                Text("Идущие задачи прервутся.")
             }
         }
     }

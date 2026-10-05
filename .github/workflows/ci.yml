@@ -90,4 +90,4 @@ jobs:
       - name: Бандл собирается и запускается
         run: |
           apps/macos/scripts/bundle.sh debug
-          apps/macos/scripts/smoke.sh
+          apps/macos/scripts/smoke.sh --debug

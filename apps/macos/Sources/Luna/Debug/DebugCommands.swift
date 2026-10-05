@@ -11,14 +11,20 @@ import AppKit
 /// - `click:<dx>,<dy>` — клик по острову; точка — от его верхней середины, x вправо, y вниз;
 /// - `settings` — открыть окно настроек, `settingsTab:<general|avatar|sounds>` — выбрать вкладку,
 ///   `settingsClose` — закрыть, `settingsSnapshot:<путь>` — его PNG;
-/// - `set:<настройка>=<значение>` — поменять настройку: `hoverPeek`, `pillAvatars`, `pillText`, `animateAvatars`,
+/// - `set:<настройка>=<значение>` — поменять настройку: `islandMode` (`always`/`background`), `hoverPeek`, `pillAvatars`, `pillText`, `animateAvatars`,
 ///   `soundsEnabled` (`true`/`false`), `soundVolume` (0…1), `tint`, `accessory`, `sound.<событие>` (имя или пусто);
+///   Шторка в режиме «В фоне»: `dump` показывает `panel.isVisible` (окно на экране; после ухода шторки
+///   становится `false` через полсекунды, когда доиграет анимация), `panel.pointerPolling` и `motion.timer`;
 /// - `agent:<id сессии>` — открыть карточку сессии агента; `agentJump:<id>` — перейти к её окну;
 /// - `agentsSet:<json>` — подменить список сессий (массив AgentSession), `agentSteps:<json>` — шаги
 ///   открытой карточки (массив AgentStep): интерфейс агентов проверяется без живых сессий;
 /// - `agentWindow[:<id>]` — окно сессии открытой карточки (или указанной), `agentWindowClose[:<id>]` — закрыть
 ///   его (без id — последнее), `agentTranscript:<json>` — подменить подробную ленту последнего окна
 ///   (массив AgentStep), `agentWindowSnapshot:<путь>` — PNG последнего окна сессии;
+/// - `islandMenu:<путь>` — заголовки меню, которое открывает правый клик по шторке (по строке на пункт,
+///   разделитель — пустая строка); `rightClick:<dx>,<dy>:<путь>` — сам правый клик по острову: меню раскрывается
+///   на секунду, в это время состояние пишется в файл (как `dump`, `panel.menuOpen` — `true`), и меню закрывается;
+/// - `settingsKey:<модификаторы+код>` — нажатие клавиши в окне настроек (`settingsKey:cmd+12` — ⌘Q);
 /// - `hit:<x>,<y>:<путь>` — достаётся ли панели клик в точке экрана (`true`/`false` в файл): прозрачная
 ///   часть окна острова должна пропускать клики;
 /// - `submit:<текст>` — отправить запрос с текущим контекстом;
@@ -35,6 +41,9 @@ import AppKit
 /// - `dump:<путь>` — состояние приложения в JSON (с открытыми окнами и активным приложением);
 ///   `snapshot:<путь>` — PNG панели;
 /// - `quit` — то же, что «Выйти из Luna» в меню.
+///
+/// Перед командой можно поставить `@<pid>:` — её выполнит только процесс с этим pid. Так проверка выхода
+/// не гасит чужую debug-сборку: уведомление получают все запущенные.
 @MainActor
 enum DebugCommands {
     private static var observer: NSObjectProtocol?
@@ -51,7 +60,12 @@ enum DebugCommands {
         observer = DistributedNotificationCenter.default().addObserver(
             forName: Notification.Name("dev.luna.debug"), object: nil, queue: .main
         ) { notification in
-            guard let command = notification.object as? String else { return }
+            guard var command = notification.object as? String else { return }
+            if command.hasPrefix("@") {
+                let target = command.dropFirst().prefix { $0 != ":" }
+                guard target == String(ProcessInfo.processInfo.processIdentifier) else { return }
+                command = String(command.dropFirst(target.count + 2))
+            }
             MainActor.assumeIsolated { run(command, state: state, panels: panels, windows: windows, settings: settings) }
         }
     }
@@ -114,6 +128,19 @@ enum DebugCommands {
         case "settings": state.openSettings()
         case "settingsTab": settings.debugSelect(tab: argument)
         case "settingsClose": settings.debugClose()
+        case "settingsKey":
+            if let (keyCode, modifiers) = keyStroke(argument) {
+                settings.debugKeyDown(keyCode: keyCode, characters: keyCharacters[keyCode] ?? "", modifiers: modifiers)
+            }
+        case "islandMenu":
+            try? panels.debugMenuTitles.joined(separator: "\n").write(toFile: argument, atomically: true, encoding: .utf8)
+        case "rightClick":
+            let fields = argument.split(separator: ":", maxSplits: 1)
+            let numbers = fields.first?.split(separator: ",").compactMap { Double($0) } ?? []
+            guard fields.count == 2, numbers.count == 2 else { return }
+            panels.debugRightClick(dx: numbers[0], dy: numbers[1], after: 1) {
+                writeDump(to: String(fields[1]), state: state, panels: panels, windows: windows, settings: settings)
+            }
         case "settingsSnapshot":
             try? settings.debugSnapshot()?.write(to: URL(fileURLWithPath: argument))
         case "set":
@@ -134,18 +161,7 @@ enum DebugCommands {
             let details = CapturedContext.Details(url: context.url, title: context.title, selection: context.selection)
             state.debugSetContext(CapturedContext(app: app, details: details))
         case "key":
-            var names = argument.split(separator: "+").map(String.init)
-            guard let keyCode = names.popLast().flatMap(UInt16.init) else { return }
-            var modifiers: NSEvent.ModifierFlags = []
-            for name in names {
-                switch name {
-                case "cmd": modifiers.insert(.command)
-                case "shift": modifiers.insert(.shift)
-                case "opt": modifiers.insert(.option)
-                case "ctrl": modifiers.insert(.control)
-                default: return
-                }
-            }
+            guard let (keyCode, modifiers) = keyStroke(argument) else { return }
             // Клавиши уходят в ключевое окно: в окно диалога после клика по нему, иначе в панель.
             let characters = keyCharacters[keyCode] ?? ""
             if !windows.debugKeyDown(keyCode: keyCode, characters: characters, modifiers: modifiers) {
@@ -164,12 +180,7 @@ enum DebugCommands {
                 try? windows.debugSnapshot(threadId: threadId)?.write(to: URL(fileURLWithPath: argument))
             }
         case "dump":
-            let dump = Dump(
-                state: state, panel: panels.debugPanelInfo, windows: windows.debugWindows,
-                agentWindows: windows.debugAgentWindows, settingsVisible: settings.debugIsVisible, sounds: sounds
-            )
-            try? JSONEncoder.pretty.encode(dump)
-                .write(to: URL(fileURLWithPath: argument))
+            writeDump(to: argument, state: state, panels: panels, windows: windows, settings: settings)
         case "snapshot":
             try? panels.debugSnapshot()?.write(to: URL(fileURLWithPath: argument))
         case "quit":
@@ -178,8 +189,36 @@ enum DebugCommands {
         }
     }
 
+    private static func writeDump(
+        to path: String, state: AppState, panels: PanelController, windows: DialogWindows, settings: SettingsWindow
+    ) {
+        let dump = Dump(
+            state: state, panel: panels.debugPanelInfo, windows: windows.debugWindows,
+            agentWindows: windows.debugAgentWindows, settingsVisible: settings.debugIsVisible, sounds: sounds
+        )
+        try? JSONEncoder.pretty.encode(dump).write(to: URL(fileURLWithPath: path))
+    }
+
+    /// «cmd+shift+51» — код клавиши и модификаторы; nil, если запись не разобралась.
+    private static func keyStroke(_ text: String) -> (UInt16, NSEvent.ModifierFlags)? {
+        var names = text.split(separator: "+").map(String.init)
+        guard let keyCode = names.popLast().flatMap(UInt16.init) else { return nil }
+        var modifiers: NSEvent.ModifierFlags = []
+        for name in names {
+            switch name {
+            case "cmd": modifiers.insert(.command)
+            case "shift": modifiers.insert(.shift)
+            case "opt": modifiers.insert(.option)
+            case "ctrl": modifiers.insert(.control)
+            default: return nil
+            }
+        }
+        return (keyCode, modifiers)
+    }
+
     private static func set(_ name: String, to value: String, in settings: LunaSettings) {
         switch name {
+        case "islandMode": if let mode = IslandMode(rawValue: value) { settings.islandMode = mode }
         case "hoverPeek": settings.hoverPeek = value == "true"
         case "pillAvatars": settings.pillAvatars = value == "true"
         case "pillText": settings.pillText = value == "true"
@@ -195,9 +234,9 @@ enum DebugCommands {
         }
     }
 
-    /// Символы, которые оконный сервер кладёт в событие для клавиш: esc, ↩, ↓, ↑, Tab, ⌫, «a» и «c» (для ⌘A, ⌘C).
+    /// Символы, которые оконный сервер кладёт в событие для клавиш: esc, ↩, ↓, ↑, Tab, ⌫, «a», «c» и «q» (для ⌘A, ⌘C, ⌘Q).
     private static let keyCharacters: [UInt16: String] = [
-        53: "\u{1B}", 36: "\r", 125: "\u{F701}", 126: "\u{F700}", 48: "\t", 51: "\u{7F}", 0: "a", 8: "c",
+        53: "\u{1B}", 36: "\r", 125: "\u{F701}", 126: "\u{F700}", 48: "\t", 51: "\u{7F}", 0: "a", 8: "c", 12: "q",
     ]
 
     /// Диалог глазами списка задач и карточки.
@@ -254,6 +293,8 @@ enum DebugCommands {
         let accessibilityTrusted: Bool
         let captureMs: Int?
         let panel: [String: String]
+        /// Таймер оживлений шторки: заведён, только пока шторка показана.
+        let motion: [String: String]
         /// Окна «Открыть полностью»: диалог, рамка, видимость, ключевое ли.
         let windows: [DialogWindows.DebugWindow]
         /// Окна сессий агентов; `threadId` у них — id сессии. `agentTranscripts` — сколько шагов в ленте каждого.
@@ -291,6 +332,7 @@ enum DebugCommands {
             selectedAgentId = state.selectedAgentId
             agentSteps = state.agentSteps.count
             var values = [
+                "islandMode": state.settings.islandMode.rawValue,
                 "hoverPeek": String(state.settings.hoverPeek),
                 "pillAvatars": String(state.settings.pillAvatars),
                 "pillText": String(state.settings.pillText),
@@ -308,6 +350,7 @@ enum DebugCommands {
             accessibilityTrusted = AccessibilityProbe.isTrusted
             captureMs = state.lastCaptureDuration.map { Int($0 / .milliseconds(1)) }
             self.panel = panel
+            motion = ["timer": String(MotionGate.shared.isScheduling)]
             self.windows = windows
             self.agentWindows = agentWindows
             agentTranscripts = state.agentTranscripts.mapValues(\.count)
