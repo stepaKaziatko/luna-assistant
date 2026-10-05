@@ -24,6 +24,15 @@ interface Message {
   params?: { task: TaskInfo };
 }
 
+/** Сколько ждать сообщения ядра: подставной исполнитель отвечает за доли секунды, запас — на медленный раннер CI. */
+const WAIT_TIMEOUT_MS = 10_000;
+
+interface Waiter {
+  match: (message: Message) => boolean;
+  resolve: (message: Message) => void;
+  reject: (error: Error) => void;
+}
+
 /** Ядро дочерним процессом, как его запускает оболочка: JSON-RPC построчно в stdio. */
 function startCore(env: Record<string, string>) {
   const child = spawn(process.execPath, [MAIN], {
@@ -31,9 +40,15 @@ function startCore(env: Record<string, string>) {
     stdio: ["pipe", "pipe", "pipe"],
   });
   cores.push(child);
-  child.stderr.resume();
+  // Хвост stderr — в сообщение об ошибке, если ядро умерло: по нему видно, почему.
+  let stderr = "";
+  child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+    stderr = (stderr + chunk).slice(-2000);
+  });
+  // Запись в stdin умершего ядра — EPIPE; без обработчика он уронил бы весь прогон, а не тест.
+  child.stdin.on("error", () => {});
   const lines: string[] = [];
-  const waiters: { match: (message: Message) => boolean; resolve: (message: Message) => void }[] = [];
+  const waiters: Waiter[] = [];
   createInterface({ input: child.stdout }).on("line", (line) => {
     lines.push(line);
     const message = JSON.parse(line) as Message;
@@ -41,14 +56,44 @@ function startCore(env: Record<string, string>) {
     if (index !== -1) waiters.splice(index, 1)[0]?.resolve(message);
   });
   const exited = new Promise<number | null>((resolve) => child.once("exit", resolve));
+  // «close» — после выхода и закрытия stdio: все строки stdout уже разобраны, ждать больше нечего.
+  let closed: string | undefined;
+  child.once("close", (code, signal) => {
+    closed = `ядро завершилось (код ${code}, сигнал ${signal})${stderr ? `; stderr:\n${stderr}` : ""}`;
+    for (const waiter of waiters.splice(0)) waiter.reject(new Error(closed));
+  });
   let nextId = 1;
 
-  const waitFor = (match: (message: Message) => boolean) =>
-    new Promise<Message>((resolve) => waiters.push({ match, resolve }));
+  // Ожидание обрывается ошибкой, если ядро умерло или сообщение не пришло вовремя: упавшее ядро роняет тест, а не вешает прогон.
+  const waitFor = (match: (message: Message) => boolean, what = "сообщения ядра") => {
+    const waiting = new Promise<Message>((resolve, reject) => {
+      if (closed) return reject(new Error(`не дождались ${what}: ${closed}`));
+      const timer = setTimeout(() => {
+        const index = waiters.indexOf(waiter);
+        if (index !== -1) waiters.splice(index, 1);
+        reject(new Error(`не дождались ${what} за ${WAIT_TIMEOUT_MS} мс`));
+      }, WAIT_TIMEOUT_MS);
+      const waiter: Waiter = {
+        match,
+        resolve: (message) => {
+          clearTimeout(timer);
+          resolve(message);
+        },
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(new Error(`не дождались ${what}: ${error.message}`));
+        },
+      };
+      waiters.push(waiter);
+    });
+    // Ошибка достаётся тому, кто ждёт; ожидание, которое тест не успел дождаться, не роняет прогон «необработанным отказом».
+    waiting.catch(() => {});
+    return waiting;
+  };
   const request = (method: string, params: unknown = {}) => {
     const id = nextId++;
     child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
-    return waitFor((message) => message.id === id);
+    return waitFor((message) => message.id === id, `ответа на ${method}`);
   };
   const stop = () => {
     child.stdin.end();
