@@ -26,6 +26,8 @@ struct SettingsView: View {
     @EnvironmentObject private var settings: LunaSettings
     @EnvironmentObject private var navigation: SettingsNavigation
     let sounds: SoundPlayer
+    /// Завершает Luna: у приложения без Dock и главного меню выйти должно быть откуда-то ещё, кроме значка.
+    let quit: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -63,6 +65,11 @@ struct SettingsView: View {
                 KeyboardShortcuts.Recorder("Последний результат", name: .openLastResult)
                 KeyboardShortcuts.Recorder("Список задач", name: .toggleTasks)
                 KeyboardShortcuts.Recorder("Агенты", name: .toggleAgents)
+            }
+            Section {
+                Button("Выйти из Luna", action: quit)
+            } footer: {
+                Text("Идущие задачи прервутся.")
             }
         }
     }

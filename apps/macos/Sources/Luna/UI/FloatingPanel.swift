@@ -10,6 +10,8 @@ final class FloatingPanel: NSPanel {
     /// Клавиши, которые панель забирает раньше поля ввода в фокусе (стрелки, ↩, esc, ⌘⌫ списка
     /// задач). Возвращает true, если нажатие обработано и дальше не идёт.
     var onKeyIntercept: ((NSEvent) -> Bool)?
+    /// Правый клик. Возвращает true, если меню показано; панель при этом остаётся неключевой.
+    var onRightClick: ((NSEvent) -> Bool)?
     /// В режиме pill панель не должна перехватывать клавиатуру.
     var allowsKey = false
 
@@ -35,6 +37,7 @@ final class FloatingPanel: NSPanel {
 
     override func sendEvent(_ event: NSEvent) {
         if event.type == .keyDown, onKeyIntercept?(event) == true { return }
+        if event.type == .rightMouseDown, onRightClick?(event) == true { return }
         super.sendEvent(event)
     }
 

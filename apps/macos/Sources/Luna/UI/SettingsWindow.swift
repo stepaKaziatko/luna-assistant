@@ -6,7 +6,7 @@ import SwiftUI
 /// закрылось — активным снова становится то, с которым пользователь работал.
 @MainActor
 final class SettingsWindow: NSObject, NSWindowDelegate {
-    static let size = CGSize(width: 480, height: 440)
+    static let size = CGSize(width: 480, height: 520)
 
     private let settings: LunaSettings
     private let sounds: SoundPlayer
@@ -15,9 +15,13 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     /// Приложение, которое было активным до открытия настроек.
     private var previousApp: NSRunningApplication?
 
-    init(settings: LunaSettings, sounds: SoundPlayer) {
+    /// Что делает ⌘Q и кнопка «Выйти из Luna».
+    private let quit: () -> Void
+
+    init(settings: LunaSettings, sounds: SoundPlayer, quit: @escaping () -> Void) {
         self.settings = settings
         self.sounds = sounds
+        self.quit = quit
     }
 
     func show() {
@@ -32,11 +36,12 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         let window = CommandClosingWindow(
             contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: false
         )
+        window.onQuit = quit
         window.title = "Настройки Luna"
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.contentView = NSHostingView(
-            rootView: SettingsView(sounds: sounds).environmentObject(settings).environmentObject(navigation)
+            rootView: SettingsView(sounds: sounds, quit: quit).environmentObject(settings).environmentObject(navigation)
         )
         window.center()
         return window
@@ -49,15 +54,34 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     }
 }
 
-/// У приложения-агента нет главного меню, поэтому `⌘W` окно обрабатывает само.
-private final class CommandClosingWindow: NSWindow {
+/// У приложения-агента нет главного меню, поэтому `⌘W` и `⌘Q` окно обрабатывает само.
+final class CommandClosingWindow: NSWindow {
+    /// Завершение приложения по `⌘Q`.
+    var onQuit: () -> Void = { NSApp.terminate(nil) }
+
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        if modifiers == .command, event.charactersIgnoringModifiers?.lowercased() == "w" {
-            performClose(nil)
-            return true
+        if modifiers == .command {
+            if event.isLetterKey("w", keyCode: 13) {
+                performClose(nil)
+                return true
+            }
+            if event.isLetterKey("q", keyCode: 12) {
+                onQuit()
+                return true
+            }
         }
         return super.performKeyEquivalent(with: event)
+    }
+}
+
+private extension NSEvent {
+    /// Нажата клавиша с этой буквой. На нелатинской раскладке (русской) буква другая, и тогда
+    /// узнаём клавишу по коду: `⌘Q` не должен зависеть от раскладки.
+    func isLetterKey(_ letter: String, keyCode code: UInt16) -> Bool {
+        guard let characters = charactersIgnoringModifiers?.lowercased() else { return false }
+        if characters == letter { return true }
+        return keyCode == code && !characters.allSatisfy(\.isASCII)
     }
 }
 
@@ -71,6 +95,17 @@ extension SettingsWindow {
 
     func debugClose() {
         window?.performClose(nil)
+    }
+
+    /// Нажатие клавиши в окне настроек так, как его доставил бы оконный сервер.
+    func debugKeyDown(keyCode: UInt16, characters: String, modifiers: NSEvent.ModifierFlags) {
+        guard let window,
+              let event = NSEvent.keyEvent(
+                  with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: ProcessInfo.processInfo.systemUptime,
+                  windowNumber: window.windowNumber, context: nil, characters: characters,
+                  charactersIgnoringModifiers: characters, isARepeat: false, keyCode: keyCode
+              ) else { return }
+        window.sendEvent(event)
     }
 
     /// PNG с содержимым окна — без записи экрана и её разрешений.

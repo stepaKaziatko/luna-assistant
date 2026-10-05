@@ -3,7 +3,8 @@ import KeyboardShortcuts
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let state = AppState(settings: AppDelegate.loadSettings())
+    let state = AppState(settings: AppDelegate.loadSettings())
+    private lazy var menu = LunaMenu(state: state, quit: { NSApp.terminate(nil) })
     private var panels: PanelController?
     private var windows: DialogWindows?
     private var settingsWindow: SettingsWindow?
@@ -14,10 +15,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Запись в pipe умершего ядра должна вернуть ошибку, а не убить приложение.
         signal(SIGPIPE, SIG_IGN)
 
-        panels = PanelController(state: state)
+        panels = PanelController(state: state, menu: { [menu] in menu.make() })
         windows = DialogWindows(state: state)
         let sounds = SoundPlayer(settings: state.settings)
-        let settingsWindow = SettingsWindow(settings: state.settings, sounds: sounds)
+        let settingsWindow = SettingsWindow(settings: state.settings, sounds: sounds, quit: { NSApp.terminate(nil) })
         self.settingsWindow = settingsWindow
         state.playSound = { sounds.play($0) }
         state.enliven = { MotionGate.shared.burst() }
@@ -33,6 +34,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         #endif
         startCore()
+    }
+
+    /// Luna.app открыли снова, пока она работает (Spotlight, Finder, `open`): у неё нет Dock и, возможно,
+    /// не видно значка, поэтому открывается окно настроек — оттуда можно и выйти. Второй экземпляр не запускается.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        state.openSettings()
+        return false
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -85,46 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.image = NSImage(systemSymbolName: "moon.stars", accessibilityDescription: "Luna")
-
-        let menu = NSMenu()
-        menu.addItem(menuItem("Спросить…", #selector(askClicked), shortcut: .toggleInput))
-        menu.addItem(menuItem("Последний результат", #selector(lastResultClicked), shortcut: .openLastResult))
-        menu.addItem(menuItem("Список задач", #selector(tasksClicked), shortcut: .toggleTasks))
-        menu.addItem(menuItem("Агенты", #selector(agentsClicked), shortcut: .toggleAgents))
-        menu.addItem(.separator())
-        let settings = NSMenuItem(title: "Настройки…", action: #selector(settingsClicked), keyEquivalent: ",")
-        settings.target = self
-        menu.addItem(settings)
-        menu.addItem(NSMenuItem(title: "Выйти из Luna", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        item.menu = menu
+        item.menu = menu.make()
         statusItem = item
-    }
-
-    private func menuItem(_ title: String, _ action: Selector, shortcut: KeyboardShortcuts.Name) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-        item.target = self
-        item.setShortcut(for: shortcut)
-        return item
-    }
-
-    // Панель раскрываем после закрытия меню: иначе оно тут же отберёт у неё клавиатуру.
-    @objc private func askClicked() {
-        DispatchQueue.main.async { [state] in state.toggleInput() }
-    }
-
-    @objc private func lastResultClicked() {
-        DispatchQueue.main.async { [state] in state.openLastResult() }
-    }
-
-    @objc private func tasksClicked() {
-        DispatchQueue.main.async { [state] in state.showTasks() }
-    }
-
-    @objc private func agentsClicked() {
-        DispatchQueue.main.async { [state] in state.showAgents() }
-    }
-
-    @objc private func settingsClicked() {
-        DispatchQueue.main.async { [state] in state.openSettings() }
     }
 }

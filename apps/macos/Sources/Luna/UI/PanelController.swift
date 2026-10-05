@@ -15,17 +15,23 @@ final class PanelController {
     private var shrink: DispatchWorkItem?
     private var pointerTimer: Timer?
     private var hover = HoverIntent()
+    /// Меню Luna для правого клика по шторке — то же, что у значка в строке меню.
+    private let makeMenu: () -> NSMenu
     #if DEBUG
     /// Подменённое положение курсора в координатах экрана; nil — настоящий курсор.
     var debugPointer: NSPoint?
+    /// Меню правого клика, пока оно раскрыто.
+    private(set) var openMenu: NSMenu?
     #endif
 
-    init(state: AppState) {
+    init(state: AppState, menu makeMenu: @escaping () -> NSMenu) {
         self.state = state
+        self.makeMenu = makeMenu
         panel.contentView = FirstMouseHostingView(
             rootView: RootView().environmentObject(state).environmentObject(state.settings)
         )
         panel.onCancel = { [weak state] in state?.collapse() }
+        panel.onRightClick = { [weak self] in self?.showMenu(for: $0) ?? false }
         panel.onKeyDown = { [weak state] in state?.handleCardKey($0.keyCode) ?? false }
         panel.onKeyIntercept = { [weak state] event in
             guard let state else { return false }
@@ -92,6 +98,24 @@ final class PanelController {
     }
 
     private static let nearMargin: CGFloat = 140
+
+    // MARK: - Меню
+
+    /// Правый клик по шторке (в том числе по блоку под курсором) открывает меню Luna. Остальное окно прозрачно
+    /// и клики не получает: оконный сервер отдаёт их приложениям под ним. Меню — не окно приложения:
+    /// активным остаётся приложение пользователя, панель неключевая.
+    private func showMenu(for event: NSEvent) -> Bool {
+        guard state.mode == .pill || state.mode == .peek, let view = panel.contentView else { return false }
+        let point = panel.convertPoint(toScreen: event.locationInWindow)
+        guard islandFrame.contains(point) else { return false }
+        let menu = makeMenu()
+        #if DEBUG
+        openMenu = menu
+        defer { openMenu = nil }
+        #endif
+        NSMenu.popUpContextMenu(menu, with: event, for: view)
+        return true
+    }
 
     /// Видимая фигура острова в координатах экрана. Тонкую полоску ловим с тем же запасом, что и клик;
     /// у раскрытого блока запас по краям — чтобы он не закрывался от промаха на пару точек.
@@ -175,7 +199,10 @@ extension PanelController {
     }
 
     var debugPanelInfo: [String: String] {
-        ["frame": NSStringFromRect(panel.frame), "isKey": String(panel.isKeyWindow), "isVisible": String(panel.isVisible)]
+        [
+            "frame": NSStringFromRect(panel.frame), "isKey": String(panel.isKeyWindow), "isVisible": String(panel.isVisible),
+            "menuOpen": String(openMenu != nil),
+        ]
     }
 
     /// Точка внутри видимой фигуры острова — «курсор над шторкой».
@@ -197,6 +224,30 @@ extension PanelController {
         // Нажатие уходит в цикл отслеживания мыши, который ждёт отпускания из очереди событий.
         NSApp.postEvent(up, atStart: false)
         panel.sendEvent(down)
+    }
+
+    /// Меню, которое откроет правый клик по шторке: заголовки пунктов, разделитель — пустой строкой.
+    var debugMenuTitles: [String] {
+        makeMenu().items.map { $0.isSeparatorItem ? "" : $0.title }
+    }
+
+    /// Правый клик по острову так, как его доставил бы оконный сервер; точка — как у `debugClick`.
+    /// Пока меню раскрыто, главный цикл занят его отслеживанием и команды из скрипта не доходят, поэтому
+    /// состояние снимает `whileOpen`, вызванный через `delay` секунд, — после него меню закрывается.
+    func debugRightClick(dx: CGFloat, dy: CGFloat, after delay: TimeInterval, whileOpen: @escaping @MainActor () -> Void) {
+        let location = NSPoint(x: panel.frame.width / 2 + dx, y: panel.frame.height - dy)
+        guard let event = NSEvent.mouseEvent(
+            with: .rightMouseDown, location: location, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: panel.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1
+        ) else { return }
+        let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                whileOpen()
+                self?.openMenu?.cancelTracking()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        panel.sendEvent(event)
     }
 
     /// Достаётся ли панели клик в точке экрана: окно, которое оконный сервер считает верхним в ней.
