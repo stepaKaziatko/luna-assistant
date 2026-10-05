@@ -315,12 +315,12 @@ export class TaskManager {
         info.progress = RESEND_PROGRESS;
         this.emit("task.progress", info);
         outcome = await this.follow(entry, executor.run({
-        prompt: resend,
-        formatRules: FORMAT_RULES,
-        cwd,
-        signal: abort.signal,
-        ...(entry.model !== undefined ? { model: entry.model } : {}),
-      }));
+          prompt: resend,
+          formatRules: FORMAT_RULES,
+          cwd,
+          signal: abort.signal,
+          ...(entry.model !== undefined ? { model: entry.model } : {}),
+        }));
       }
 
       if (isFinal(info)) return;
