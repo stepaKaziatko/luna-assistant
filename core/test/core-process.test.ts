@@ -161,9 +161,12 @@ test("уточнение с потерянной сессией: ядро сам
   const core = startCore({ LUNA_DATA_DIR: dir, LUNA_CLAUDE_BIN: claude });
   await core.request("core.hello");
 
-  const done = core.waitFor((message) => message.method === "task.done");
+  // Ждём и ошибку: сломанное выполнение первой задачи должно уронить тест проверкой статуса, а не подвесить прогон.
+  const done = core.waitFor((message) => message.method === "task.done" || message.method === "task.failed");
   const first = (await core.request("task.submit", { prompt: "сводка", context: { url: "https://example.com" } })).result?.task as TaskInfo;
-  assert.ok((await done).params?.task.result);
+  const answered = (await done).params?.task;
+  assert.equal(answered?.status, "done", JSON.stringify(answered?.error));
+  assert.ok(answered?.result);
 
   // Ждём и ошибку: сломанная повторная отправка должна уронить тест, а не подвесить прогон.
   const followUpFinished = core.waitFor(
@@ -172,7 +175,7 @@ test("уточнение с потерянной сессией: ядро сам
   const followUp = (await core.request("task.submit", { prompt: "а подробнее?", followUpOf: first.id })).result?.task as TaskInfo;
   const finished = (await followUpFinished).params?.task;
   assert.equal(finished?.id, followUp.id);
-  assert.equal(finished?.status, "done");
+  assert.equal(finished?.status, "done", JSON.stringify(finished?.error));
 
   assert.deepEqual(readFileSync(join(dir, "calls"), "utf8").trim().split("\n"), ["new", "resume", "new"]);
   const resent = readFileSync(join(dir, "stdin-3"), "utf8");
