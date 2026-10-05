@@ -5,6 +5,7 @@ import KeyboardShortcuts
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let state = AppState()
     private var panels: PanelController?
+    private var windows: DialogWindows?
     private var statusItem: NSStatusItem?
     private var core: CoreClient?
 
@@ -13,12 +14,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         signal(SIGPIPE, SIG_IGN)
 
         panels = PanelController(state: state)
+        windows = DialogWindows(state: state)
         setupStatusItem()
         KeyboardShortcuts.onKeyDown(for: .toggleInput) { [state] in state.toggleInput() }
         KeyboardShortcuts.onKeyDown(for: .openLastResult) { [state] in state.toggleLastResult() }
         KeyboardShortcuts.onKeyDown(for: .toggleTasks) { [state] in state.toggleTasks() }
         #if DEBUG
-        if let panels { DebugCommands.install(state: state, panels: panels) }
+        if let panels, let windows { DebugCommands.install(state: state, panels: panels, windows: windows) }
         #endif
         startCore()
     }
@@ -42,6 +44,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     state.apply(hello)
                 } catch {
                     state.problem = error.localizedDescription
+                    return
+                }
+                // История — не повод для неполадки: не загрузилась, и список просто пуст.
+                if let list: TaskListResult = try? await client.request("task.list") {
+                    state.applyHistory(list.tasks)
                 }
             }
         } catch {

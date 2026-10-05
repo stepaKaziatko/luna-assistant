@@ -13,7 +13,10 @@ final class PanelController {
         self.state = state
         panel.contentView = FirstMouseHostingView(rootView: RootView().environmentObject(state))
         panel.onCancel = { [weak state] in state?.collapse() }
-        panel.onKeyDown = { [weak state] in state?.handleListKey($0.keyCode) ?? false }
+        panel.onKeyDown = { [weak state] in state?.handleCardKey($0.keyCode) ?? false }
+        panel.onKeyIntercept = { [weak state] event in
+            state?.handleListKey(keyCode: event.keyCode, command: event.modifierFlags.contains(.command)) ?? false
+        }
 
         // $mode публикует значение до записи; хоп на следующий тик избавляет от реентерабельности.
         state.$mode
@@ -61,8 +64,10 @@ final class PanelController {
         switch mode {
         case .pill: NSSize(width: 360, height: 44)
         case .input: NSSize(width: Layout.cardWidth + 2 * Layout.shadowMargin, height: 260)
-        case .tasks: NSSize(width: Layout.cardWidth + 2 * Layout.shadowMargin, height: Layout.taskListMaxHeight + 110)
-        case .result: NSSize(width: Layout.cardWidth + 2 * Layout.shadowMargin, height: Layout.resultMaxHeight + 140)
+        // Запас под поиск, подсказку и кнопку очистки.
+        case .tasks: NSSize(width: Layout.cardWidth + 2 * Layout.shadowMargin, height: Layout.taskListMaxHeight + 180)
+        // Запас под шапку и подвал: поле продолжения, ошибку отправки, «Копировать».
+        case .result: NSSize(width: Layout.cardWidth + 2 * Layout.shadowMargin, height: Layout.resultMaxHeight + 200)
         }
     }
 
@@ -72,25 +77,20 @@ final class PanelController {
 }
 
 private extension AppState {
-    /// Навигация по списку задач: ↓, ↑ и ↩/Enter.
-    func handleListKey(_ keyCode: UInt16) -> Bool {
-        guard mode == .tasks else { return false }
-        switch keyCode {
-        case 125: moveSelection(by: 1)
-        case 126: moveSelection(by: -1)
-        case 36, 76: openSelectedTask()
-        default: return false
-        }
-        return true
+    /// `Tab` в карточке — фокус в поле продолжения. Сюда доходят только нажатия, которые не забрало
+    /// поле ввода; клавиши списка задач перехватываются раньше (`handleListKey`).
+    func handleCardKey(_ keyCode: UInt16) -> Bool {
+        if case .result = mode, keyCode == 48 { return focusFollowUp() }
+        return false
     }
 }
 
 #if DEBUG
 extension PanelController {
     /// Отправляет панели нажатие клавиши так, как это сделал бы оконный сервер.
-    func debugKeyDown(keyCode: UInt16, characters: String) {
+    func debugKeyDown(keyCode: UInt16, characters: String, modifiers: NSEvent.ModifierFlags = []) {
         guard let event = NSEvent.keyEvent(
-            with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+            with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: ProcessInfo.processInfo.systemUptime,
             windowNumber: panel.windowNumber, context: nil, characters: characters,
             charactersIgnoringModifiers: characters, isARepeat: false, keyCode: keyCode
         ) else { return }

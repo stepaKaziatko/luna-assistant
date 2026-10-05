@@ -20,8 +20,8 @@ struct RootView: View {
                 InputView()
             case .tasks:
                 TaskListView()
-            case .result(let taskId):
-                ResultView(taskId: taskId)
+            case .result(let threadId):
+                ResultView(threadId: threadId)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

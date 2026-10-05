@@ -43,7 +43,7 @@
     },
     "TaskErrorKind": {
       "type": "string",
-      "enum": ["auth", "rate_limit", "not_installed", "unknown"]
+      "enum": ["auth", "rate_limit", "not_installed", "session_not_found", "unknown"]
     },
     "TaskError": {
       "type": "object",
@@ -57,9 +57,10 @@
     "TaskInfo": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "prompt", "status", "executor", "createdAt"],
+      "required": ["id", "threadId", "prompt", "status", "executor", "createdAt"],
       "properties": {
         "id": { "type": "string" },
+        "threadId": { "type": "string", "description": "id первой задачи диалога; у задачи без уточнений равен id" },
         "prompt": { "type": "string" },
         "context": { "$ref": "#/definitions/TaskContext" },
         "status": { "$ref": "#/definitions/TaskStatus" },
@@ -91,7 +92,8 @@
       "properties": {
         "prompt": { "type": "string" },
         "context": { "$ref": "#/definitions/TaskContext" },
-        "executor": { "$ref": "#/definitions/ExecutorId" }
+        "executor": { "$ref": "#/definitions/ExecutorId" },
+        "followUpOf": { "type": "string", "description": "id задачи диалога, которую продолжает уточнение; вместе с ним context и executor не передаются" }
       }
     },
     "TaskSubmitResult": {
@@ -110,6 +112,13 @@
         "taskId": { "type": "string" }
       }
     },
+    "TaskListParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "query": { "type": "string", "description": "подстрока запроса или ответа задачи без учёта регистра; пустая — обычный список" }
+      }
+    },
     "TaskListResult": {
       "type": "object",
       "additionalProperties": false,
@@ -118,6 +127,38 @@
         "tasks": {
           "type": "array",
           "items": { "$ref": "#/definitions/TaskInfo" }
+        }
+      }
+    },
+    "TaskDeleteParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId"],
+      "properties": {
+        "taskId": { "type": "string", "description": "любая задача диалога: удаляется весь диалог" }
+      }
+    },
+    "TaskDeleteResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deleted"],
+      "properties": {
+        "deleted": {
+          "type": "array",
+          "description": "id удалённых задач",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "TaskClearResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deleted"],
+      "properties": {
+        "deleted": {
+          "type": "array",
+          "description": "id задач удалённых диалогов: всех, где нет задачи queued или running",
+          "items": { "type": "string" }
         }
       }
     },

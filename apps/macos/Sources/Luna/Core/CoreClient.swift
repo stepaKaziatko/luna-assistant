@@ -13,8 +13,19 @@ enum CoreClientError: LocalizedError {
     var errorDescription: String? { "Ядро не запущено." }
 }
 
+/// Запросы к ядру; за протоколом — `CoreClient`, в тестах — подставное ядро.
+protocol CoreRequesting: AnyObject, Sendable {
+    func request<P: Encodable, R: Decodable>(_ method: String, _ params: P) async throws -> R
+}
+
+extension CoreRequesting {
+    func request<R: Decodable>(_ method: String) async throws -> R {
+        try await request(method, NoParams())
+    }
+}
+
 /// Запускает ядро дочерним процессом и говорит с ним по JSON-RPC 2.0: одно сообщение — одна строка в stdio.
-final class CoreClient: @unchecked Sendable {
+final class CoreClient: CoreRequesting, @unchecked Sendable {
     /// Любое уведомление task.* несёт полный снимок задачи.
     var onTaskEvent: (@MainActor (TaskInfo) -> Void)?
     var onExit: (@MainActor (Int32) -> Void)?
@@ -67,10 +78,6 @@ final class CoreClient: @unchecked Sendable {
         try? stdinPipe.fileHandleForWriting.close()
     }
 
-    func request<R: Decodable>(_ method: String) async throws -> R {
-        try await request(method, NoParams())
-    }
-
     func request<P: Encodable, R: Decodable>(_ method: String, _ params: P) async throws -> R {
         let line: Data = try await withCheckedThrowingContinuation { continuation in
             queue.async {
@@ -121,7 +128,7 @@ final class CoreClient: @unchecked Sendable {
     }
 }
 
-private struct NoParams: Encodable {}
+struct NoParams: Encodable {}
 
 private struct Request<P: Encodable>: Encodable {
     var jsonrpc = "2.0"

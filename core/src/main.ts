@@ -7,13 +7,18 @@ import { ErrorCode, RpcError, RpcServer } from "./rpc/jsonrpc.ts";
 import type {
   HelloResult,
   TaskCancelParams,
+  TaskClearResult,
+  TaskDeleteParams,
+  TaskDeleteResult,
+  TaskListParams,
   TaskListResult,
   TaskSubmitParams,
   TaskSubmitResult,
 } from "./rpc/protocol.gen.ts";
-import { TaskManager } from "./tasks/manager.ts";
+import { openHistory } from "./tasks/history.ts";
+import { ActiveDialogError, FollowUpError, TaskManager } from "./tasks/manager.ts";
 
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 
 // stdout занят протоколом — диагностика только в stderr.
 function log(message: string): void {
@@ -32,12 +37,16 @@ if (process.env.LUNA_CLAUDE_BIN) claudeOptions.binary = process.env.LUNA_CLAUDE_
 if (process.env.LUNA_CLAUDE_MODEL) claudeOptions.model = process.env.LUNA_CLAUDE_MODEL;
 const executors: Executor[] = [new ClaudeCodeExecutor(claudeOptions)];
 
-const tasksDir = join(defaultDataDir(), "tasks");
+const dataDir = defaultDataDir();
+const tasksDir = join(dataDir, "tasks");
+// История читается и приводится в порядок до первого запроса оболочки.
+const history = await openHistory(dataDir, { log });
 const rpc = new RpcServer(process.stdin, process.stdout);
 const tasks = new TaskManager({
   executors,
   defaultExecutor: "claude-code",
   tasksDir,
+  history,
   emit: (event, task) => rpc.notify(event, { task }),
 });
 
@@ -47,9 +56,21 @@ rpc.method("core.hello", async (): Promise<HelloResult> => ({
 }));
 
 rpc.method("task.submit", (params): TaskSubmitResult => {
-  const { prompt, executor, context: rawContext } = asObject(params) as Partial<TaskSubmitParams>;
+  const { prompt, executor, context: rawContext, followUpOf } = asObject(params) as Partial<TaskSubmitParams>;
   if (typeof prompt !== "string" || prompt.trim() === "") {
     throw new RpcError(ErrorCode.InvalidParams, "prompt must be a non-empty string");
+  }
+  if (followUpOf !== undefined) {
+    if (typeof followUpOf !== "string") throw new RpcError(ErrorCode.InvalidParams, "followUpOf must be a string");
+    // Уточнение идёт тому же исполнителю и без нового контекста: диалог — о том, с чего начался.
+    if (rawContext !== undefined) throw new RpcError(ErrorCode.InvalidParams, "context is not allowed with followUpOf");
+    if (executor !== undefined) throw new RpcError(ErrorCode.InvalidParams, "executor is not allowed with followUpOf");
+    try {
+      return { task: tasks.submit({ prompt, followUpOf }) };
+    } catch (error) {
+      if (error instanceof FollowUpError) throw new RpcError(ErrorCode.InvalidParams, error.message);
+      throw error;
+    }
   }
   if (executor !== undefined && !executors.some((candidate) => candidate.id === executor)) {
     throw new RpcError(ErrorCode.InvalidParams, `unknown executor: ${String(executor)}`);
@@ -68,12 +89,36 @@ rpc.method("task.cancel", (params) => {
   return {};
 });
 
-rpc.method("task.list", (): TaskListResult => ({ tasks: tasks.list() }));
+// Оболочка зовёт task.list и без params — тогда это обычный список.
+rpc.method("task.list", (params): TaskListResult => {
+  if (params === undefined || params === null) return { tasks: tasks.list() };
+  const { query } = asObject(params) as Partial<TaskListParams>;
+  if (query !== undefined && typeof query !== "string") throw new RpcError(ErrorCode.InvalidParams, "query must be a string");
+  return { tasks: tasks.list(query === undefined ? {} : { query }) };
+});
+
+rpc.method("task.delete", async (params): Promise<TaskDeleteResult> => {
+  const { taskId } = asObject(params) as Partial<TaskDeleteParams>;
+  if (typeof taskId !== "string") throw new RpcError(ErrorCode.InvalidParams, "taskId must be a string");
+  try {
+    return { deleted: await tasks.delete(taskId) };
+  } catch (error) {
+    if (error instanceof ActiveDialogError) throw new RpcError(ErrorCode.InvalidParams, error.message);
+    throw error;
+  }
+});
+
+rpc.method("task.clear", async (params): Promise<TaskClearResult> => {
+  if (params !== undefined && params !== null) asObject(params);
+  return { deleted: await tasks.clear() };
+});
 
 void cleanupWorkdirs(tasksDir).catch((error) => log(`workdir cleanup failed: ${String(error)}`));
-log(`started v${VERSION}, data dir: ${defaultDataDir()}`);
+log(`started v${VERSION}, data dir: ${dataDir}`);
 
 // stdin закрывается, когда shell завершился: оставлять исполнителей без хозяина нельзя.
+// Незавершённые задачи записываются в историю прерванными — запись синхронная, до выхода.
 await rpc.listen();
-tasks.cancelAll();
+tasks.shutdown();
+history?.close();
 process.exit(0);
