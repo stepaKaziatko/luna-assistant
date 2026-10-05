@@ -23,7 +23,7 @@ import type {
 import { openHistory } from "./tasks/history.ts";
 import { ActiveDialogError, FollowUpError, TaskManager } from "./tasks/manager.ts";
 
-const VERSION = "0.4.0";
+const VERSION = "0.5.0";
 
 // stdout занят протоколом — диагностика только в stderr.
 function log(message: string): void {
