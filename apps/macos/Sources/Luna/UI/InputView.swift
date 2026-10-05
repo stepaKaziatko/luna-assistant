@@ -2,13 +2,14 @@ import SwiftUI
 
 struct InputView: View {
     @EnvironmentObject private var state: AppState
+    @EnvironmentObject private var settings: LunaSettings
     @FocusState private var focused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Image(systemName: "moon.stars.fill")
-                    .foregroundStyle(.secondary)
+                MoonAvatar(look: settings.lunaLook, mood: .listening, size: 26)
+                    .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 7 }
                 TextField("Спросите что-нибудь…", text: $state.draft, axis: .vertical)
                     .textFieldStyle(.plain)
                     .lineLimit(1...5)
@@ -35,7 +36,6 @@ struct InputView: View {
         }
         .padding(16)
         .frame(width: Layout.cardWidth)
-        .hangingCard()
         .onAppear { focused = true }
     }
 

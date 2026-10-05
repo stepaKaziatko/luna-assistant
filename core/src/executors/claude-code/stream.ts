@@ -1,6 +1,6 @@
-import { basename } from "node:path";
 import type { TaskErrorKind } from "../../rpc/protocol.gen.ts";
 import type { ExecutorEvent } from "../executor.ts";
+import { describeTool } from "./tools.ts";
 
 // Разбор `claude -p --output-format stream-json --verbose`.
 // Формат сверен с Claude Code 2.1.181; фикстуры — в core/test/fixtures/claude-code.
@@ -99,44 +99,4 @@ function kindFromStatus(status: number | null | undefined): TaskErrorKind | unde
   if (status === 401 || status === 403) return "auth";
   if (status === 429) return "rate_limit";
   return undefined;
-}
-
-function describeTool(name: string, input: Record<string, unknown>): string {
-  const text = (key: string): string | undefined => {
-    const value = input[key];
-    return typeof value === "string" && value !== "" ? value : undefined;
-  };
-
-  switch (name) {
-    case "Read": {
-      const path = text("file_path");
-      return path ? `читает ${basename(path)}` : "читает файл";
-    }
-    case "Glob": {
-      const pattern = text("pattern");
-      return pattern ? `ищет файлы ${pattern}` : "ищет файлы";
-    }
-    case "Grep": {
-      const pattern = text("pattern");
-      return pattern ? `ищет «${pattern}»` : "ищет в файлах";
-    }
-    case "WebFetch": {
-      const url = text("url");
-      return url ? `открывает ${hostOf(url)}` : "открывает страницу";
-    }
-    case "WebSearch": {
-      const query = text("query");
-      return query ? `ищет в вебе: ${query}` : "ищет в вебе";
-    }
-    default:
-      return `использует ${name}`;
-  }
-}
-
-function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
 }

@@ -1,10 +1,15 @@
 import { join } from "node:path";
+import { ClaudeCodeSessions } from "./agents/claude-code/sessions.ts";
+import { AgentMonitor } from "./agents/monitor.ts";
 import { normalizeContext } from "./context/normalize.ts";
 import { cleanupWorkdirs, defaultDataDir } from "./context/workdir.ts";
 import { ClaudeCodeExecutor } from "./executors/claude-code/adapter.ts";
 import type { Executor } from "./executors/executor.ts";
 import { ErrorCode, RpcError, RpcServer } from "./rpc/jsonrpc.ts";
 import type {
+  AgentListResult,
+  AgentStepsParams,
+  AgentStepsResult,
   HelloResult,
   TaskCancelParams,
   TaskClearResult,
@@ -18,7 +23,7 @@ import type {
 import { openHistory } from "./tasks/history.ts";
 import { ActiveDialogError, FollowUpError, TaskManager } from "./tasks/manager.ts";
 
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 
 // stdout занят протоколом — диагностика только в stderr.
 function log(message: string): void {
@@ -48,6 +53,13 @@ const tasks = new TaskManager({
   tasksDir,
   history,
   emit: (event, task) => rpc.notify(event, { task }),
+});
+
+// Сессии агентов, запущенные не Luna. Собственные задачи Luna в этот список не попадают.
+const agents = new AgentMonitor({
+  sources: [new ClaudeCodeSessions({ excludeCwd: [tasksDir] })],
+  emit: (sessions) => rpc.notify("agents.changed", { sessions }),
+  log,
 });
 
 rpc.method("core.hello", async (): Promise<HelloResult> => ({
@@ -113,12 +125,23 @@ rpc.method("task.clear", async (params): Promise<TaskClearResult> => {
   return { deleted: await tasks.clear() };
 });
 
+rpc.method("agents.list", async (): Promise<AgentListResult> => ({ sessions: await agents.list() }));
+
+rpc.method("agents.steps", async (params): Promise<AgentStepsResult> => {
+  const { sessionId, detail } = asObject(params) as Partial<AgentStepsParams>;
+  if (typeof sessionId !== "string") throw new RpcError(ErrorCode.InvalidParams, "sessionId must be a string");
+  if (detail !== undefined && typeof detail !== "boolean") throw new RpcError(ErrorCode.InvalidParams, "detail must be a boolean");
+  return { steps: await agents.steps(sessionId, detail === true) };
+});
+
+agents.start();
 void cleanupWorkdirs(tasksDir).catch((error) => log(`workdir cleanup failed: ${String(error)}`));
 log(`started v${VERSION}, data dir: ${dataDir}`);
 
 // stdin закрывается, когда shell завершился: оставлять исполнителей без хозяина нельзя.
 // Незавершённые задачи записываются в историю прерванными — запись синхронная, до выхода.
 await rpc.listen();
+agents.stop();
 tasks.shutdown();
 history?.close();
 process.exit(0);

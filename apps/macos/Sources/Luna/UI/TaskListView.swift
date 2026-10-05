@@ -57,7 +57,6 @@ struct TaskListView: View {
         }
         .padding(16)
         .frame(width: Layout.cardWidth, alignment: .leading)
-        .hangingCard()
         .onAppear { searchFocused = true }
     }
 
@@ -96,7 +95,7 @@ private struct DialogRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            indicator.frame(width: 16)
+            DialogIndicator(task: task, isUnseen: isUnseen).frame(width: 16)
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
@@ -113,7 +112,7 @@ private struct DialogRow: View {
                             .help("Уточнений: \(dialog.followUpCount)")
                     }
                 }
-                Text(subtitle)
+                Text(task.statusLine)
                     .font(.system(size: 11))
                     .foregroundStyle(task.status == .failed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                     .lineLimit(1)
@@ -142,9 +141,14 @@ private struct DialogRow: View {
         .contentShape(Rectangle())
         .onTapGesture { state.open(threadId: dialog.threadId) }
     }
+}
 
-    @ViewBuilder
-    private var indicator: some View {
+/// Значок состояния диалога — по его последней задаче.
+struct DialogIndicator: View {
+    let task: TaskInfo
+    let isUnseen: Bool
+
+    var body: some View {
         switch task.status {
         case .queued:
             Image(systemName: "clock").foregroundStyle(.secondary)
@@ -162,13 +166,16 @@ private struct DialogRow: View {
             Image(systemName: "slash.circle").foregroundStyle(.secondary)
         }
     }
+}
 
-    private var subtitle: String {
-        switch task.status {
+extension TaskInfo {
+    /// Строка состояния задачи в списках.
+    var statusLine: String {
+        switch status {
         case .queued: "В очереди"
-        case .running: task.progress ?? "Думаю…"
-        case .done: task.durationSeconds.map { "Готово · \($0) с" } ?? "Готово"
-        case .failed: task.error?.message ?? "Ошибка"
+        case .running: progress ?? "Думаю…"
+        case .done: durationSeconds.map { "Готово · \($0) с" } ?? "Готово"
+        case .failed: error?.message ?? "Ошибка"
         case .cancelled: "Отменена"
         }
     }

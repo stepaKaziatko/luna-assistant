@@ -15,7 +15,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.3.0</string>
+	<string>0.4.0</string>
 	<key>CFBundleVersion</key>
 	<string>2</string>
 	<key>LSMinimumSystemVersion</key>
@@ -23,7 +23,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Luna читает адрес и заголовок открытой страницы браузера, чтобы добавить их в контекст запроса.</string>
+	<string>Luna читает адрес и заголовок открытой страницы браузера, чтобы добавить их в контекст запроса, и выбирает вкладку терминала, в которой работает агент.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 </dict>
