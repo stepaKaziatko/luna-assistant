@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 @MainActor
@@ -41,6 +42,11 @@ final class AppState: ObservableObject {
     @Published private(set) var clearConfirming = false
     /// Подсказка или ошибка в списке задач: удаление активного диалога, сбой ядра.
     @Published private(set) var listMessage: String?
+    /// Диалоги, открытые в отдельных окнах («Открыть полностью»), в порядке открытия; одно окно на диалог.
+    /// Окна живут отдельно от карточки: сворачивание и список задач их не трогают.
+    @Published private(set) var openWindows: [String] = []
+    /// Повторное «Открыть полностью» у диалога с открытым окном: окно поднимается, второе не создаётся.
+    let windowRaised = PassthroughSubject<String, Never>()
 
     var core: CoreRequesting?
 
@@ -174,6 +180,21 @@ final class AppState: ObservableObject {
 
     func openSelectedTask() {
         if let selectedThreadId { open(threadId: selectedThreadId) }
+    }
+
+    // MARK: - Окна «Открыть полностью»
+
+    func openWindow(threadId: String) {
+        guard dialog(threadId: threadId) != nil else { return }
+        if openWindows.contains(threadId) {
+            windowRaised.send(threadId)
+        } else {
+            openWindows.append(threadId)
+        }
+    }
+
+    func closeWindow(threadId: String) {
+        openWindows.removeAll { $0 == threadId }
     }
 
     /// `Tab` в карточке: фокус в поле продолжения, если диалог можно продолжить.
@@ -402,6 +423,8 @@ final class AppState: ObservableObject {
         tasks = TaskHistory.removing(deleted, from: tasks)
         unseen.subtract(deleted)
         searchResults = searchResults.map { TaskHistory.removing(deleted, from: $0) }
+        // Окно удалённого диалога закрывается само; окна остальных остаются.
+        openWindows.removeAll { dialog(threadId: $0) == nil }
         let after = listedDialogs
         if !after.contains(where: { $0.threadId == selectedThreadId }) {
             selectedThreadId = after.isEmpty ? nil : after[min(index, after.count - 1)].threadId

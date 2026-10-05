@@ -46,11 +46,18 @@ final class FloatingPanel: NSPanel {
         }
     }
 
-    // У приложения-агента нет меню «Правка», поэтому стандартные сочетания
-    // редактирования сами до текстового поля не доходят.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         // ⌘⌫ приходит сюда раньше, чем в sendEvent: поле поиска не должно стереть строку.
         if onKeyIntercept?(event) == true { return true }
+        if performEditingShortcut(event) { return true }
+        return super.performKeyEquivalent(with: event)
+    }
+}
+
+extension NSPanel {
+    /// У приложения-агента нет меню «Правка», поэтому стандартные сочетания
+    /// редактирования сами до текстового поля не доходят — панель отправляет их сама.
+    func performEditingShortcut(_ event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let action: Selector? = switch (modifiers, event.charactersIgnoringModifiers?.lowercased()) {
         case (.command, "x"): #selector(NSText.cut(_:))
@@ -61,8 +68,8 @@ final class FloatingPanel: NSPanel {
         case ([.command, .shift], "z"): Selector(("redo:"))
         default: nil
         }
-        if let action, NSApp.sendAction(action, to: nil, from: self) { return true }
-        return super.performKeyEquivalent(with: event)
+        guard let action else { return false }
+        return NSApp.sendAction(action, to: nil, from: self)
     }
 }
 

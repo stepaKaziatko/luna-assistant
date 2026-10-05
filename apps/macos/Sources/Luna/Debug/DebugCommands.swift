@@ -12,25 +12,34 @@ import AppKit
 /// - `context:<json>` — подменить захваченный контекст (поля TaskContext; `app` обязателен);
 /// - `key:<код клавиши>` и `type:<текст>` — нажатия в открытой панели (`key:48` — Tab,
 ///   фокус в поле продолжения карточки; `key:36` — ↩); модификаторы — перед кодом через `+`:
-///   `key:cmd+51` — ⌘⌫ (также `shift`, `opt`, `ctrl`);
-/// - `dump:<путь>` — состояние приложения в JSON; `snapshot:<путь>` — PNG панели;
+///   `key:cmd+51` — ⌘⌫ (также `shift`, `opt`, `ctrl`); после `windowClick` клавиши идут в окно диалога;
+/// - `openWindow[:<threadId>]` — «Открыть полностью» у диалога открытой карточки (или указанного);
+/// - `closeWindow[:<threadId>]` — закрыть окно диалога карточки (или указанного; без карточки — последнее);
+/// - `windowClick[:<threadId>]` — клик в окно диалога (окно становится ключевым);
+/// - `windowSnapshot:<путь>` — PNG окна диалога открытой карточки, а без карточки — последнего открытого;
+/// - `dump:<путь>` — состояние приложения в JSON (с открытыми окнами и активным приложением);
+///   `snapshot:<путь>` — PNG панели;
 /// - `quit` — то же, что «Выйти из Luna» в меню.
 @MainActor
 enum DebugCommands {
     private static var observer: NSObjectProtocol?
 
-    static func install(state: AppState, panels: PanelController) {
+    static func install(state: AppState, panels: PanelController, windows: DialogWindows) {
         observer = DistributedNotificationCenter.default().addObserver(
             forName: Notification.Name("dev.luna.debug"), object: nil, queue: .main
         ) { notification in
             guard let command = notification.object as? String else { return }
-            MainActor.assumeIsolated { run(command, state: state, panels: panels) }
+            MainActor.assumeIsolated { run(command, state: state, panels: panels, windows: windows) }
         }
     }
 
-    private static func run(_ command: String, state: AppState, panels: PanelController) {
+    private static func run(_ command: String, state: AppState, panels: PanelController, windows: DialogWindows) {
         let parts = command.split(separator: ":", maxSplits: 1)
         let argument = parts.count > 1 ? String(parts[1]) : ""
+        /// Диалог для команд окна: из аргумента, иначе открытой карточки, иначе последнего открытого окна.
+        var windowThread: String? {
+            argument.isEmpty ? state.shownThreadId ?? state.openWindows.last : argument
+        }
 
         switch parts.first.map(String.init) {
         case "toggleInput": state.toggleInput()
@@ -63,11 +72,25 @@ enum DebugCommands {
                 default: return
                 }
             }
-            panels.debugKeyDown(keyCode: keyCode, characters: keyCharacters[keyCode] ?? "", modifiers: modifiers)
+            // Клавиши уходят в ключевое окно: в окно диалога после клика по нему, иначе в панель.
+            let characters = keyCharacters[keyCode] ?? ""
+            if !windows.debugKeyDown(keyCode: keyCode, characters: characters, modifiers: modifiers) {
+                panels.debugKeyDown(keyCode: keyCode, characters: characters, modifiers: modifiers)
+            }
         case "type":
             for character in argument { panels.debugKeyDown(keyCode: 0, characters: String(character)) }
+        case "openWindow":
+            if let threadId = windowThread { state.openWindow(threadId: threadId) }
+        case "closeWindow":
+            if let threadId = windowThread { state.closeWindow(threadId: threadId) }
+        case "windowClick":
+            if let threadId = windowThread { windows.debugClick(threadId: threadId) }
+        case "windowSnapshot":
+            if let threadId = state.shownThreadId ?? state.openWindows.last {
+                try? windows.debugSnapshot(threadId: threadId)?.write(to: URL(fileURLWithPath: argument))
+            }
         case "dump":
-            try? JSONEncoder.pretty.encode(Dump(state: state, panel: panels.debugPanelInfo))
+            try? JSONEncoder.pretty.encode(Dump(state: state, panel: panels.debugPanelInfo, windows: windows.debugWindows))
                 .write(to: URL(fileURLWithPath: argument))
         case "snapshot":
             try? panels.debugSnapshot()?.write(to: URL(fileURLWithPath: argument))
@@ -77,9 +100,9 @@ enum DebugCommands {
         }
     }
 
-    /// Символы, которые оконный сервер кладёт в событие для служебных клавиш: esc, ↩, ↓, ↑, Tab, ⌫.
+    /// Символы, которые оконный сервер кладёт в событие для клавиш: esc, ↩, ↓, ↑, Tab, ⌫, «a» и «c» (для ⌘A, ⌘C).
     private static let keyCharacters: [UInt16: String] = [
-        53: "\u{1B}", 36: "\r", 125: "\u{F701}", 126: "\u{F700}", 48: "\t", 51: "\u{7F}",
+        53: "\u{1B}", 36: "\r", 125: "\u{F701}", 126: "\u{F700}", 48: "\t", 51: "\u{7F}", 0: "a", 8: "c",
     ]
 
     /// Диалог глазами списка задач и карточки.
@@ -121,10 +144,14 @@ enum DebugCommands {
         let accessibilityTrusted: Bool
         let captureMs: Int?
         let panel: [String: String]
+        /// Окна «Открыть полностью»: диалог, рамка, видимость, ключевое ли.
+        let windows: [DialogWindows.DebugWindow]
+        /// Bundle id активного приложения: окна и панели Luna не должны его менять.
+        let frontmostApp: String?
         let tasks: [TaskInfo]
 
         @MainActor
-        init(state: AppState, panel: [String: String]) {
+        init(state: AppState, panel: [String: String], windows: [DialogWindows.DebugWindow]) {
             mode = String(describing: state.mode)
             draft = state.draft
             context = state.context?.payload
@@ -144,6 +171,8 @@ enum DebugCommands {
             accessibilityTrusted = AccessibilityProbe.isTrusted
             captureMs = state.lastCaptureDuration.map { Int($0 / .milliseconds(1)) }
             self.panel = panel
+            self.windows = windows
+            frontmostApp = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
             tasks = state.tasks
         }
     }

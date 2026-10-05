@@ -1,4 +1,3 @@
-import MarkdownUI
 import SwiftUI
 
 /// Карточка диалога: запрос и ответ каждой его задачи, внизу — поле продолжения.
@@ -7,7 +6,6 @@ struct ResultView: View {
 
     @EnvironmentObject private var state: AppState
     @State private var contentHeight: CGFloat = 0
-    @State private var copied = false
     @FocusState private var followUpFocused: Bool
 
     var body: some View {
@@ -52,11 +50,8 @@ struct ResultView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     ForEach(Array(dialog.tasks.enumerated()), id: \.element.id) { index, task in
-                        VStack(alignment: .leading, spacing: 8) {
-                            if index > 0 { question(task.prompt) }
-                            content(task)
-                        }
-                        .id(task.id)
+                        DialogTaskView(task: task, showsQuestion: index > 0)
+                            .id(task.id)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -69,16 +64,6 @@ struct ResultView: View {
         }
     }
 
-    private func question(_ prompt: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Image(systemName: "arrow.turn.down.right").font(.system(size: 10, weight: .bold))
-            Text(prompt).textSelection(.enabled)
-        }
-        .font(.system(size: 13, weight: .medium))
-        .foregroundStyle(.secondary)
-        .padding(.top, 4)
-    }
-
     private func headerButton(_ symbol: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
@@ -88,37 +73,6 @@ struct ResultView: View {
         }
         .buttonStyle(.plain)
         .help(help)
-    }
-
-    @ViewBuilder
-    private func content(_ task: TaskInfo) -> some View {
-        switch task.status {
-        case .queued, .running:
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text(task.progress ?? (task.status == .queued ? "В очереди…" : "Думаю…"))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button("Отменить") { state.cancel(taskId: task.id) }
-                    .controlSize(.small)
-            }
-        case .done:
-            Markdown(task.result ?? "")
-                .markdownTheme(.luna)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        case .failed:
-            VStack(alignment: .leading, spacing: 6) {
-                Label(task.error?.message ?? "Неизвестная ошибка", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                    .textSelection(.enabled)
-                if let hint = hint(for: task.error?.kind) {
-                    Text(hint).font(.system(size: 12)).foregroundStyle(.secondary)
-                }
-            }
-        case .cancelled:
-            Text("Задача отменена").foregroundStyle(.secondary)
-        }
     }
 
     @ViewBuilder
@@ -138,8 +92,10 @@ struct ResultView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button(copied ? "Скопировано" : "Копировать") { copy(dialog.last.result ?? "") }
+                // Окно с диалогом целиком, рядом с работой; карточка при этом остаётся открытой.
+                Button("Открыть полностью") { state.openWindow(threadId: dialog.threadId) }
                     .controlSize(.small)
+                CopyButton(text: dialog.last.result ?? "")
             }
         }
     }
@@ -170,34 +126,4 @@ struct ResultView: View {
     private func caption(_ task: TaskInfo) -> String {
         task.durationSeconds.map { "Claude Code · \($0) с" } ?? "Claude Code"
     }
-
-    private func hint(for kind: TaskErrorKind?) -> String? {
-        switch kind {
-        case .auth: "Откройте терминал, запустите `claude` и выполните /login."
-        case .rateLimit: "Лимит подписки исчерпан. Попробуйте позже."
-        case .notInstalled: "Установите Claude Code: https://claude.com/claude-code"
-        case .sessionNotFound: "Разговор у исполнителя не сохранился. Задайте вопрос заново"
-        case .unknown, nil: nil
-        }
-    }
-
-    private func copy(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        copied = true
-        _Concurrency.Task {
-            try? await _Concurrency.Task.sleep(for: .seconds(1.5))
-            copied = false
-        }
-    }
-}
-
-private extension Theme {
-    /// GitHub-тема без собственного фона: карточка уже тёмная.
-    static let luna = Theme.gitHub
-        .text {
-            ForegroundColor(.white)
-            BackgroundColor(nil)
-            FontSize(14)
-        }
 }
