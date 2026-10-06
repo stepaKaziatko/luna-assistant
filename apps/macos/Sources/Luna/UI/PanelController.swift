@@ -40,6 +40,10 @@ final class PanelController {
     private(set) var clippedResizes = 0
     /// Сколько раз после сжатия окна до pill тело или окно острова разошлись с раскладкой pill.
     private(set) var collapsedMismatches = 0
+    /// Сколько раз раскрытый остров после роста остался высотой с полосу, то есть размером pill: карточки не видно.
+    private(set) var expandedMismatches = 0
+    /// Отложенная проверка раскрытого острова; новая смена режима её отменяет.
+    private var expandedCheck: DispatchWorkItem?
     #endif
 
     init(state: AppState, menu makeMenu: @escaping () -> NSMenu) {
@@ -244,6 +248,9 @@ final class PanelController {
 
     private func apply(_ mode: AppState.Mode) {
         shrink?.cancel()
+        #if DEBUG
+        checkExpanded(mode)
+        #endif
         if mode == .pill {
             panel.allowsKey = false
             let wasVisible = panel.isVisible
@@ -422,12 +429,29 @@ extension PanelController {
         }
     }
 
+    /// Раскрытый режим через `expandedCheckDelay` после открытия: тело выше полосы — под ней содержимое. Высотой
+    /// с полосу — тело осталось размером pill, карточки не видно: счётчик `panel.expandedMismatch` в `dump:`.
+    private func checkExpanded(_ mode: AppState.Mode) {
+        expandedCheck?.cancel()
+        expandedCheck = nil
+        guard mode != .pill else { return }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, state.mode == mode, panel.isVisible, let placement else { return }
+            if state.islandSize.height <= placement.notch.barHeight + 0.5 { expandedMismatches += 1 }
+        }
+        expandedCheck = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.expandedCheckDelay, execute: work)
+    }
+
+    /// Рост и вставка содержимого заканчиваются раньше: пружина роста — около 0,4 с, содержимое — с задержкой 0,1 с.
+    private static let expandedCheckDelay: TimeInterval = 0.8
+
     var debugPanelInfo: [String: String] {
         var info = [
             "frame": NSStringFromRect(panel.frame), "isKey": String(panel.isKeyWindow), "isVisible": String(panel.isVisible),
             "menuOpen": String(openMenu != nil), "pointerPolling": String(pointerTimer != nil),
             "islandShown": String(state.islandShown), "clipped": String(clippedResizes),
-            "pillMismatch": String(collapsedMismatches),
+            "pillMismatch": String(collapsedMismatches), "expandedMismatch": String(expandedMismatches),
             // Рамка видимой фигуры острова в координатах экрана — та, по которой ловятся наведение и клики.
             "island": NSStringFromRect(islandFrame),
         ]

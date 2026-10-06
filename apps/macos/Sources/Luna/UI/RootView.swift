@@ -229,6 +229,9 @@ struct RootView: View {
     @State private var offset: CGFloat = 0
     /// Естественный размер содержимого раскрытого режима: по нему тело пересчитывается, когда меняется полоса.
     @State private var expandedContent: CGSize?
+    /// Последний замер содержимого раскрытых режимов, в том числе уходящего: если режим вернули, пока его
+    /// содержимое ещё уходило, SwiftUI возвращает тот же вид, и нового замера не будет.
+    @State private var measured: [(mode: AppState.Mode, size: CGSize)] = []
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -273,10 +276,16 @@ struct RootView: View {
             guard state.mode != .pill, let content = expandedContent else { return }
             resize(ExpandedIsland.body(content: content, notch: notch))
         }
-        // Свернулись раньше, чем pill успел уйти: SwiftUI отменяет уход и возвращает прежний вид, его размер
-        // не менялся — замера не будет, и тело осталось бы размером с карточку. Размер pill известен из раскладки.
+        // Режим вернули раньше, чем его содержимое успело уйти: SwiftUI отменяет уход и возвращает прежний вид,
+        // его размер не менялся — замера не будет. Тело берёт размер сразу: pill — из раскладки, раскрытый режим —
+        // из последнего замера его содержимого. Вид, вставленный заново, сообщит размер сам и поправит его.
         .onChange(of: state.mode) { _, mode in
-            if mode == .pill { resize(state.pillLayout.body) }
+            if mode == .pill {
+                resize(state.pillLayout.body)
+            } else if let content = measured.last(where: { $0.mode == mode })?.size {
+                expandedContent = content
+                resize(ExpandedIsland.body(content: content, notch: state.islandPlacement.notch))
+            }
         }
         .onChange(of: bodyOffset, initial: true) { _, new in
             if state.islandBodyOffset != new { state.islandBodyOffset = new }
@@ -366,10 +375,22 @@ struct RootView: View {
 
     /// Содержимое раскрытого режима сообщило свой размер: тело — полоса и содержимое под ней.
     private func resizeExpanded(_ content: CGSize, from mode: AppState.Mode) {
+        remember(content, for: mode)
         guard mode == state.mode else { return }
         expandedContent = content
         resize(ExpandedIsland.body(content: content, notch: state.islandPlacement.notch))
     }
+
+    /// Замер запоминается и для уходящего содержимого: вернётся режим — тело встанет по нему. Режимов с диалогами
+    /// и сессиями может быть сколько угодно, поэтому хранятся только последние.
+    private func remember(_ content: CGSize, for mode: AppState.Mode) {
+        if measured.last?.mode == mode, measured.last?.size == content { return }
+        measured.removeAll { $0.mode == mode }
+        measured.append((mode, content))
+        if measured.count > Self.measuredLimit { measured.removeFirst() }
+    }
+
+    private static let measuredLimit = 8
 
     private func resize(_ new: CGSize) {
         guard new != size, new.width > 0, new.height > 0 else { return }
