@@ -19,6 +19,9 @@ final class PanelController {
     /// Рамка, где панель стояла в последний раз: по ней, а не по `panel.screen` снятой с экрана панели,
     /// шторка находит свой монитор при появлении.
     private var restingFrame: NSRect?
+    /// Экран острова и геометрия выреза на нём — из последней расстановки (`place`): от них считаются
+    /// рамка видимой фигуры и точка, куда смотрят аватары.
+    private var placement: (screen: NSRect, notch: NotchGeometry)?
     private var hover = HoverIntent()
     /// Меню Luna для правого клика по шторке — то же, что у значка в строке меню.
     private let makeMenu: () -> NSMenu
@@ -27,6 +30,8 @@ final class PanelController {
     var debugPointer: NSPoint?
     /// Меню правого клика, пока оно раскрыто.
     private(set) var openMenu: NSMenu?
+    /// Подменённая геометрия выреза экрана острова; nil — настоящая.
+    private var notchOverride: NotchOverride?
     #endif
 
     init(state: AppState, menu makeMenu: @escaping () -> NSMenu) {
@@ -56,8 +61,9 @@ final class PanelController {
         NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification, object: panel)
             .sink { [weak state] _ in state?.collapse() }
             .store(in: &subscriptions)
+        // Смена разрешения или «Больше места», подключение и отключение монитора: геометрия выреза — заново.
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
-            .sink { [weak self] _ in self?.place(for: state.mode) }
+            .sink { [weak self] _ in self?.screenParametersChanged() }
             .store(in: &subscriptions)
         // Показ и скрытие шторки в режиме «В фоне»; опрос курсора зависит от того же.
         state.$islandShown
@@ -181,11 +187,14 @@ final class PanelController {
 
     /// Видимая фигура острова в координатах экрана. Тонкую полоску ловим с тем же запасом, что и клик;
     /// у раскрытого блока запас по краям — чтобы он не закрывался от промаха на пару точек.
+    /// Фигура прижата к верхнему краю экрана по центру выреза; до первой расстановки — к верхней середине окна.
     private var islandFrame: NSRect {
         let margin: CGFloat = state.mode == .peek ? 10 : 0
         let width = max(state.islandSize.width, 72) + 2 * margin
         let height = max(state.islandSize.height, 14) + margin
-        return NSRect(x: panel.frame.midX - width / 2, y: panel.frame.maxY - height, width: width, height: height)
+        let centerX = placement?.notch.centerX ?? panel.frame.midX
+        let top = placement?.screen.maxY ?? panel.frame.maxY
+        return NSRect(x: centerX - width / 2, y: top - height, width: width, height: height)
     }
 
     private func apply(_ mode: AppState.Mode) {
@@ -225,13 +234,28 @@ final class PanelController {
         guard let screen else { return }
 
         let size = mode == .pill ? Layout.pillPanel : Layout.expandedPanel
-        // Под вырезом на MacBook, под строкой меню на остальных мониторах.
-        let top = min(screen.visibleFrame.maxY, screen.frame.maxY - screen.safeAreaInsets.top)
-        let origin = NSPoint(x: screen.frame.midX - size.width / 2, y: top - size.height)
+        // Окно — от самого верхнего края экрана, серединой на центре выреза (без выреза — на середине экрана).
+        let notch = notchGeometry(of: screen)
+        let top = screen.frame.maxY
+        let origin = NSPoint(x: notch.centerX - size.width / 2, y: top - size.height)
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
         restingFrame = panel.frame
+        placement = (screen.frame, notch)
         // Остров прижат к верхней середине окна — туда смотрят аватары, когда следят за курсором.
-        IslandPointer.anchor = CGPoint(x: screen.frame.midX, y: top)
+        IslandPointer.anchor = CGPoint(x: notch.centerX, y: top)
+    }
+
+    /// Параметры экранов поменялись (или их подменила debug-команда): остров встаёт заново по свежей геометрии.
+    private func screenParametersChanged() {
+        place(for: state.mode)
+    }
+
+    /// Геометрия выреза экрана, считанная заново; в debug-сборке — с подменой `notch:`.
+    private func notchGeometry(of screen: NSScreen) -> NotchGeometry {
+        #if DEBUG
+        if let notchOverride { return notchOverride.geometry(for: screen) }
+        #endif
+        return screen.notchGeometry
     }
 
     /// Монитор, где шторка стояла в последний раз; nil — не стояла или монитор отключён.
@@ -275,23 +299,61 @@ extension PanelController {
         return bitmap.representation(using: .png, properties: [:])
     }
 
+    /// Подмена геометрии выреза командой `notch:`.
+    enum NotchOverride {
+        /// Вырез заданной ширины по середине экрана, полоса заданной высоты.
+        case notch(width: CGFloat, barHeight: CGFloat)
+        /// Экран без выреза; высота строки меню, nil — `NSStatusBar.system.thickness`.
+        case flat(barHeight: CGFloat?)
+
+        func geometry(for screen: NSScreen) -> NotchGeometry {
+            switch self {
+            case let .notch(width, barHeight):
+                NotchGeometry(notchWidth: width, barHeight: barHeight, centerX: screen.frame.midX)
+            case let .flat(barHeight):
+                .flat(frame: screen.frame, barHeight: barHeight ?? NSStatusBar.system.thickness)
+            }
+        }
+    }
+
+    /// Подменить геометрию выреза (nil — снова настоящая) и переставить остров тем же путём,
+    /// что и при смене параметров экрана.
+    func debugSetNotch(_ override: NotchOverride?) {
+        notchOverride = override
+        screenParametersChanged()
+    }
+
     var debugPanelInfo: [String: String] {
-        [
+        var info = [
             "frame": NSStringFromRect(panel.frame), "isKey": String(panel.isKeyWindow), "isVisible": String(panel.isVisible),
             "menuOpen": String(openMenu != nil), "pointerPolling": String(pointerTimer != nil),
             "islandShown": String(state.islandShown),
+            // Рамка видимой фигуры острова в координатах экрана — та, по которой ловятся наведение и клики.
+            "island": NSStringFromRect(islandFrame),
         ]
+        if let placement {
+            let notch = placement.notch
+            info["notch"] = "width=\(notch.notchWidth) bar=\(notch.barHeight) center=\(notch.centerX) override=\(notchOverride != nil)"
+            info["screen"] = NSStringFromRect(placement.screen)
+        }
+        return info
     }
 
     /// Точка внутри видимой фигуры острова — «курсор над шторкой».
     var debugIslandPoint: NSPoint {
-        NSPoint(x: panel.frame.midX, y: panel.frame.maxY - 3)
+        NSPoint(x: islandFrame.midX, y: islandFrame.maxY - 3)
+    }
+
+    /// Точка в окне панели по смещению от верхней середины острова: x вправо, y вниз.
+    private func debugWindowPoint(dx: CGFloat, dy: CGFloat) -> NSPoint {
+        let island = islandFrame
+        return NSPoint(x: island.midX - panel.frame.minX + dx, y: island.maxY - panel.frame.minY - dy)
     }
 
     /// Клик по острову так, как его доставил бы оконный сервер; точка — от верхней середины острова,
     /// x вправо, y вниз. Панель при этом не ключевая — как под настоящим курсором.
     func debugClick(dx: CGFloat, dy: CGFloat) {
-        let location = NSPoint(x: panel.frame.width / 2 + dx, y: panel.frame.height - dy)
+        let location = debugWindowPoint(dx: dx, dy: dy)
         func event(_ type: NSEvent.EventType) -> NSEvent? {
             NSEvent.mouseEvent(
                 with: type, location: location, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
@@ -313,7 +375,7 @@ extension PanelController {
     /// Пока меню раскрыто, главный цикл занят его отслеживанием и команды из скрипта не доходят, поэтому
     /// состояние снимает `whileOpen`, вызванный через `delay` секунд, — после него меню закрывается.
     func debugRightClick(dx: CGFloat, dy: CGFloat, after delay: TimeInterval, whileOpen: @escaping @MainActor () -> Void) {
-        let location = NSPoint(x: panel.frame.width / 2 + dx, y: panel.frame.height - dy)
+        let location = debugWindowPoint(dx: dx, dy: dy)
         guard let event = NSEvent.mouseEvent(
             with: .rightMouseDown, location: location, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
             windowNumber: panel.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1

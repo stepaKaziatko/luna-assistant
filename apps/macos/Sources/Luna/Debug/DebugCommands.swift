@@ -37,6 +37,10 @@ import AppKit
 /// - `settingsKey:<модификаторы+код>` — нажатие клавиши в окне настроек (`settingsKey:cmd+12` — ⌘Q);
 /// - `hit:<x>,<y>:<путь>` — достаётся ли панели клик в точке экрана (`true`/`false` в файл): прозрачная
 ///   часть окна острова должна пропускать клики;
+/// - `notch:<ширина>,<высота>` — подменить геометрию экрана острова: вырез заданной ширины по середине экрана,
+///   полоса заданной высоты; `notch:none[,<высота строки меню>]` — экран без выреза (без высоты —
+///   `NSStatusBar.system.thickness`); `notch:off` — снова настоящая. Остров переставляется тем же путём,
+///   что и при смене параметров экрана;
 /// - `submit:<текст>` — отправить запрос с текущим контекстом и выбранной в панели моделью;
 ///   `submitModel:<модель>:<текст>` — то же с указанной моделью в обход списка (проверка ответа ядра на плохое значение);
 /// - `cancelSelected` — кнопка отмены у выбранной строки списка задач;
@@ -50,6 +54,10 @@ import AppKit
 /// - `windowClick[:<threadId>]` — клик в окно диалога (окно становится ключевым);
 /// - `windowSnapshot:<путь>` — PNG окна диалога открытой карточки, а без карточки — последнего открытого;
 /// - `dump:<путь>` — состояние приложения в JSON (с открытыми окнами и активным приложением);
+///   в `panel`: `frame` — рамка окна острова, `island` — рамка видимой фигуры (по ней ловятся наведение
+///   и клики), `notch` — геометрия экрана острова (`width` — ширина выреза, 0 — выреза нет; `bar` — высота
+///   полосы; `center` — середина выреза по x; `override` — подменена ли командой `notch:`), `screen` — рамка
+///   этого экрана; всё в координатах экрана;
 ///   `snapshot:<путь>` — PNG панели;
 /// - `quit` — то же, что «Выйти из Luna» в меню.
 ///
@@ -132,6 +140,17 @@ enum DebugCommands {
             case "away": panels.debugPointer = NSPoint(x: panels.debugIslandPoint.x, y: panels.debugIslandPoint.y - 2000)
             case "off": panels.debugPointer = nil
             default: if numbers.count == 2 { panels.debugPointer = NSPoint(x: numbers[0], y: numbers[1]) }
+            }
+        case "notch":
+            let fields = argument.split(separator: ",").map(String.init)
+            switch fields.first {
+            case "off": panels.debugSetNotch(nil)
+            case "none":
+                let height = fields.count > 1 ? Double(fields[1]).map { CGFloat($0) } : nil
+                panels.debugSetNotch(.flat(barHeight: height))
+            default:
+                let numbers = fields.compactMap(Double.init)
+                if numbers.count == 2 { panels.debugSetNotch(.notch(width: numbers[0], barHeight: numbers[1])) }
             }
         case "click":
             let numbers = argument.split(separator: ",").compactMap { Double($0) }
