@@ -88,4 +88,39 @@ final class IslandLayoutTests: XCTestCase {
         let flat = Layout.pillPanel(for: NotchGeometry(notchWidth: 0, barHeight: 24, centerX: 0))
         XCTAssertGreaterThanOrEqual(flat.width, 185 + 2 * margin + 2 * IslandShape.shoulderSize)
     }
+
+    func testExpandedBodyIsBarPlusContent() {
+        let notched = NotchGeometry(notchWidth: 186, barHeight: 32, centerX: 0)
+        XCTAssertEqual(ExpandedIsland.body(content: CGSize(width: 720, height: 180), notch: notched), CGSize(width: 720, height: 212))
+        let flat = NotchGeometry(notchWidth: 0, barHeight: 24, centerX: 0)
+        XCTAssertEqual(ExpandedIsland.body(content: CGSize(width: 340, height: 100), notch: flat), CGSize(width: 340, height: 124))
+    }
+
+    func testExpandedBodyIsNotNarrowerThanRest() {
+        // Узкое содержимое под широким вырезом: тело не уже покоя на этом вырезе.
+        let wide = NotchGeometry(notchWidth: IslandLayout.maxNotchWidth, barHeight: 38, centerX: 0)
+        let body = ExpandedIsland.body(content: CGSize(width: 200, height: 60), notch: wide)
+        XCTAssertEqual(body.width, IslandLayout.maxNotchWidth + 2 * margin)
+        XCTAssertEqual(body.height, 98)
+        let flat = NotchGeometry(notchWidth: 0, barHeight: 24, centerX: 0)
+        XCTAssertEqual(ExpandedIsland.body(content: CGSize(width: 100, height: 60), notch: flat).width, 185 + 2 * margin)
+    }
+
+    func testExpandedPanelFitsWidestCardWithShouldersAndShadow() {
+        let panel = Layout.expandedPanel
+        let shoulders = 2 * IslandShape.shoulderSize
+        XCTAssertGreaterThanOrEqual(panel.width, Layout.cardWidth + shoulders + 2 * Layout.shadowMargin)
+        // Самая высокая полоса и самая высокая карточка под ней, тень снизу.
+        let tallest = ExpandedIsland.body(
+            content: CGSize(width: Layout.cardWidth, height: Layout.tallestCard),
+            notch: NotchGeometry(notchWidth: IslandLayout.maxNotchWidth, barHeight: ExpandedIsland.maxBarHeight, centerX: 0)
+        )
+        XCTAssertGreaterThanOrEqual(panel.height, tallest.height + Layout.shadowMargin)
+        XCTAssertGreaterThanOrEqual(panel.width, tallest.width + shoulders + 2 * Layout.shadowMargin)
+        XCTAssertGreaterThan(Layout.tallestCard, Layout.resultMaxHeight, "диалог — прокрутка с шапкой и подвалом")
+        // Окно pill при самом широком вырезе — внутри раскрытого: сворачивание не обрезается.
+        let widest = NotchGeometry(notchWidth: IslandLayout.maxNotchWidth, barHeight: ExpandedIsland.maxBarHeight, centerX: 0)
+        XCTAssertLessThanOrEqual(Layout.pillPanel(for: widest).width, panel.width)
+        XCTAssertLessThanOrEqual(Layout.pillPanel(for: widest).height, panel.height)
+    }
 }

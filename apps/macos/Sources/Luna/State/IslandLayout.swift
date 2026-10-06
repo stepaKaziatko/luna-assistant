@@ -78,3 +78,17 @@ struct IslandLayout: Equatable {
         min(maxWing, max(restMargin, natural))
     }
 }
+
+/// Раскрытый остров — та же фигура, что pill: тело растёт из выреза вниз. Сверху в теле — полоса выреза
+/// (без выреза — строки меню), содержимое режима начинается под ней: под камерой ничего нет.
+enum ExpandedIsland {
+    /// Самая высокая полоса, под которую рассчитано окно раскрытого острова: вырез MacBook — до 38 pt.
+    static let maxBarHeight: CGFloat = 40
+
+    /// Тело раскрытого режима по естественному размеру содержимого и геометрии экрана: по высоте — полоса
+    /// и содержимое, по ширине — содержимое, но не уже тела в покое на этом экране.
+    static func body(content: CGSize, notch: NotchGeometry) -> CGSize {
+        let rest = IslandLayout.make(notchWidth: notch.notchWidth, barHeight: notch.barHeight).body
+        return CGSize(width: max(content.width, rest.width), height: max(0, notch.barHeight) + content.height)
+    }
+}
