@@ -214,6 +214,7 @@
           "items": { "$ref": "#/definitions/AgentStep" }
         },
         "host": { "$ref": "#/definitions/AgentHost" },
+        "model": { "type": "string", "description": "модель последнего ответа агента в журнале сессии, как её записал агент («claude-opus-5-5»); нет, пока агент не отвечал или журнал не прочитан" },
         "openUrl": { "type": "string", "description": "ссылка, по которой приложение-хозяин открывает именно эту сессию; есть не у всех хозяев" },
         "startedAt": { "type": "integer", "description": "Unix time, ms" },
         "updatedAt": { "type": "integer", "description": "Unix time, ms: последняя смена состояния или запись в журнале сессии" }

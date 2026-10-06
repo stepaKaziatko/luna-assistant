@@ -1,5 +1,6 @@
 import { oneLine, toolStep } from "../../executors/claude-code/tools.ts";
 import type { AgentStep } from "../../rpc/protocol.gen.ts";
+import { isValidModel } from "../../tasks/model.ts";
 
 // Журнал сессии Claude Code: ~/.claude/projects/<проект>/<id сессии>.jsonl, запись на строку.
 // Формат сверен с Claude Code 2.1.288; пример — core/test/fixtures/claude-sessions.
@@ -26,6 +27,8 @@ export interface TranscriptSummary {
   title?: string;
   /** Последний запрос человека. */
   lastPrompt?: string;
+  /** Модель последнего ответа основной цепочки, как её записал агент. */
+  model?: string;
   /** Старые первыми, не больше STEP_LIMIT. */
   steps: AgentStep[];
 }
@@ -45,7 +48,7 @@ interface Line {
   isCompactSummary?: boolean;
   aiTitle?: string;
   lastPrompt?: string;
-  message?: { content?: string | Block[] };
+  message?: { content?: string | Block[]; model?: unknown };
 }
 
 /** Строки журнала могут быть не с начала файла: читается хвост, первая строка в нём бывает оборвана. */
@@ -78,6 +81,8 @@ export function appendTranscript(
     } else if (line.type === "user" || line.type === "assistant") {
       // Субагенты пишут в тот же журнал; ленту ведёт основная сессия.
       if (line.isSidechain || line.isMeta || line.isCompactSummary) continue;
+      // Модель несёт любой ответ, даже из одного thinking; пустое и <synthetic> прежнюю не затирают.
+      if (line.type === "assistant" && isValidModel(line.message?.model)) summary.model = line.message.model;
       const at = Date.parse(line.timestamp ?? "") || 0;
       for (const step of line.type === "user" ? promptSteps(line, at, limits) : assistantSteps(line, at, limits)) {
         summary.steps.push(step);

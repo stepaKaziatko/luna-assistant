@@ -189,6 +189,7 @@ export class ClaudeCodeSessions implements AgentSource {
     };
     const title = summary?.title ?? summary?.lastPrompt;
     if (title) session.title = title;
+    if (summary?.model) session.model = summary.model;
     if (entry.state === "waiting" && entry.waitingFor) session.waitingFor = entry.waitingFor;
     if (entry.state === "working") session.activity = activityOf(summary);
     if (summary && summary.steps.length > 0) session.trail = summary.steps.slice(-TRAIL_LIMIT);
@@ -214,6 +215,8 @@ export class ClaudeCodeSessions implements AgentSource {
       const summary = grown ? appendTranscript({ ...cached.summary, steps: [...cached.summary.steps] }, lines) : summarizeTranscript(lines);
       // Заголовок мог остаться выше прочитанного хвоста.
       if (!summary.title && cached?.summary.title) summary.title = cached.summary.title;
+      // И модель: в хвосте может не оказаться ответа агента.
+      if (!summary.model && cached?.summary.model) summary.model = cached.summary.model;
       const fresh = { path, size: info.size, mtimeMs: info.mtimeMs, offset: end, summary };
       this.transcripts.set(entry.sessionId, fresh);
       return fresh;

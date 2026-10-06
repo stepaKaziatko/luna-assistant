@@ -150,6 +150,9 @@ struct AgentSession: Codable, Equatable, Sendable {
     let host: AgentHost
     /// id сессии агента
     let id: String
+    /// модель последнего ответа агента в журнале сессии, как её записал агент
+    /// («claude-opus-5-5»); нет, пока агент не отвечал или журнал не прочитан
+    let model: String?
     /// ссылка, по которой приложение-хозяин открывает именно эту сессию; есть не у всех хозяев
     let openUrl: String?
     let pid: Int
