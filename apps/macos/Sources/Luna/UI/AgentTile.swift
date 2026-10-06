@@ -4,6 +4,8 @@ import SwiftUI
 /// Счётчики шторки: значок и число на каждое состояние — вместо фразы.
 struct StatusChips: View {
     let chips: [StatusChip]
+    /// Кегль счётчиков; в шторке на низкой строке меню — меньше.
+    var fontSize: CGFloat = 11
 
     var body: some View {
         HStack(spacing: 9) {
@@ -21,7 +23,7 @@ struct StatusChips: View {
                 .accessibilityLabel(chip.title)
             }
         }
-        .font(.system(size: 11, weight: .semibold))
+        .font(.system(size: fontSize, weight: .semibold))
         .animation(.spring(response: 0.38, dampingFraction: 0.82), value: chips)
     }
 

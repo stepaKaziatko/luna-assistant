@@ -18,10 +18,22 @@ enum Layout {
     /// Блок под курсором не уже шапки со счётчиками и кнопками.
     static let peekMinWidth: CGFloat = 340
     static let peekDialogWidth: CGFloat = 166
-    /// Окно раскрытого острова: вмещает самую высокую карточку с шапкой и подвалом.
-    static let expandedPanel = CGSize(width: cardWidth + 2 * shadowMargin, height: resultMaxHeight + 240)
-    /// Окно свёрнутого острова: pill с аватарами, счётчиками и подписью.
-    static let pillPanel = CGSize(width: 560, height: 52)
+    /// Окно раскрытого острова: вмещает самую высокую карточку с шапкой и подвалом, а в ширину — и окно pill
+    /// у самого широкого выреза: иначе широкая фигура обрезалась бы на первом кадре раскрытия.
+    static let expandedPanel = CGSize(
+        width: max(cardWidth + 2 * shadowMargin, pillPanelWidth(notchWidth: IslandLayout.maxNotchWidth)),
+        height: resultMaxHeight + 240
+    )
+
+    /// Окно свёрнутого острова: вырез, два крыла наибольшей ширины и два плеча; без выреза — строка из двух
+    /// крыльев и плечи. Высотой с полосу: тени у свёрнутого острова нет.
+    static func pillPanel(for notch: NotchGeometry) -> CGSize {
+        CGSize(width: pillPanelWidth(notchWidth: notch.notchWidth), height: notch.barHeight)
+    }
+
+    private static func pillPanelWidth(notchWidth: CGFloat) -> CGFloat {
+        (notchWidth + 2 * IslandLayout.maxWing + 2 * IslandShape.shoulderSize).rounded(.up)
+    }
 }
 
 /// Анимации острова. Рост — пружина с лёгким перелётом, сжатие — без отскока: так остров
@@ -198,18 +210,25 @@ struct Pulse<Content: View>: View {
 
 /// Остров: одна чёрная фигура у верхнего края экрана, которая меняет размер под содержимое.
 /// Содержимое режимов сменяется внутри неё; фигура перетекает из pill в карточку и обратно.
+/// Фигура — продолжение выреза (`IslandShape`): чисто чёрная, без обводки, плечами уходит в строку меню.
 struct RootView: View {
     @EnvironmentObject private var state: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Размер фигуры; следует за размером содержимого текущего режима.
-    @State private var size = CGSize(width: 44, height: 6)
+    /// Размер тела фигуры; следует за размером содержимого текущего режима.
+    @State private var size = IslandLayout.make(
+        notchWidth: IslandPlacement.unplaced.notch.notchWidth, barHeight: IslandPlacement.unplaced.notch.barHeight
+    ).body
+    /// Сдвиг тела от середины окна по x: поправка на округление окна и несимметричные крылья pill.
+    @State private var offset: CGFloat = 0
 
     var body: some View {
         ZStack(alignment: .top) {
+            if state.mode != .pill {
+                cardShadow
+            }
+
             shape
                 .fill(.black)
-                .overlay(shape.strokeBorder(.white.opacity(isNub ? 0 : 0.08)))
-                .shadow(color: .black.opacity(isNub ? 0 : 0.35), radius: 12, y: 4)
                 .frame(width: size.width, height: size.height)
 
             ZStack(alignment: .top) {
@@ -219,13 +238,13 @@ struct RootView: View {
             .clipShape(shape)
 
             if state.mode == .pill {
-                // Свёрнутый остров тонкий — область клика делаем больше видимой части.
                 Color.clear
-                    .frame(width: max(size.width, 72), height: max(size.height, 14))
+                    .frame(width: size.width, height: size.height)
                     .contentShape(Rectangle())
                     .onTapGesture(perform: state.pillClicked)
             }
         }
+        .offset(x: offset)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // Появление и уход шторки в режиме «В фоне»: съезжает от края и растворяется; при
         // «Уменьшении движения» — только растворение.
@@ -235,6 +254,12 @@ struct RootView: View {
             IslandMotion.presence(appearing: state.islandPresented, reduced: reduceMotion), value: state.islandPresented
         )
         .animation(.default, value: state.mode)
+        .onChange(of: targetOffset, initial: true) { _, new in
+            withAnimation(IslandMotion.resize(growing: isGrowingOffset, reduced: reduceMotion)) { offset = new }
+        }
+        .onChange(of: bodyOffset, initial: true) { _, new in
+            if state.islandBodyOffset != new { state.islandBodyOffset = new }
+        }
         .onExitCommand { state.collapse() }
         .environment(\.colorScheme, .dark)
     }
@@ -260,19 +285,49 @@ struct RootView: View {
         }
     }
 
-    /// Свёрнутый остров без дел — тонкая полоска.
-    private var isNub: Bool { size.height < 12 }
+    /// Тень раскрытой карточки — только ниже полосы меню: у верхнего края её нет, стык со строкой меню чистый.
+    /// Свёрнутому острову тень не нужна.
+    private var cardShadow: some View {
+        shape
+            .fill(.black)
+            .frame(width: size.width, height: size.height)
+            .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+            .mask(alignment: .top) {
+                Rectangle()
+                    .padding(.horizontal, -Layout.shadowMargin)
+                    .padding(.bottom, -Layout.shadowMargin)
+                    .padding(.top, state.islandPlacement.notch.barHeight)
+            }
+    }
 
-    /// Верхние углы прямые — остров «свисает» с края экрана; нижние скруглены.
-    private var shape: UnevenRoundedRectangle {
-        let radius: CGFloat = state.mode == .pill ? min(13, size.height) : 20
-        return UnevenRoundedRectangle(bottomLeadingRadius: radius, bottomTrailingRadius: radius, style: .continuous)
+    /// Верх прямой и уходит плечами в строку меню; низ скруглён. У pill радиус не больше запаса покоя:
+    /// скругление не заходит под вырез, и прямоугольник выреза закрыт целиком.
+    private var shape: IslandShape {
+        IslandShape(width: size.width, height: size.height, bottomRadius: state.mode == .pill ? IslandLayout.restMargin : 20)
+    }
+
+    /// Сдвиг тела от середины выреза: у pill — на разницу крыльев.
+    private var bodyOffset: CGFloat {
+        state.mode == .pill ? state.pillLayout.bodyOffset : 0
+    }
+
+    /// Куда должно встать тело в окне: на середину выреза с поправкой на округление окна и со сдвигом тела.
+    private var targetOffset: CGFloat {
+        state.islandPlacement.correction + bodyOffset
+    }
+
+    /// Сдвиг идёт той же пружиной, что и размер: крылья вырастают — рост, втягиваются — сжатие.
+    private var isGrowingOffset: Bool {
+        state.mode != .pill || state.pillPresentation != nil
     }
 
     private func resize(_ new: CGSize) {
         guard new != size, new.width > 0, new.height > 0 else { return }
         let growing = new.width * new.height > size.width * size.height
-        withAnimation(IslandMotion.resize(growing: growing, reduced: reduceMotion)) { size = new }
+        withAnimation(IslandMotion.resize(growing: growing, reduced: reduceMotion)) {
+            size = new
+            offset = targetOffset
+        }
         state.islandSize = new
     }
 }

@@ -185,14 +185,14 @@ final class PanelController {
         return true
     }
 
-    /// Видимая фигура острова в координатах экрана. Тонкую полоску ловим с тем же запасом, что и клик;
-    /// у раскрытого блока запас по краям — чтобы он не закрывался от промаха на пару точек.
-    /// Фигура прижата к верхнему краю экрана по центру выреза; до первой расстановки — к верхней середине окна.
+    /// Тело фигуры острова в координатах экрана, без плеч. У раскрытого блока запас по краям — чтобы он
+    /// не закрывался от промаха на пару точек. Тело прижато к верхнему краю экрана по центру выреза, у pill —
+    /// со сдвигом на разницу крыльев; до первой расстановки — к верхней середине окна.
     private var islandFrame: NSRect {
         let margin: CGFloat = state.mode == .peek ? 10 : 0
         let width = max(state.islandSize.width, 72) + 2 * margin
         let height = max(state.islandSize.height, 14) + margin
-        let centerX = placement?.notch.centerX ?? panel.frame.midX
+        let centerX = (placement?.notch.centerX ?? panel.frame.midX) + state.islandBodyOffset
         let top = placement?.screen.maxY ?? panel.frame.maxY
         return NSRect(x: centerX - width / 2, y: top - height, width: width, height: height)
     }
@@ -233,14 +233,17 @@ final class PanelController {
         let screen = stays ? (restingScreen ?? Self.screenWithMouse()) : Self.screenWithMouse()
         guard let screen else { return }
 
-        let size = mode == .pill ? Layout.pillPanel : Layout.expandedPanel
         // Окно — от самого верхнего края экрана, серединой на центре выреза (без выреза — на середине экрана).
         let notch = notchGeometry(of: screen)
+        let size = mode == .pill ? Layout.pillPanel(for: notch) : Layout.expandedPanel
         let top = screen.frame.maxY
         let origin = NSPoint(x: notch.centerX - size.width / 2, y: top - size.height)
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
         restingFrame = panel.frame
         placement = (screen.frame, notch)
+        // Вырез и полоса — виду острова; AppKit ставит окно в целые точки, и фигура сдвигается на остаток.
+        let island = IslandPlacement(notch: notch, correction: notch.centerX - panel.frame.midX)
+        if state.islandPlacement != island { state.islandPlacement = island }
         // Остров прижат к верхней середине окна — туда смотрят аватары, когда следят за курсором.
         IslandPointer.anchor = CGPoint(x: notch.centerX, y: top)
     }
@@ -336,6 +339,10 @@ extension PanelController {
             info["notch"] = "width=\(notch.notchWidth) bar=\(notch.barHeight) center=\(notch.centerX) override=\(notchOverride != nil)"
             info["screen"] = NSStringFromRect(placement.screen)
         }
+        // Раскладка pill: крылья, промежуток над вырезом и сдвиг тела от середины выреза.
+        let layout = state.pillLayout
+        info["wings"] = "left=\(layout.leftWing) gap=\(layout.gap) right=\(layout.rightWing) offset=\(layout.bodyOffset)"
+        info["correction"] = String(describing: state.islandPlacement.correction)
         return info
     }
 

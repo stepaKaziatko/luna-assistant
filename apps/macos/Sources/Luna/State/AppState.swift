@@ -75,8 +75,18 @@ final class AppState: ObservableObject {
     @Published private(set) var agentWindowSessions: [String: AgentSession] = [:]
     /// Повторное «В окне» у сессии с открытым окном: окно поднимается, второе не создаётся.
     let agentWindowRaised = PassthroughSubject<String, Never>()
-    /// Размер видимой части острова; по нему панель знает, что на экране.
-    @Published var islandSize = CGSize(width: 44, height: 6)
+    /// Размер видимой части острова — тело фигуры без плеч; по нему панель знает, что на экране.
+    @Published var islandSize = IslandLayout.make(
+        notchWidth: IslandPlacement.unplaced.notch.notchWidth, barHeight: IslandPlacement.unplaced.notch.barHeight
+    ).body
+    /// Где стоит остров: вырез и полоса его экрана, поправка на округление окна. Выставляет панель при расстановке.
+    @Published var islandPlacement = IslandPlacement.unplaced
+    /// Естественные ширины крыльев pill; замеряет `PillView`.
+    @Published var pillWings = PillWings()
+    /// Сдвиг тела острова от середины выреза (у pill — разница крыльев, у раскрытого — 0). Выставляет `RootView`
+    /// вместе с `islandSize`: панель опрашивает рамку острова на каждом движении курсора, и пересчитывать
+    /// раскладку там незачем.
+    @Published var islandBodyOffset: CGFloat = 0
     /// Должна ли шторка быть на экране: в «Всегда» — да, в «В фоне» — по событию и пока открыта панель.
     /// Решает `IslandPresence`; панель исполняет.
     @Published private(set) var islandShown: Bool
@@ -159,6 +169,13 @@ final class AppState: ObservableObject {
     /// Что показывает развёрнутая шторка; nil — показывать нечего.
     var pillPresentation: PillPresentation? {
         PillPresentation.make(tasks: pillState, taskProgress: tasks.last { $0.isActive }?.progress, agents: agentsSummary)
+    }
+
+    /// Раскладка свёрнутого острова: крылья вокруг выреза, когда есть что показать, иначе покой.
+    var pillLayout: IslandLayout {
+        let notch = islandPlacement.notch
+        let wings = pillPresentation == nil ? PillWings() : pillWings
+        return IslandLayout.make(notchWidth: notch.notchWidth, barHeight: notch.barHeight, left: wings.left, right: wings.right)
     }
 
     /// Счётчики шторки и блока под курсором.
