@@ -95,6 +95,9 @@ struct PillView: View {
                 Text("+\(sessions.count - PillPresentation.avatarLimit)")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
+                    // Крыло замеряется в естественную ширину и ставится в неё же; без этого надпись при
+                    // раскладке получает меньше своей ширины, переносится и не рисуется вовсе.
+                    .fixedSize()
             }
         }
         .animation(.spring(response: 0.38, dampingFraction: 0.82), value: sessions.map(\.id))
