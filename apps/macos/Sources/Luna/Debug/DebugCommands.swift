@@ -10,11 +10,17 @@ import AppKit
 ///   экрана, `pointer:off` — снова настоящий курсор: блок по наведению проверяется без движения мыши;
 /// - `click:<dx>,<dy>` — клик по острову; точка — от его верхней середины, x вправо, y вниз;
 /// - `settings` — открыть окно настроек, `settingsTab:<general|avatar|sounds>` — выбрать вкладку,
-///   `settingsClose` — закрыть, `settingsSnapshot:<путь>` — его PNG;
+///   `settingsClose` — закрыть, `settingsSnapshot:<путь>` — его PNG, `settingsModelDraft:<текст>` — набрать
+///   в поле «Добавить» раздела «Модели» (подсветка некорректной строки видна на снимке);
 /// - `set:<настройка>=<значение>` — поменять настройку: `islandMode` (`always`/`background`), `hoverPeek`, `pillAvatars`, `pillText`, `animateAvatars`,
 ///   `soundsEnabled` (`true`/`false`), `soundVolume` (0…1), `tint`, `accessory`, `sound.<событие>` (имя или пусто),
-///   `model` — выбор модели Claude Code в панели ввода (значение из списка; пусто или чужое — «По умолчанию»),
-///   `followUpModel` — выбор модели в поле продолжения открытой карточки (как клик по пункту меню; пусто — «По умолчанию»,
+///   `model` — выбор модели Claude Code в панели ввода (значение из списка; чужое — выбор стёрт; пусто — явная «Модель CLI»,
+///   она запоминается, пока задано умолчание),
+///   `defaultModel` — модель по умолчанию из настроек (как выбор в разделе «Модели»; пусто или чужое — «Модель CLI»;
+///   реальная смена стирает выбор панели),
+///   `models` — список моделей через запятую, как правка в настройках: имена проверяются, повторы убираются,
+///   пусто — встроенный список,
+///   `followUpModel` — выбор модели в поле продолжения открытой карточки (как клик по пункту меню; пусто — «Модель CLI»,
 ///   у диалога с моделью такого пункта нет; модель точки продолжения — то же, что «не менял»);
 ///   Шторка в режиме «В фоне»: `dump` показывает `panel.isVisible` (окно на экране; после ухода шторки
 ///   становится `false` через полсекунды, когда доиграет анимация), `panel.pointerPolling` и `motion.timer`;
@@ -132,6 +138,7 @@ enum DebugCommands {
             if numbers.count == 2 { panels.debugClick(dx: numbers[0], dy: numbers[1]) }
         case "settings": state.openSettings()
         case "settingsTab": settings.debugSelect(tab: argument)
+        case "settingsModelDraft": settings.debugSetModelDraft(argument)
         case "settingsClose": settings.debugClose()
         case "settingsKey":
             if let (keyCode, modifiers) = keyStroke(argument) {
@@ -241,6 +248,9 @@ enum DebugCommands {
         case "tint": if let tint = AvatarTint(rawValue: value) { settings.tint = tint }
         case "accessory": if let accessory = AvatarAccessory(rawValue: value) { settings.accessory = accessory }
         case "model": settings.setModel(value.isEmpty ? nil : value, for: ExecutorId.claudeCode.rawValue)
+        case "defaultModel": settings.setDefaultModel(value.isEmpty ? nil : value, for: ExecutorId.claudeCode.rawValue)
+        case "models":
+            settings.setModels(value.split(separator: ",", omittingEmptySubsequences: false).map(String.init), for: ExecutorId.claudeCode.rawValue)
         default:
             if name.hasPrefix("sound."), let event = SoundEvent(rawValue: String(name.dropFirst(6))) {
                 settings.setSound(value.isEmpty ? nil : value, for: event)
@@ -285,7 +295,7 @@ enum DebugCommands {
         let listMessage: String?
         let followUpDraft: String
         let followUpError: String?
-        /// Модель, на которой уйдёт уточнение открытой карточки: выбранная или модель точки продолжения; пусто — «По умолчанию».
+        /// Модель, на которой уйдёт уточнение открытой карточки: выбранная или модель точки продолжения; пусто — «Модель CLI».
         let followUpModel: String
         /// Пункты меню выбора модели у поля продолжения: группы между разделителями, название пункта.
         let followUpMenu: [[String]]
@@ -302,9 +312,10 @@ enum DebugCommands {
         let finishedAgents: [String]
         let selectedAgentId: String?
         let agentSteps: Int
-        /// Настройки пользователя и окно настроек. `model` — выбор модели в панели ввода (пусто — «По умолчанию»).
+        /// Настройки пользователя и окно настроек. `model` — предвыбор панели ввода (последний выбор, иначе умолчание;
+        /// пусто — «Модель CLI»), `defaultModel` — умолчание из настроек (пусто — «Модель CLI»).
         let settings: [String: String]
-        /// Список моделей панели ввода.
+        /// Действующий список моделей панели ввода и поля продолжения.
         let models: [String]
         /// Какую модель показывают задачам: `TaskInfo.model` по id задачи.
         let taskModels: [String: String]
@@ -369,6 +380,7 @@ enum DebugCommands {
                 "accessory": state.settings.accessory.rawValue,
             ]
             values["model"] = state.selectedModel ?? ""
+            values["defaultModel"] = state.settings.defaultModel(for: ExecutorId.claudeCode.rawValue) ?? ""
             for event in SoundEvent.allCases { values["sound.\(event.rawValue)"] = state.settings.sound(for: event) ?? "" }
             settings = values
             models = state.settings.models(for: ExecutorId.claudeCode.rawValue)

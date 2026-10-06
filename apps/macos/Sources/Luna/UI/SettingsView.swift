@@ -19,9 +19,11 @@ final class SettingsNavigation: ObservableObject {
     }
 
     @Published var tab = Tab.general
+    /// Что набрано в поле «добавить модель»: живёт здесь, чтобы debug-сборка могла показать подсветку ошибки.
+    @Published var modelDraft = ""
 }
 
-/// Окно настроек: шторка и сочетания клавиш, облик Luna, звуки.
+/// Окно настроек: шторка, сочетания клавиш и модели, облик Luna, звуки.
 struct SettingsView: View {
     @EnvironmentObject private var settings: LunaSettings
     @EnvironmentObject private var navigation: SettingsNavigation
@@ -71,6 +73,7 @@ struct SettingsView: View {
             } header: {
                 Text("Шторка")
             }
+            modelsSection
             Section("Сочетания клавиш") {
                 KeyboardShortcuts.Recorder("Спросить", name: .toggleInput)
                 KeyboardShortcuts.Recorder("Последний результат", name: .openLastResult)
@@ -83,6 +86,78 @@ struct SettingsView: View {
                 Text("Идущие задачи прервутся.")
             }
         }
+    }
+
+    private let executor = ExecutorId.claudeCode.rawValue
+
+    /// Список моделей Claude Code, которые предлагают панель ввода и поле продолжения, и модель по умолчанию.
+    /// Список правится атомарными «добавить» и «убрать», поэтому набор «opu» вместо «opus» ничего не стирает.
+    private var modelsSection: some View {
+        let models = settings.models(for: executor)
+        let verdict = ModelList.verdict(for: navigation.modelDraft, existing: models)
+        return Section {
+            ForEach(models, id: \.self) { model in
+                HStack {
+                    Text(ModelName.short(model))
+                    if ModelName.short(model) != model {
+                        Text(model).font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button {
+                        settings.setModels(models.filter { $0 != model }, for: executor)
+                    } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Убрать из списка")
+                    .accessibilityLabel("Убрать \(model)")
+                }
+            }
+            HStack {
+                TextField("Добавить модель", text: $navigation.modelDraft, prompt: Text("opus или claude-opus-4-8[1m]"))
+                    .labelsHidden()
+                    .onSubmit(addModel)
+                    .foregroundStyle(verdict == .invalid ? Color.red : Color.primary)
+                Button("Добавить", action: addModel)
+                    .disabled(verdict != .valid)
+            }
+            switch verdict {
+            case .invalid:
+                Text("не принято: «\(navigation.modelDraft.trimmingCharacters(in: .whitespacesAndNewlines))» — латиница, цифры и . _ : [ ] / -, первый знак буква или цифра, до 100 знаков")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            case .duplicate:
+                Text("Эта модель уже в списке.").font(.caption).foregroundStyle(.secondary)
+            case .empty, .valid:
+                EmptyView()
+            }
+            if settings.hasCustomModels(for: executor) {
+                Button("Вернуть встроенный список") { settings.setModels([], for: executor) }
+            }
+            Picker("По умолчанию", selection: defaultModel) {
+                Text(ModelName.defaultTitle).tag("")
+                Divider()
+                ForEach(models, id: \.self) { Text(ModelName.short($0)).tag($0) }
+            }
+        } header: {
+            Text("Модели")
+        } footer: {
+            Text("«\(ModelName.defaultTitle)» — флаг --model не передаётся: работает LUNA_CLAUDE_MODEL, если она задана, иначе модель из настроек Claude Code. Выбор в панели ввода главнее умолчания.")
+        }
+    }
+
+    private func addModel() {
+        let models = settings.models(for: executor)
+        guard ModelList.verdict(for: navigation.modelDraft, existing: models) == .valid else { return }
+        settings.setModels(models + [navigation.modelDraft], for: executor)
+        navigation.modelDraft = ""
+    }
+
+    private var defaultModel: Binding<String> {
+        Binding(
+            get: { settings.defaultModel(for: executor) ?? "" },
+            set: { settings.setDefaultModel($0.isEmpty ? nil : $0, for: executor) }
+        )
     }
 
     private var avatar: some View {

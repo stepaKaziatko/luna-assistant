@@ -6,7 +6,7 @@ import SwiftUI
 /// закрылось — активным снова становится то, с которым пользователь работал.
 @MainActor
 final class SettingsWindow: NSObject, NSWindowDelegate {
-    static let size = CGSize(width: 480, height: 580)
+    static let size = CGSize(width: 480, height: 640)
 
     private let settings: LunaSettings
     private let sounds: SoundPlayer
@@ -91,6 +91,10 @@ extension SettingsWindow {
 
     func debugSelect(tab: String) {
         if let tab = SettingsNavigation.Tab(rawValue: tab) { navigation.tab = tab }
+    }
+
+    func debugSetModelDraft(_ text: String) {
+        navigation.modelDraft = text
     }
 
     func debugClose() {
