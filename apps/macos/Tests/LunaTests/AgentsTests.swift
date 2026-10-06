@@ -6,10 +6,10 @@ final class AgentsTests: XCTestCase {
     private func session(
         _ id: String, _ state: AgentState = .idle, project: String = "shop", updatedAt: Int = 0,
         host: AgentHost = AgentHost(appPath: nil, kind: .unknown, name: nil, tty: nil, workspace: nil),
-        openUrl: String? = nil, activity: String? = nil, trail: [AgentStep]? = nil, waitingFor: String? = nil
+        openUrl: String? = nil, model: String? = nil, activity: String? = nil, trail: [AgentStep]? = nil, waitingFor: String? = nil
     ) -> AgentSession {
         AgentSession(
-            activity: activity, agent: "claude-code", cwd: "/work/\(project)", host: host, id: id, openUrl: openUrl,
+            activity: activity, agent: "claude-code", cwd: "/work/\(project)", host: host, id: id, model: model, openUrl: openUrl,
             pid: 1, project: project, startedAt: 0, state: state, title: "сессия \(id)", trail: trail, updatedAt: updatedAt, waitingFor: waitingFor
         )
     }
@@ -236,6 +236,35 @@ final class AgentsTests: XCTestCase {
     }
 
     // MARK: - Превью работы
+
+    func testModelTitleIsShortNameOrNothing() {
+        XCTAssertEqual(session("a", model: "claude-opus-5-5").modelTitle, "Opus 5.5")
+        XCTAssertEqual(session("a", model: "claude-opus-5").modelTitle, "Opus 5")
+        XCTAssertEqual(session("a", model: "claude-haiku-4-5-20251001").modelTitle, "Haiku 4.5")
+        XCTAssertEqual(session("a", model: "gpt-x").modelTitle, "gpt-x", "незнакомое — как есть")
+        XCTAssertNil(session("a", model: nil).modelTitle)
+        XCTAssertNil(session("a", model: "").modelTitle)
+    }
+
+    func testModelDoesNotChangeTileOrStatus() {
+        let read = AgentStep(at: 1, kind: .tool, target: "cart.ts", text: "читает cart.ts", tool: "read")
+        for state in [AgentState.working, .waiting, .idle] {
+            let plain = session("a", state, activity: "правит cart.ts", trail: [read], waitingFor: "input needed")
+            let withModel = session("a", state, model: "claude-opus-5-5", activity: "правит cart.ts", trail: [read], waitingFor: "input needed")
+            XCTAssertEqual(plain.tileCaption, withModel.tileCaption)
+            XCTAssertEqual(plain.statusLine, withModel.statusLine)
+        }
+    }
+
+    func testAgentSessionDecodesWithAndWithoutModel() throws {
+        let base = #"{"id":"a","agent":"claude-code","pid":1,"cwd":"/work/shop","project":"shop","state":"idle","host":{"kind":"unknown"},"startedAt":1,"updatedAt":2"#
+        let with = try JSONDecoder().decode(AgentSession.self, from: Data((base + #","model":"claude-opus-5-5"}"#).utf8))
+        XCTAssertEqual(with.model, "claude-opus-5-5")
+        XCTAssertEqual(with.modelTitle, "Opus 5.5")
+        let without = try JSONDecoder().decode(AgentSession.self, from: Data((base + "}").utf8))
+        XCTAssertNil(without.model)
+        XCTAssertNil(without.modelTitle)
+    }
 
     func testTileCaptionIsAFewWordsNotASentence() {
         let read = AgentStep(at: 1, kind: .tool, target: "cart.ts", text: "читает cart.ts", tool: "read")

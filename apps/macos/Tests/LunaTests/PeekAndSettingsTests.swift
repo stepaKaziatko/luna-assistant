@@ -6,7 +6,7 @@ final class PeekAndSettingsTests: XCTestCase {
     private func session(_ id: String, _ state: AgentState = .idle) -> AgentSession {
         AgentSession(
             activity: nil, agent: "claude-code", cwd: "/work/shop",
-            host: AgentHost(appPath: nil, kind: .unknown, name: nil, tty: nil, workspace: nil), id: id, openUrl: nil,
+            host: AgentHost(appPath: nil, kind: .unknown, name: nil, tty: nil, workspace: nil), id: id, model: nil, openUrl: nil,
             pid: 1, project: "shop", startedAt: 0, state: state, title: "сессия \(id)", trail: nil, updatedAt: 0, waitingFor: nil
         )
     }

@@ -42,6 +42,13 @@ struct AgentDetailView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    // Отдельной строкой: в колонке 224 pt вместе с хозяином она обрезала бы его, а он нужен для перехода.
+                    if let model = session.modelTitle {
+                        Text(model)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
             }
             .help(session.cwd)

@@ -58,6 +58,12 @@ extension AgentSession {
         }
     }
 
+    /// Модель сессии для карточки и окна: короткое имя («Opus 5.5»), незнакомое — как есть; нет модели — nil.
+    var modelTitle: String? {
+        guard let model, !model.isEmpty else { return nil }
+        return ModelName.short(model)
+    }
+
     /// Подпись плитки — пара слов вместо фразы: над чем агент работает или чего ждёт.
     /// У свободной сессии плитка показывает время, а не подпись.
     var tileCaption: String {
