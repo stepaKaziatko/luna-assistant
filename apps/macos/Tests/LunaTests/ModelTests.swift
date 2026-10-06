@@ -289,6 +289,14 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(state.followUpModel, "haiku", "тот же диалог — выбор остаётся")
     }
 
+    func testRequestModelOnlyForChangedSelection() {
+        XCTAssertNil(FollowUpModelChoice(pointModel: "haiku", selection: nil).requestModel, "не менял — поля нет")
+        XCTAssertNil(FollowUpModelChoice(pointModel: "haiku", selection: "haiku").requestModel, "выбрана модель точки — поля нет")
+        XCTAssertEqual(FollowUpModelChoice(pointModel: "haiku", selection: "opus").requestModel, "opus")
+        XCTAssertEqual(FollowUpModelChoice(pointModel: nil, selection: "opus").requestModel, "opus", "у диалога без модели любая выбранная уходит")
+        XCTAssertNil(FollowUpModelChoice(pointModel: nil, selection: nil).requestModel)
+    }
+
     func testFollowUpMenuSections() {
         let models = ["opus", "sonnet", "haiku"]
         // Диалог с моделью: она первой, «По умолчанию» нет.
