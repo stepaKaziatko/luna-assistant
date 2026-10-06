@@ -2,8 +2,8 @@ import Foundation
 
 /// Показ имени модели: идентификатор исполнителя превращается в короткое имя для панели и карточки.
 enum ModelName {
-    /// Пункт «нет выбора»: исполнитель сам берёт модель по умолчанию.
-    static let defaultTitle = "По умолчанию"
+    /// Пункт «нет выбора»: флаг `--model` не передаётся, модель берёт сам CLI (`LUNA_CLAUDE_MODEL` или настройки Claude Code).
+    static let defaultTitle = "Модель CLI"
 
     private static let aliases: Set<String> = ["opus", "sonnet", "haiku"]
 
@@ -43,6 +43,66 @@ enum ModelName {
     private static func digits(_ text: String, max: Int) -> String? {
         guard !text.isEmpty, text.count <= max, text.allSatisfy(\.isASCIIDigit) else { return nil }
         return text
+    }
+}
+
+/// Список моделей, который пользователь правит в настройках. Имя проверяется тем же шаблоном, что в ядре
+/// (`MODEL_PATTERN` в `core/src/tasks/model.ts`): ядро всё равно отклонит несоответствующее, а здесь
+/// такая строка не попадает в список и подсвечивается.
+enum ModelList {
+    /// `^[A-Za-z0-9][A-Za-z0-9._:\[\]/-]{0,99}$` без регулярного выражения: `$` в `NSRegularExpression`
+    /// пропускает завершающий перевод строки, а в argv он не должен попасть.
+    static func isValid(_ name: String) -> Bool {
+        let scalars = Array(name.unicodeScalars)
+        guard (1...100).contains(scalars.count), let first = scalars.first, first.isASCIIAlphanumeric else { return false }
+        return scalars.dropFirst().allSatisfy { $0.isASCIIAlphanumeric || "._:[]/-".unicodeScalars.contains($0) }
+    }
+
+    struct Parsed: Equatable {
+        /// Принятые имена: без повторов, в порядке ввода.
+        var accepted: [String] = []
+        /// Строки, которые не прошли проверку, — для подсветки.
+        var rejected: [String] = []
+    }
+
+    /// Текст «по одной модели в строке».
+    static func parse(_ text: String) -> Parsed {
+        clean(text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init))
+    }
+
+    /// Строки списка: края обрезаются, пустые пропускаются, не подошедшие — в `rejected`, повторы убираются
+    /// (остаётся первое вхождение).
+    static func clean(_ lines: [String]) -> Parsed {
+        var result = Parsed()
+        var seen = Set<String>()
+        for line in lines {
+            let name = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { continue }
+            if !isValid(name) {
+                result.rejected.append(name)
+            } else if seen.insert(name).inserted {
+                result.accepted.append(name)
+            }
+        }
+        return result
+    }
+
+    /// Что сказать о строке, которую пользователь набирает в поле «добавить модель».
+    enum Verdict: Equatable {
+        case empty, valid, duplicate, invalid
+    }
+
+    static func verdict(for draft: String, existing: [String]) -> Verdict {
+        let name = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.isEmpty { return .empty }
+        if !isValid(name) { return .invalid }
+        return existing.contains(name) ? .duplicate : .valid
+    }
+}
+
+private extension Unicode.Scalar {
+    var isASCIIAlphanumeric: Bool {
+        (0x30...0x39).contains(value) || (0x41...0x5A).contains(value) || (0x61...0x7A).contains(value)
     }
 }
 

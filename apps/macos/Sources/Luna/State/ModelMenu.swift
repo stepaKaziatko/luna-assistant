@@ -1,6 +1,6 @@
 import Foundation
 
-/// Пункт меню выбора модели; `model == nil` — «По умолчанию».
+/// Пункт меню выбора модели; `model == nil` — «Модель CLI».
 struct ModelMenuItem: Equatable, Identifiable {
     let title: String
     let model: String?
@@ -24,7 +24,7 @@ struct ModelMenuItem: Equatable, Identifiable {
 typealias ModelMenuSections = [[ModelMenuItem]]
 
 enum ModelMenu {
-    /// Панель ввода: «По умолчанию», затем список моделей исполнителя.
+    /// Панель ввода: «Модель CLI», затем список моделей исполнителя.
     static func inputSections(models: [String]) -> ModelMenuSections {
         sections([ModelMenuItem.defaultItem], models.map { ModelMenuItem(model: $0) })
     }
@@ -37,7 +37,7 @@ enum ModelMenu {
 /// Выбор модели для уточнения в карточке диалога.
 ///
 /// Уточнение без смены модели ядро всё равно ведёт на модели точки продолжения, поэтому «базой»
-/// служит она, а не «По умолчанию»: у диалога с известной моделью такого пункта в меню нет.
+/// служит она, а не «Модель CLI»: у диалога с известной моделью такого пункта в меню нет.
 /// Модель точки — `continuationPoint.model`, а не последней задачи диалога: после неудачного
 /// уточнения на другой модели они различаются, а ядро продолжит ту, на которой остановилась сессия.
 struct FollowUpModelChoice: Equatable {
@@ -51,7 +51,7 @@ struct FollowUpModelChoice: Equatable {
         self.selection = selection
     }
 
-    /// Показываемая модель; nil — «По умолчанию».
+    /// Показываемая модель; nil — «Модель CLI».
     var shown: String? { selection ?? pointModel }
 
     /// `TaskSubmitParams.model`: только выбранная и отличная от модели точки, иначе поля нет.
@@ -65,7 +65,7 @@ struct FollowUpModelChoice: Equatable {
         "Claude Code · \(shown.map(ModelName.short) ?? ModelName.defaultTitle)"
     }
 
-    /// Диалог с моделью: она сама первым пунктом, затем список. Без модели — «По умолчанию» и список.
+    /// Диалог с моделью: она сама первым пунктом, затем список. Без модели — «Модель CLI» и список.
     func sections(models: [String]) -> ModelMenuSections {
         let list = models.filter { $0 != pointModel }.map { ModelMenuItem(model: $0) }
         if let pointModel { return ModelMenu.sections([ModelMenuItem(model: pointModel)], list) }

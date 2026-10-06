@@ -599,7 +599,7 @@ final class AppState: ObservableObject {
 
     // MARK: - Задачи
 
-    /// Модель, на которой уйдёт следующий вопрос: последний выбор в панели ввода; nil — «По умолчанию».
+    /// Модель, на которой уйдёт следующий вопрос: предвыбор панели ввода (последний выбор, иначе умолчание из настроек); nil — «Модель CLI».
     var selectedModel: String? { settings.model(for: ExecutorId.claudeCode.rawValue) }
 
     func submit() {

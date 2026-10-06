@@ -239,12 +239,12 @@ final class ModelTests: XCTestCase {
         let (state, core) = card([answer("a", model: nil, createdAt: 1)])
         let dialog = try XCTUnwrap(state.dialog(threadId: "a"))
         XCTAssertNil(state.followUpChoice(for: dialog).shown)
-        XCTAssertEqual(state.followUpChoice(for: dialog).label, "Claude Code · По умолчанию")
+        XCTAssertEqual(state.followUpChoice(for: dialog).label, "Claude Code · Модель CLI")
 
         state.selectFollowUpModel("sonnet")
         XCTAssertEqual(state.followUpChoice(for: dialog).label, "Claude Code · Sonnet")
         state.selectFollowUpModel(nil)
-        XCTAssertNil(state.followUpModel, "«По умолчанию» у диалога без модели — не менял")
+        XCTAssertNil(state.followUpModel, "«Модель CLI» у диалога без модели — не менял")
 
         state.selectFollowUpModel("sonnet")
         state.followUpDraft = "ещё"
@@ -299,19 +299,19 @@ final class ModelTests: XCTestCase {
 
     func testFollowUpMenuSections() {
         let models = ["opus", "sonnet", "haiku"]
-        // Диалог с моделью: она первой, «По умолчанию» нет.
+        // Диалог с моделью: она первой, «Модель CLI» нет.
         let known = FollowUpModelChoice(pointModel: "claude-sonnet-4-6", selection: nil)
         XCTAssertEqual(known.sections(models: models).map { $0.map(\.title) }, [["Sonnet 4.6"], ["Opus", "Sonnet", "Haiku"]])
         XCTAssertEqual(known.sections(models: models).flatMap { $0 }.map(\.model), ["claude-sonnet-4-6", "opus", "sonnet", "haiku"])
         // Модель точки, совпавшая со списком, не дублируется.
         let alias = FollowUpModelChoice(pointModel: "sonnet", selection: nil)
         XCTAssertEqual(alias.sections(models: models).map { $0.map(\.title) }, [["Sonnet"], ["Opus", "Haiku"]])
-        // Без модели: «По умолчанию» и список.
+        // Без модели: «Модель CLI» и список.
         let unknown = FollowUpModelChoice(pointModel: nil, selection: nil)
-        XCTAssertEqual(unknown.sections(models: models).map { $0.map(\.title) }, [["По умолчанию"], ["Opus", "Sonnet", "Haiku"]])
-        XCTAssertEqual(FollowUpModelChoice(pointModel: "", selection: nil).sections(models: []).map { $0.map(\.title) }, [["По умолчанию"]])
+        XCTAssertEqual(unknown.sections(models: models).map { $0.map(\.title) }, [["Модель CLI"], ["Opus", "Sonnet", "Haiku"]])
+        XCTAssertEqual(FollowUpModelChoice(pointModel: "", selection: nil).sections(models: []).map { $0.map(\.title) }, [["Модель CLI"]])
         // Панель ввода — прежнее меню.
-        XCTAssertEqual(ModelMenu.inputSections(models: models).map { $0.map(\.title) }, [["По умолчанию"], ["Opus", "Sonnet", "Haiku"]])
+        XCTAssertEqual(ModelMenu.inputSections(models: models).map { $0.map(\.title) }, [["Модель CLI"], ["Opus", "Sonnet", "Haiku"]])
         XCTAssertEqual(known.label, "Claude Code · Sonnet 4.6")
     }
 
