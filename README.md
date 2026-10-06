@@ -52,7 +52,7 @@ open apps/macos/build/Luna.app
 
 Меню Luna — «Спросить…», «Последний результат», «Список задач», «Агенты», «Настройки…», «Выйти из Luna» — открывается значком луны в строке меню и правым кликом по шторке. Если значка не видно (вырез, менеджер значков), выйти можно и без него: правый клик по шторке, `⌘Q` или кнопка «Выйти из Luna» в окне настроек. Откройте Luna.app, пока она работает (Spotlight, Finder), — откроется окно настроек. Идущие задачи при выходе прерываются без вопросов.
 
-В настройках: сочетания клавиш, раскрытие по наведению, подпись в шторке, цвет и аксессуар Luna, анимация аватаров, звуки событий (системные звуки macOS, свой на каждое событие) и громкость.
+В настройках: список моделей Claude Code и модель по умолчанию, сочетания клавиш, раскрытие по наведению, подпись в шторке, цвет и аксессуар Luna, анимация аватаров, звуки событий (системные звуки macOS, свой на каждое событие) и громкость.
 
 ### Агенты
 
@@ -89,7 +89,7 @@ npm run generate    # после правки protocol/schema
 cd apps/macos && swift test
 ```
 
-Переменные окружения ядра: `LUNA_CLAUDE_MODEL` (запасное значение для `--model`, когда модель в панели ввода не выбрана; иначе — модель из настроек Claude Code), `LUNA_CLAUDE_BIN` (путь к `claude`), `LUNA_DATA_DIR` (вместо `~/Library/Application Support/Luna`), `LUNA_CLAUDE_HOME` (каталог Claude Code вместо `~/.claude` — откуда читаются сессии агентов). Для shell: `LUNA_NODE`, `LUNA_CORE_ENTRY`; debug-сборке — ещё `LUNA_SETTINGS_SUITE` (отдельный набор настроек, чтобы проверка не меняла настройки установленной Luna). Бандлу они передаются так: `open --env LUNA_CLAUDE_MODEL=sonnet apps/macos/build/Luna.app`.
+Переменные окружения ядра: `LUNA_CLAUDE_MODEL` (запасное значение для `--model`, когда модель не выбрана ни в панели ввода, ни в настройках («Модель CLI»); иначе — модель из настроек Claude Code), `LUNA_CLAUDE_BIN` (путь к `claude`), `LUNA_DATA_DIR` (вместо `~/Library/Application Support/Luna`), `LUNA_CLAUDE_HOME` (каталог Claude Code вместо `~/.claude` — откуда читаются сессии агентов). Для shell: `LUNA_NODE`, `LUNA_CORE_ENTRY`; debug-сборке — ещё `LUNA_SETTINGS_SUITE` (отдельный набор настроек, чтобы проверка не меняла настройки установленной Luna). Бандлу они передаются так: `open --env LUNA_CLAUDE_MODEL=sonnet apps/macos/build/Luna.app`.
 
 Debug-сборкой (`scripts/bundle.sh debug`) можно управлять из скрипта — открывать панели, нажимать клавиши, подменять контекст, снимать состояние и картинку панели: [apps/macos/scripts/debug-command.sh](apps/macos/scripts/debug-command.sh), команды описаны в [DebugCommands.swift](apps/macos/Sources/Luna/Debug/DebugCommands.swift).
 
