@@ -273,6 +273,11 @@ struct RootView: View {
             guard state.mode != .pill, let content = expandedContent else { return }
             resize(ExpandedIsland.body(content: content, notch: notch))
         }
+        // Свернулись раньше, чем pill успел уйти: SwiftUI отменяет уход и возвращает прежний вид, его размер
+        // не менялся — замера не будет, и тело осталось бы размером с карточку. Размер pill известен из раскладки.
+        .onChange(of: state.mode) { _, mode in
+            if mode == .pill { resize(state.pillLayout.body) }
+        }
         .onChange(of: bodyOffset, initial: true) { _, new in
             if state.islandBodyOffset != new { state.islandBodyOffset = new }
         }

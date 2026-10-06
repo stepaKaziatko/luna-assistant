@@ -38,6 +38,8 @@ final class PanelController {
     private var fullscreenOverride: Bool?
     /// Сколько раз тело острова с плечами получило размер, который не помещается в окно: фигура обрезалась бы.
     private(set) var clippedResizes = 0
+    /// Сколько раз после сжатия окна до pill тело или окно острова разошлись с раскладкой pill.
+    private(set) var collapsedMismatches = 0
     #endif
 
     init(state: AppState, menu makeMenu: @escaping () -> NSMenu) {
@@ -250,7 +252,12 @@ final class PanelController {
             // Скрытая шторка на экран не возвращается; уходящая — доигрывает анимацию, окно снимет `presenceChanged`.
             if state.islandShown || wasVisible { panel.orderFrontRegardless() }
             // Остров сворачивается внутри большого окна; окно уменьшается, когда анимация закончилась.
-            let work = DispatchWorkItem { [weak self] in self?.place(for: .pill) }
+            let work = DispatchWorkItem { [weak self] in
+                self?.place(for: .pill)
+                #if DEBUG
+                self?.checkCollapsed()
+                #endif
+            }
             shrink = work
             DispatchQueue.main.asyncAfter(deadline: .now() + (panel.frame.isEmpty ? 0 : IslandMotion.collapseDuration), execute: work)
         } else if mode == .peek {
@@ -402,11 +409,25 @@ extension PanelController {
         if !fits { clippedResizes += 1 }
     }
 
+    /// Окно сжато до pill: тело острова — по раскладке pill, окно — по геометрии выреза. Иначе свёрнутый остров
+    /// остался размером с карточку — счётчик `panel.pillMismatch` в `dump:`. Окно проверяется на следующем
+    /// такте: содержимое, которое не помещается, растягивает его уже после `setFrame`.
+    private func checkCollapsed() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, state.mode == .pill, panel.isVisible, let placement else { return }
+            func same(_ a: CGSize, _ b: CGSize) -> Bool { abs(a.width - b.width) <= 0.5 && abs(a.height - b.height) <= 0.5 }
+            if !same(state.islandSize, state.pillLayout.body) || !same(panel.frame.size, Layout.pillPanel(for: placement.notch)) {
+                collapsedMismatches += 1
+            }
+        }
+    }
+
     var debugPanelInfo: [String: String] {
         var info = [
             "frame": NSStringFromRect(panel.frame), "isKey": String(panel.isKeyWindow), "isVisible": String(panel.isVisible),
             "menuOpen": String(openMenu != nil), "pointerPolling": String(pointerTimer != nil),
             "islandShown": String(state.islandShown), "clipped": String(clippedResizes),
+            "pillMismatch": String(collapsedMismatches),
             // Рамка видимой фигуры острова в координатах экрана — та, по которой ловятся наведение и клики.
             "island": NSStringFromRect(islandFrame),
         ]
