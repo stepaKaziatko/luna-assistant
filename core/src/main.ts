@@ -24,7 +24,7 @@ import { openHistory } from "./tasks/history.ts";
 import { ActiveDialogError, FollowUpError, TaskManager } from "./tasks/manager.ts";
 import { isValidModel } from "./tasks/model.ts";
 
-const VERSION = "0.5.0";
+const VERSION = "0.6.0";
 
 // stdout занят протоколом — диагностика только в stderr.
 function log(message: string): void {
