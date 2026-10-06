@@ -35,6 +35,9 @@ struct IslandPresence {
     private var pointerInside = false
     /// Когда курсор ушёл с шторки; nil — не уходил с тех пор, как шторка показана.
     private var pointerLeftAt: TimeInterval?
+    /// Свёрнутый остров стоит над полноэкранным приложением на экране с вырезом
+    /// (`CollapsedIsland.wingsSuppressed`): событие его не показывает.
+    private(set) var overFullscreen = false
 
     init(mode: IslandMode) {
         self.mode = mode
@@ -68,7 +71,7 @@ struct IslandPresence {
 
     /// Случилось событие, о котором Luna сообщает: шторка показывается или остаётся ещё на паузу.
     mutating func event(now: TimeInterval) {
-        guard mode == .background else { return }
+        guard mode == .background, !overFullscreen else { return }
         isShown = true
         deadline = now + Self.pause
     }
@@ -80,11 +83,20 @@ struct IslandPresence {
         guard mode == .background else { return }
         if panelOpen {
             isShown = true
-        } else if old != .peek {
+        } else if old != .peek || overFullscreen {
             hide()
         } else {
             evaluate(now: now)
         }
+    }
+
+    /// Экран острова показал полноэкранное приложение или перестал. Вход уводит остров, показанный по событию:
+    /// над полноэкранным в «В фоне» его нет; открытая панель держит его до закрытия. Выход ничего не показывает —
+    /// остров сам не выезжает, до следующего события.
+    mutating func setOverFullscreen(_ on: Bool) {
+        guard on != overFullscreen else { return }
+        overFullscreen = on
+        if on, mode == .background, !panelOpen, isShown { hide() }
     }
 
     /// Положение курсора с очередного опроса; заодно проверяется, не вышел ли срок.
@@ -112,5 +124,28 @@ struct IslandPresence {
     private mutating func forgetPointer() {
         pointerInside = false
         pointerLeftAt = nil
+    }
+}
+
+/// Что видно у свёрнутого острова. `IslandPresence` решает, на экране ли он; это правило добавляет к решению
+/// полноэкранный режим. Над полноэкранным приложением на экране с вырезом остров стоит в чёрной полосе выреза
+/// в покое — без крыльев, даже если есть события; в «В фоне» событие его там не показывает
+/// (`IslandPresence.setOverFullscreen`). На экране без выреза полноэкранный режим ничего не меняет: псевдо-остров
+/// виден поверх приложения, как на рабочем столе. Панели по хоткею и клику правило не трогает.
+enum CollapsedIsland: String {
+    case hidden
+    case rest
+    case wings
+
+    /// Крылья не раскрываются: экран с вырезом показывает полноэкранное приложение.
+    static func wingsSuppressed(hasNotch: Bool, fullscreen: Bool) -> Bool {
+        hasNotch && fullscreen
+    }
+
+    /// `shown` — решение `IslandPresence`, `hasEvents` — есть что показать в крыльях.
+    static func make(shown: Bool, hasNotch: Bool, fullscreen: Bool, hasEvents: Bool) -> CollapsedIsland {
+        guard shown else { return .hidden }
+        if wingsSuppressed(hasNotch: hasNotch, fullscreen: fullscreen) { return .rest }
+        return hasEvents ? .wings : .rest
     }
 }

@@ -23,6 +23,8 @@ final class PanelController {
     /// рамка видимой фигуры и точка, куда смотрят аватары.
     private var placement: (screen: NSRect, notch: NotchGeometry)?
     private var hover = HoverIntent()
+    /// Показывает ли экран острова полноэкранное приложение; спрашивается только на экране с вырезом.
+    private let fullscreenWatch = FullscreenWatch()
     /// Меню Luna для правого клика по шторке — то же, что у значка в строке меню.
     private let makeMenu: () -> NSMenu
     #if DEBUG
@@ -32,6 +34,8 @@ final class PanelController {
     private(set) var openMenu: NSMenu?
     /// Подменённая геометрия выреза экрана острова; nil — настоящая.
     private var notchOverride: NotchOverride?
+    /// Подменённый результат определения полноэкранного режима; nil — настоящий.
+    private var fullscreenOverride: Bool?
     /// Сколько раз тело острова с плечами получило размер, который не помещается в окно: фигура обрезалась бы.
     private(set) var clippedResizes = 0
     #endif
@@ -96,6 +100,23 @@ final class PanelController {
             .store(in: &subscriptions)
         // Скрытая шторка стоит с первого кадра: ни таймера оживлений, ни вспышки при запуске.
         MotionGate.shared.setActive(state.islandShown)
+
+        // Полноэкранный режим — только на экране с вырезом; без выреза окна не спрашиваются.
+        fullscreenWatch.target = { [weak self] in
+            guard let placement = self?.placement, placement.notch.hasNotch, let main = NSScreen.screens.first else { return nil }
+            return (FullscreenDetection.displayRect(screen: placement.screen, mainScreen: main.frame), placement.notch.barHeight)
+        }
+        fullscreenWatch.onChange = { [weak self] _ in self?.publishFullscreen() }
+        fullscreenWatch.start()
+    }
+
+    /// Полноэкранный режим экрана острова — в состояние; в debug-сборке с подменой `fullscreen:`.
+    private func publishFullscreen() {
+        var value = fullscreenWatch.isFullscreen
+        #if DEBUG
+        value = fullscreenOverride ?? value
+        #endif
+        if state.screenFullscreen != value { state.screenFullscreen = value }
     }
 
     // MARK: - Показ и скрытие
@@ -160,9 +181,10 @@ final class PanelController {
         #if DEBUG
         pointer = debugPointer ?? pointer
         #endif
-        // Курсор рядом — шторка оживает: к ней, похоже, идут.
+        // Курсор рядом — шторка оживает: к ней, похоже, идут. «Рядом» — прямоугольник с запасом, это не попадание.
         MotionGate.shared.pointerNear = islandFrame.insetBy(dx: -Self.nearMargin, dy: -Self.nearMargin).contains(pointer)
-        let inside = islandFrame.contains(pointer)
+        // Над фигурой — по её контуру с плечами: курсор, идущий по строке меню мимо, блок не открывает.
+        let inside = islandContains(pointer)
         // В «В фоне» курсор над шторкой удерживает её; срок проверяется здесь же, на каждом опросе.
         state.pointerMoved(overIsland: inside)
         guard pointerTimer != nil else { return }
@@ -182,13 +204,13 @@ final class PanelController {
 
     // MARK: - Меню
 
-    /// Правый клик по шторке (в том числе по блоку под курсором) открывает меню Luna. Остальное окно прозрачно
-    /// и клики не получает: оконный сервер отдаёт их приложениям под ним. Меню — не окно приложения:
+    /// Правый клик по фигуре острова (в том числе по блоку под курсором и по плечам) открывает меню Luna.
+    /// Остальное окно прозрачно и клики не получает: оконный сервер отдаёт их приложениям под ним. Меню — не окно приложения:
     /// активным остаётся приложение пользователя, панель неключевая.
     private func showMenu(for event: NSEvent) -> Bool {
         guard state.mode == .pill || state.mode == .peek, let view = panel.contentView else { return false }
         let point = panel.convertPoint(toScreen: event.locationInWindow)
-        guard islandFrame.contains(point) else { return false }
+        guard islandContains(point) else { return false }
         let menu = makeMenu()
         #if DEBUG
         openMenu = menu
@@ -198,16 +220,24 @@ final class PanelController {
         return true
     }
 
-    /// Тело фигуры острова в координатах экрана, без плеч. У раскрытого блока запас по краям — чтобы он
-    /// не закрывался от промаха на пару точек. Тело прижато к верхнему краю экрана по центру выреза, у pill —
-    /// со сдвигом на разницу крыльев; до первой расстановки — к верхней середине окна.
+    /// Тело фигуры острова в координатах экрана, без плеч. Тело прижато к верхнему краю экрана по центру выреза,
+    /// у pill — со сдвигом на разницу крыльев; до первой расстановки — к верхней середине окна.
     private var islandFrame: NSRect {
-        let margin: CGFloat = state.mode == .peek ? 10 : 0
-        let width = max(state.islandSize.width, 72) + 2 * margin
-        let height = max(state.islandSize.height, 14) + margin
+        let width = max(state.islandSize.width, 72)
+        let height = max(state.islandSize.height, 14)
         let centerX = (placement?.notch.centerX ?? panel.frame.midX) + state.islandBodyOffset
         let top = placement?.screen.maxY ?? panel.frame.maxY
         return NSRect(x: centerX - width / 2, y: top - height, width: width, height: height)
+    }
+
+    /// Точка экрана над фигурой острова: тело с плечами, низ со скруглением текущего режима. Запаса нет:
+    /// промах на пару точек закрывает блок только через `HoverIntent.closeDelay`.
+    private func islandContains(_ point: NSPoint) -> Bool {
+        let body = islandFrame
+        return IslandShape.contains(
+            point, body: body.size, centerX: body.midX, top: body.maxY,
+            bottomRadius: IslandShape.bottomRadius(collapsed: state.mode == .pill)
+        )
     }
 
     private func apply(_ mode: AppState.Mode) {
@@ -263,7 +293,11 @@ final class PanelController {
         let frame = NSRect(origin: origin, size: size)
         if panel.frame != frame { panel.setFrame(frame, display: display) }
         restingFrame = panel.frame
+        // Экран острова сменился или поменялась его геометрия: полноэкранного режима нет до следующей смены
+        // Space или активного приложения.
+        let moved = placement.map { $0.screen != screen.frame || $0.notch != notch } ?? false
         placement = (screen.frame, notch)
+        if moved { fullscreenWatch.reset() }
         // Вырез и полоса — виду острова; AppKit ставит окно в целые точки, и фигура сдвигается на остаток.
         let island = IslandPlacement(notch: notch, correction: notch.centerX - panel.frame.midX)
         if state.islandPlacement != island { state.islandPlacement = island }
@@ -349,6 +383,12 @@ extension PanelController {
         screenParametersChanged()
     }
 
+    /// Подменить результат определения полноэкранного режима (nil — снова настоящий).
+    func debugSetFullscreen(_ override: Bool?) {
+        fullscreenOverride = override
+        publishFullscreen()
+    }
+
     /// Помещается ли тело с плечами в окно: по ширине — от середины выреза со сдвигом тела, по высоте — от верха
     /// окна. Полточки — на округление окна. Не помещается — счётчик `panel.clipped` в `dump:`.
     private func checkFits(_ body: CGSize) {
@@ -379,6 +419,11 @@ extension PanelController {
         let layout = state.pillLayout
         info["wings"] = "left=\(layout.leftWing) gap=\(layout.gap) right=\(layout.rightWing) offset=\(layout.bodyOffset)"
         info["correction"] = String(describing: state.islandPlacement.correction)
+        // Полноэкранный режим: действующее значение, что определено и подменено ли; что видно у свёрнутого
+        // острова; сколько раз спрошен список окон.
+        info["fullscreen"] = "value=\(state.screenFullscreen) detected=\(fullscreenWatch.isFullscreen) override=\(fullscreenOverride != nil)"
+        info["presence"] = state.collapsedIsland.rawValue
+        info["windowQueries"] = String(fullscreenWatch.queries)
         return info
     }
 

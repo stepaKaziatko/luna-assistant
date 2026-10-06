@@ -12,7 +12,7 @@ struct PillView: View {
     var body: some View {
         let layout = state.pillLayout
         Group {
-            if let presentation = state.pillPresentation {
+            if let presentation = state.shownPillPresentation {
                 wings(presentation, layout: layout)
             } else {
                 Color.clear

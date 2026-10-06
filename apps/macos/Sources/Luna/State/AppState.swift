@@ -88,7 +88,14 @@ final class AppState: ObservableObject {
         notchWidth: IslandPlacement.unplaced.notch.notchWidth, barHeight: IslandPlacement.unplaced.notch.barHeight
     ).body
     /// Где стоит остров: вырез и полоса его экрана, поправка на округление окна. Выставляет панель при расстановке.
-    @Published var islandPlacement = IslandPlacement.unplaced
+    @Published var islandPlacement = IslandPlacement.unplaced {
+        didSet { if islandPlacement.notch.hasNotch != oldValue.notch.hasNotch { syncFullscreen() } }
+    }
+    /// Экран острова показывает полноэкранное приложение. Определяется только на экране с вырезом
+    /// (`FullscreenWatch`), в debug-сборке подменяется командой `fullscreen:`; выставляет панель.
+    @Published var screenFullscreen = false {
+        didSet { if screenFullscreen != oldValue { syncFullscreen() } }
+    }
     /// Естественные ширины крыльев pill; замеряет `PillView`.
     @Published var pillWings = PillWings()
     /// Сдвиг тела острова от середины выреза (у pill — разница крыльев, у раскрытого — 0). Выставляет `RootView`
@@ -162,6 +169,24 @@ final class AppState: ObservableObject {
         syncPresence()
     }
 
+    /// Крылья свёрнутого острова не раскрываются: экран с вырезом показывает полноэкранное приложение.
+    var wingsSuppressed: Bool {
+        CollapsedIsland.wingsSuppressed(hasNotch: islandPlacement.notch.hasNotch, fullscreen: screenFullscreen)
+    }
+
+    /// Что видно у свёрнутого острова: скрыт, покой или крылья.
+    var collapsedIsland: CollapsedIsland {
+        CollapsedIsland.make(
+            shown: islandShown, hasNotch: islandPlacement.notch.hasNotch, fullscreen: screenFullscreen,
+            hasEvents: pillPresentation != nil
+        )
+    }
+
+    private func syncFullscreen() {
+        presence.setOverFullscreen(wingsSuppressed)
+        syncPresence()
+    }
+
     private func syncPresence() {
         if islandShown != presence.isShown { islandShown = presence.isShown }
     }
@@ -179,10 +204,16 @@ final class AppState: ObservableObject {
         PillPresentation.make(tasks: pillState, taskProgress: tasks.last { $0.isActive }?.progress, agents: agentsSummary)
     }
 
-    /// Раскладка свёрнутого острова: крылья вокруг выреза, когда есть что показать, иначе покой.
+    /// Что показывают крылья свёрнутого острова; nil — крыльев нет: показывать нечего или остров стоит
+    /// над полноэкранным приложением (`wingsSuppressed`).
+    var shownPillPresentation: PillPresentation? {
+        wingsSuppressed ? nil : pillPresentation
+    }
+
+    /// Раскладка свёрнутого острова: крылья вокруг выреза, когда они видны, иначе покой.
     var pillLayout: IslandLayout {
         let notch = islandPlacement.notch
-        let wings = pillPresentation == nil ? PillWings() : pillWings
+        let wings = shownPillPresentation == nil ? PillWings() : pillWings
         return IslandLayout.make(notchWidth: notch.notchWidth, barHeight: notch.barHeight, left: wings.left, right: wings.right)
     }
 

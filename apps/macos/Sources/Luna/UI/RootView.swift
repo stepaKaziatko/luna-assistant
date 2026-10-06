@@ -247,9 +247,11 @@ struct RootView: View {
             .clipShape(shape)
 
             if state.mode == .pill {
+                // Клик ловится по всей фигуре — тело, крылья и плечи: плечи чёрные, окно забирает клик и там.
+                // Рамка шире тела на плечи, контур — та же фигура; вне контура клик сюда не доходит вовсе.
                 Color.clear
-                    .frame(width: size.width, height: size.height)
-                    .contentShape(Rectangle())
+                    .frame(width: size.width + 2 * shape.shoulder, height: size.height)
+                    .contentShape(shape)
                     .onTapGesture(perform: state.pillClicked)
             }
         }
@@ -329,10 +331,9 @@ struct RootView: View {
     /// На какой высоте под полосой тень по бокам доходит до полной силы.
     private static let shadowFade: CGFloat = 24
 
-    /// Верх прямой и уходит плечами в строку меню; низ скруглён. У pill радиус не больше запаса покоя:
-    /// скругление не заходит под вырез, и прямоугольник выреза закрыт целиком.
+    /// Верх прямой и уходит плечами в строку меню; низ скруглён (`IslandShape.bottomRadius`).
     private var shape: IslandShape {
-        IslandShape(width: size.width, height: size.height, bottomRadius: state.mode == .pill ? IslandLayout.restMargin : 20)
+        IslandShape(width: size.width, height: size.height, bottomRadius: IslandShape.bottomRadius(collapsed: state.mode == .pill))
     }
 
     /// Сдвиг тела от середины выреза: у pill — на разницу крыльев.
@@ -347,7 +348,7 @@ struct RootView: View {
 
     /// Сдвиг идёт той же пружиной, что и размер: крылья вырастают — рост, втягиваются — сжатие.
     private var isGrowingOffset: Bool {
-        state.mode != .pill || state.pillPresentation != nil
+        state.mode != .pill || state.shownPillPresentation != nil
     }
 
     /// Размер сообщает содержимое текущего режима. Уходящее содержимое, пока растворяется, тоже может

@@ -76,3 +76,63 @@ final class IslandShapeTests: XCTestCase {
         XCTAssertEqual(middle.bottomRadius, 16.5, accuracy: 0.001)
     }
 }
+
+/// Попадание по контуру фигуры в координатах экрана: тело и плечи — да, строка меню рядом и скруглённые углы — нет.
+final class IslandContourTests: XCTestCase {
+    /// Тело покоя 206×32 по середине выреза x = 500, верхний край экрана — y = 1000 (y вверх, как у AppKit).
+    private let body = CGSize(width: 206, height: 32)
+    private let center: CGFloat = 500
+    private let top: CGFloat = 1000
+    private var x0: CGFloat { center - body.width / 2 }
+    private var x1: CGFloat { center + body.width / 2 }
+    private var bottom: CGFloat { top - body.height }
+
+    private func hit(_ x: CGFloat, _ y: CGFloat, center: CGFloat? = nil, radius: CGFloat = IslandShape.bottomRadius(collapsed: true)) -> Bool {
+        IslandShape.contains(CGPoint(x: x, y: y), body: body, centerX: center ?? self.center, top: top, bottomRadius: radius)
+    }
+
+    func testBodyIsInside() {
+        XCTAssertTrue(hit(center, top - body.height / 2), "середина тела")
+        XCTAssertTrue(hit(x0 + 5, top - body.height / 2), "левое крыло у края тела")
+        XCTAssertTrue(hit(center, top), "верхняя кромка у края экрана")
+    }
+
+    func testShouldersAtTopEdgeAreInside() {
+        XCTAssertTrue(hit(x1 + 5, top - 3), "правое плечо у верхнего края")
+        XCTAssertTrue(hit(x0 - 5, top - 3), "левое плечо у верхнего края")
+        XCTAssertTrue(hit(x1 + IslandShape.shoulderSize / 2, top - 0.5), "плечо вровень с краем экрана")
+    }
+
+    func testMenuBarBesideShouldersIsOutside() {
+        let shoulder = IslandShape.shoulderSize
+        XCTAssertFalse(hit(x1 + shoulder + 5, top - body.height / 2), "строка меню в 5 pt за правым плечом")
+        XCTAssertFalse(hit(x0 - shoulder - 5, top - body.height / 2), "строка меню в 5 pt за левым плечом")
+        XCTAssertFalse(hit(x1 + 15, top - 15), "под вогнутым плечом — строка меню")
+        XCTAssertFalse(hit(center, top + 5), "выше края экрана фигуры нет")
+        XCTAssertFalse(hit(center, bottom - 1), "ниже тела фигуры нет")
+    }
+
+    func testRoundedBottomCornersAreOutside() {
+        XCTAssertFalse(hit(x0 + 1, bottom + 1), "скруглённый нижний угол pill")
+        XCTAssertFalse(hit(x1 - 1, bottom + 1), "правый нижний угол pill")
+        XCTAssertTrue(hit(x0 + 1, bottom + 12), "выше скругления — тело")
+        // Раскрытая фигура: тело 720×300, радиус низа 20.
+        let card = CGSize(width: 720, height: 300)
+        let left = center - card.width / 2
+        func cardHit(_ x: CGFloat, _ y: CGFloat) -> Bool {
+            IslandShape.contains(
+                CGPoint(x: x, y: y), body: card, centerX: center, top: top, bottomRadius: IslandShape.bottomRadius(collapsed: false)
+            )
+        }
+        XCTAssertFalse(cardHit(left + 4, top - card.height + 4), "скруглённый нижний угол карточки")
+        XCTAssertTrue(cardHit(left + 4, top - card.height + 24), "выше скругления — тело")
+    }
+
+    func testContourFollowsShiftedBody() {
+        // Крылья разной ширины: тело сдвинуто вправо на 40 — контур вместе с ним.
+        let shifted = center + 40
+        XCTAssertTrue(hit(x1 + 40 + 5, top - 3, center: shifted), "плечо сдвинутого тела")
+        XCTAssertFalse(hit(x0 + 5, top - body.height / 2, center: shifted), "где было левое крыло — уже не фигура")
+        XCTAssertFalse(hit(x1 + 40 + IslandShape.shoulderSize + 5, top - body.height / 2, center: shifted))
+    }
+}
