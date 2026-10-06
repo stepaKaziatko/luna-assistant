@@ -18,8 +18,16 @@ final class AppState: ObservableObject {
     }
 
     @Published private(set) var mode: Mode = .pill {
-        didSet { if mode != oldValue { presence.panelChanged(from: oldValue, to: mode, now: clock()); syncPresence() } }
+        didSet {
+            guard mode != oldValue else { return }
+            presence.panelChanged(from: oldValue, to: mode, now: clock())
+            syncPresence()
+            modeDidChange(mode)
+        }
     }
+    /// Режим уже записан, остров ещё не перерисован: панель ставит окно раскрытого острова до первого кадра
+    /// роста фигуры. `$mode` для этого не годится — он публикует до записи.
+    var modeDidChange: (Mode) -> Void = { _ in }
     @Published var draft = ""
     /// В порядке создания.
     @Published private(set) var tasks: [TaskInfo] = []

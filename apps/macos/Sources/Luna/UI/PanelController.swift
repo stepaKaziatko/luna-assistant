@@ -32,6 +32,8 @@ final class PanelController {
     private(set) var openMenu: NSMenu?
     /// Подменённая геометрия выреза экрана острова; nil — настоящая.
     private var notchOverride: NotchOverride?
+    /// Сколько раз тело острова с плечами получило размер, который не помещается в окно: фигура обрезалась бы.
+    private(set) var clippedResizes = 0
     #endif
 
     init(state: AppState, menu makeMenu: @escaping () -> NSMenu) {
@@ -50,12 +52,23 @@ final class PanelController {
                 || state.handleAgentKey(keyCode: event.keyCode, command: command)
         }
 
+        // Окно раскрытого острова встаёт сразу после записи режима, до того как `RootView` начнёт рост фигуры:
+        // иначе первые кадры роста рисовались бы в окне pill и фигура обрезалась бы. Только рамка — показ,
+        // клавиатура и отложенное уменьшение остаются за `apply`.
+        state.modeDidChange = { [weak self] in self?.prepareFrame(for: $0) }
         // $mode публикует значение до записи; хоп на следующий тик избавляет от реентерабельности.
         state.$mode
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.apply($0) }
             .store(in: &subscriptions)
+        #if DEBUG
+        // Новый размер тела публикуется в тот же проход, где начинается его анимация: окно на этот момент
+        // должно уже вмещать фигуру.
+        state.$islandSize
+            .sink { [weak self] in self?.checkFits($0) }
+            .store(in: &subscriptions)
+        #endif
 
         // Клик мимо панели возвращает фокус приложению пользователя — сворачиваемся.
         NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification, object: panel)
@@ -227,7 +240,16 @@ final class PanelController {
         }
     }
 
-    private func place(for mode: AppState.Mode) {
+    /// Раскрытый режим — окно раскрытого острова сразу, синхронно со сменой режима. Отложенное уменьшение
+    /// отменяется: фигура растёт из текущего размера, окно не мигает до размера pill. Pill здесь не трогается:
+    /// окно уменьшается только после анимации сворачивания.
+    private func prepareFrame(for mode: AppState.Mode) {
+        guard mode != .pill else { return }
+        shrink?.cancel()
+        place(for: mode, display: false)
+    }
+
+    private func place(for mode: AppState.Mode, display: Bool = true) {
         // Раскрываемся на мониторе с курсором; pill и блок под курсором остаются там, где шторка.
         let stays = mode == .pill || mode == .peek
         let screen = stays ? (restingScreen ?? Self.screenWithMouse()) : Self.screenWithMouse()
@@ -238,7 +260,8 @@ final class PanelController {
         let size = mode == .pill ? Layout.pillPanel(for: notch) : Layout.expandedPanel
         let top = screen.frame.maxY
         let origin = NSPoint(x: notch.centerX - size.width / 2, y: top - size.height)
-        panel.setFrame(NSRect(origin: origin, size: size), display: true)
+        let frame = NSRect(origin: origin, size: size)
+        if panel.frame != frame { panel.setFrame(frame, display: display) }
         restingFrame = panel.frame
         placement = (screen.frame, notch)
         // Вырез и полоса — виду острова; AppKit ставит окно в целые точки, и фигура сдвигается на остаток.
@@ -326,11 +349,24 @@ extension PanelController {
         screenParametersChanged()
     }
 
+    /// Помещается ли тело с плечами в окно: по ширине — от середины выреза со сдвигом тела, по высоте — от верха
+    /// окна. Полточки — на округление окна. Не помещается — счётчик `panel.clipped` в `dump:`.
+    private func checkFits(_ body: CGSize) {
+        guard panel.isVisible, let placement else { return }
+        let frame = panel.frame
+        let half = body.width / 2 + IslandShape.shoulderSize
+        // Сдвиг тела — по режиму, а не `islandBodyOffset`: его `RootView` выставляет позже размера.
+        let center = placement.notch.centerX + (state.mode == .pill ? state.pillLayout.bodyOffset : 0)
+        let fits = center - half >= frame.minX - 0.5 && center + half <= frame.maxX + 0.5
+            && body.height <= frame.height + 0.5
+        if !fits { clippedResizes += 1 }
+    }
+
     var debugPanelInfo: [String: String] {
         var info = [
             "frame": NSStringFromRect(panel.frame), "isKey": String(panel.isKeyWindow), "isVisible": String(panel.isVisible),
             "menuOpen": String(openMenu != nil), "pointerPolling": String(pointerTimer != nil),
-            "islandShown": String(state.islandShown),
+            "islandShown": String(state.islandShown), "clipped": String(clippedResizes),
             // Рамка видимой фигуры острова в координатах экрана — та, по которой ловятся наведение и клики.
             "island": NSStringFromRect(islandFrame),
         ]
