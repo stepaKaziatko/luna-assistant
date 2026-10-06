@@ -18,10 +18,29 @@ enum Layout {
     /// Блок под курсором не уже шапки со счётчиками и кнопками.
     static let peekMinWidth: CGFloat = 340
     static let peekDialogWidth: CGFloat = 166
-    /// Окно раскрытого острова: вмещает самую высокую карточку с шапкой и подвалом.
-    static let expandedPanel = CGSize(width: cardWidth + 2 * shadowMargin, height: resultMaxHeight + 240)
-    /// Окно свёрнутого острова: pill с аватарами, счётчиками и подписью.
-    static let pillPanel = CGSize(width: 560, height: 52)
+    /// Самая высокая карточка — диалог: поля, шапка, прокрутка до `resultMaxHeight`, поле продолжения
+    /// в четыре строки, ошибка в две строки, подпись с кнопками и промежутки между ними.
+    static let tallestCard: CGFloat = resultMaxHeight + 2 * 16 + 24 + 96 + 32 + 28 + 4 * 12
+    /// Окно раскрытого острова. В ширину — карточка с плечами и тенью по бокам, но не уже окна pill у самого
+    /// широкого выреза; в высоту — самая высокая полоса, самая высокая карточка под ней и тень снизу.
+    /// Окно ставится до первого кадра роста и не меняется, пока фигура растёт и сжимается внутри него.
+    static let expandedPanel = CGSize(
+        width: max(
+            cardWidth + 2 * IslandShape.shoulderSize + 2 * shadowMargin,
+            pillPanelWidth(notchWidth: IslandLayout.maxNotchWidth)
+        ),
+        height: (ExpandedIsland.maxBarHeight + tallestCard + shadowMargin).rounded(.up)
+    )
+
+    /// Окно свёрнутого острова: вырез, два крыла наибольшей ширины и два плеча; без выреза — строка из двух
+    /// крыльев и плечи. Высотой с полосу: тени у свёрнутого острова нет.
+    static func pillPanel(for notch: NotchGeometry) -> CGSize {
+        CGSize(width: pillPanelWidth(notchWidth: notch.notchWidth), height: notch.barHeight)
+    }
+
+    private static func pillPanelWidth(notchWidth: CGFloat) -> CGFloat {
+        (notchWidth + 2 * IslandLayout.maxWing + 2 * IslandShape.shoulderSize).rounded(.up)
+    }
 }
 
 /// Анимации острова. Рост — пружина с лёгким перелётом, сжатие — без отскока: так остров
@@ -198,18 +217,30 @@ struct Pulse<Content: View>: View {
 
 /// Остров: одна чёрная фигура у верхнего края экрана, которая меняет размер под содержимое.
 /// Содержимое режимов сменяется внутри неё; фигура перетекает из pill в карточку и обратно.
+/// Фигура — продолжение выреза (`IslandShape`): чисто чёрная, без обводки, плечами уходит в строку меню.
 struct RootView: View {
     @EnvironmentObject private var state: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Размер фигуры; следует за размером содержимого текущего режима.
-    @State private var size = CGSize(width: 44, height: 6)
+    /// Размер тела фигуры; следует за размером содержимого текущего режима.
+    @State private var size = IslandLayout.make(
+        notchWidth: IslandPlacement.unplaced.notch.notchWidth, barHeight: IslandPlacement.unplaced.notch.barHeight
+    ).body
+    /// Сдвиг тела от середины окна по x: поправка на округление окна и несимметричные крылья pill.
+    @State private var offset: CGFloat = 0
+    /// Естественный размер содержимого раскрытого режима: по нему тело пересчитывается, когда меняется полоса.
+    @State private var expandedContent: CGSize?
+    /// Последний замер содержимого раскрытых режимов, в том числе уходящего: если режим вернули, пока его
+    /// содержимое ещё уходило, SwiftUI возвращает тот же вид, и нового замера не будет.
+    @State private var measured: [(mode: AppState.Mode, size: CGSize)] = []
 
     var body: some View {
         ZStack(alignment: .top) {
+            if state.mode != .pill {
+                cardShadow
+            }
+
             shape
                 .fill(.black)
-                .overlay(shape.strokeBorder(.white.opacity(isNub ? 0 : 0.08)))
-                .shadow(color: .black.opacity(isNub ? 0 : 0.35), radius: 12, y: 4)
                 .frame(width: size.width, height: size.height)
 
             ZStack(alignment: .top) {
@@ -219,13 +250,15 @@ struct RootView: View {
             .clipShape(shape)
 
             if state.mode == .pill {
-                // Свёрнутый остров тонкий — область клика делаем больше видимой части.
+                // Клик ловится по всей фигуре — тело, крылья и плечи: плечи чёрные, окно забирает клик и там.
+                // Рамка шире тела на плечи, контур — та же фигура; вне контура клик сюда не доходит вовсе.
                 Color.clear
-                    .frame(width: max(size.width, 72), height: max(size.height, 14))
-                    .contentShape(Rectangle())
+                    .frame(width: size.width + 2 * shape.shoulder, height: size.height)
+                    .contentShape(shape)
                     .onTapGesture(perform: state.pillClicked)
             }
         }
+        .offset(x: offset)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // Появление и уход шторки в режиме «В фоне»: съезжает от края и растворяется; при
         // «Уменьшении движения» — только растворение.
@@ -235,56 +268,152 @@ struct RootView: View {
             IslandMotion.presence(appearing: state.islandPresented, reduced: reduceMotion), value: state.islandPresented
         )
         .animation(.default, value: state.mode)
+        .onChange(of: targetOffset, initial: true) { _, new in
+            withAnimation(IslandMotion.resize(growing: isGrowingOffset, reduced: reduceMotion)) { offset = new }
+        }
+        // Остров встал на другой экран или поменялась полоса: раскрытое тело — по новой полосе.
+        .onChange(of: state.islandPlacement.notch) { _, notch in
+            guard state.mode != .pill, let content = expandedContent else { return }
+            resize(ExpandedIsland.body(content: content, notch: notch))
+        }
+        // Режим вернули раньше, чем его содержимое успело уйти: SwiftUI отменяет уход и возвращает прежний вид,
+        // его размер не менялся — замера не будет. Тело берёт размер сразу: pill — из раскладки, раскрытый режим —
+        // из последнего замера его содержимого. Вид, вставленный заново, сообщит размер сам и поправит его.
+        .onChange(of: state.mode) { _, mode in
+            if mode == .pill {
+                resize(state.pillLayout.body)
+            } else if let content = measured.last(where: { $0.mode == mode })?.size {
+                expandedContent = content
+                resize(ExpandedIsland.body(content: content, notch: state.islandPlacement.notch))
+            }
+        }
+        .onChange(of: bodyOffset, initial: true) { _, new in
+            if state.islandBodyOffset != new { state.islandBodyOffset = new }
+        }
         .onExitCommand { state.collapse() }
         .environment(\.colorScheme, .dark)
     }
 
     @ViewBuilder
     private var content: some View {
-        switch state.mode {
+        let mode = state.mode
+        switch mode {
         case .pill:
-            PillView().islandContent(resize)
+            PillView().islandContent { resize($0, from: mode) }
         case .peek:
-            PeekView().islandContent(resize)
+            PeekView().islandContent(top: barHeight) { resizeExpanded($0, from: mode) }
         case .input:
-            InputView().islandContent(resize)
+            InputView().islandContent(top: barHeight) { resizeExpanded($0, from: mode) }
         case .tasks:
-            TaskListView().islandContent(resize)
+            TaskListView().islandContent(top: barHeight) { resizeExpanded($0, from: mode) }
         case .result(let threadId):
-            ResultView(threadId: threadId).islandContent(resize)
+            ResultView(threadId: threadId).islandContent(top: barHeight) { resizeExpanded($0, from: mode) }
         case .agents:
-            AgentsView().islandContent(resize)
+            AgentsView().islandContent(top: barHeight) { resizeExpanded($0, from: mode) }
         case .agent(let sessionId):
             // Переход между сессиями — тоже смена содержимого.
-            AgentDetailView(sessionId: sessionId).id(sessionId).islandContent(resize)
+            AgentDetailView(sessionId: sessionId).id(sessionId).islandContent(top: barHeight) { resizeExpanded($0, from: mode) }
         }
     }
 
-    /// Свёрнутый остров без дел — тонкая полоска.
-    private var isNub: Bool { size.height < 12 }
-
-    /// Верхние углы прямые — остров «свисает» с края экрана; нижние скруглены.
-    private var shape: UnevenRoundedRectangle {
-        let radius: CGFloat = state.mode == .pill ? min(13, size.height) : 20
-        return UnevenRoundedRectangle(bottomLeadingRadius: radius, bottomTrailingRadius: radius, style: .continuous)
+    /// Полоса у верхнего края экрана острова: вырез или строка меню. В раскрытых режимах она — верх тела,
+    /// содержимое начинается под ней.
+    private var barHeight: CGFloat {
+        state.islandPlacement.notch.barHeight
     }
+
+    /// Тень раскрытой карточки — снизу и по бокам. В полосе и над строкой меню её нет, а ниже полосы она
+    /// нарастает от нуля по градиенту маски: резкой линии по нижней кромке строки меню нет.
+    /// Свёрнутому острову тень не нужна.
+    private var cardShadow: some View {
+        shape
+            .fill(.black)
+            .frame(width: size.width, height: size.height)
+            .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+            .mask(alignment: .top) {
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: barHeight)
+                    LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                        .frame(height: Self.shadowFade)
+                    Color.black
+                }
+                .padding(.horizontal, -Layout.shadowMargin)
+                .padding(.bottom, -Layout.shadowMargin)
+            }
+    }
+
+    /// На какой высоте под полосой тень по бокам доходит до полной силы.
+    private static let shadowFade: CGFloat = 24
+
+    /// Верх прямой и уходит плечами в строку меню; низ скруглён (`IslandShape.bottomRadius`).
+    private var shape: IslandShape {
+        IslandShape(width: size.width, height: size.height, bottomRadius: IslandShape.bottomRadius(collapsed: state.mode == .pill))
+    }
+
+    /// Сдвиг тела от середины выреза: у pill — на разницу крыльев.
+    private var bodyOffset: CGFloat {
+        state.mode == .pill ? state.pillLayout.bodyOffset : 0
+    }
+
+    /// Куда должно встать тело в окне: на середину выреза с поправкой на округление окна и со сдвигом тела.
+    private var targetOffset: CGFloat {
+        state.islandPlacement.correction + bodyOffset
+    }
+
+    /// Сдвиг идёт той же пружиной, что и размер: крылья вырастают — рост, втягиваются — сжатие.
+    private var isGrowingOffset: Bool {
+        state.mode != .pill || state.shownPillPresentation != nil
+    }
+
+    /// Размер сообщает содержимое текущего режима. Уходящее содержимое, пока растворяется, тоже может
+    /// сообщить размер (у карточки диалога высота доезжает за прокруткой) — его не слушаем: иначе свёрнутый
+    /// остров остался бы размером с карточку, а после уменьшения окна обрезался бы им.
+    private func resize(_ new: CGSize, from mode: AppState.Mode) {
+        guard mode == state.mode else { return }
+        resize(new)
+    }
+
+    /// Содержимое раскрытого режима сообщило свой размер: тело — полоса и содержимое под ней.
+    private func resizeExpanded(_ content: CGSize, from mode: AppState.Mode) {
+        remember(content, for: mode)
+        guard mode == state.mode else { return }
+        expandedContent = content
+        resize(ExpandedIsland.body(content: content, notch: state.islandPlacement.notch))
+    }
+
+    /// Замер запоминается и для уходящего содержимого: вернётся режим — тело встанет по нему. Режимов с диалогами
+    /// и сессиями может быть сколько угодно, поэтому хранятся только последние.
+    private func remember(_ content: CGSize, for mode: AppState.Mode) {
+        if measured.last?.mode == mode, measured.last?.size == content { return }
+        measured.removeAll { $0.mode == mode }
+        measured.append((mode, content))
+        if measured.count > Self.measuredLimit { measured.removeFirst() }
+    }
+
+    private static let measuredLimit = 8
 
     private func resize(_ new: CGSize) {
         guard new != size, new.width > 0, new.height > 0 else { return }
         let growing = new.width * new.height > size.width * size.height
-        withAnimation(IslandMotion.resize(growing: growing, reduced: reduceMotion)) { size = new }
+        withAnimation(IslandMotion.resize(growing: growing, reduced: reduceMotion)) {
+            size = new
+            offset = targetOffset
+        }
         state.islandSize = new
     }
 }
 
 private extension View {
     /// Содержимое режима: занимает свой естественный размер, сообщает его острову и сменяется переходом.
-    func islandContent(_ resize: @escaping (CGSize) -> Void) -> some View {
-        modifier(IslandContent(resize: resize))
+    /// `top` — отступ сверху: у раскрытых режимов это полоса выреза. Отступ уходит и приходит вместе
+    /// с содержимым, поэтому уходящая карточка не прыгает в полосу, пока растворяется.
+    func islandContent(top: CGFloat = 0, _ resize: @escaping (CGSize) -> Void) -> some View {
+        modifier(IslandContent(top: top, resize: resize))
     }
 }
 
 private struct IslandContent: ViewModifier {
+    let top: CGFloat
     let resize: (CGSize) -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -292,6 +421,7 @@ private struct IslandContent: ViewModifier {
         content
             .fixedSize()
             .onGeometryChange(for: CGSize.self) { $0.size } action: { resize($0) }
+            .padding(.top, top)
             .transition(IslandMotion.content(reduced: reduceMotion))
     }
 }

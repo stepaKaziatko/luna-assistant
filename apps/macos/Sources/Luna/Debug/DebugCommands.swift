@@ -37,6 +37,12 @@ import AppKit
 /// - `settingsKey:<модификаторы+код>` — нажатие клавиши в окне настроек (`settingsKey:cmd+12` — ⌘Q);
 /// - `hit:<x>,<y>:<путь>` — достаётся ли панели клик в точке экрана (`true`/`false` в файл): прозрачная
 ///   часть окна острова должна пропускать клики;
+/// - `notch:<ширина>,<высота>` — подменить геометрию экрана острова: вырез заданной ширины по середине экрана,
+///   полоса заданной высоты; `notch:none[,<высота строки меню>]` — экран без выреза (без высоты —
+///   `NSStatusBar.system.thickness`); `notch:off` — снова настоящая. Остров переставляется тем же путём,
+///   что и при смене параметров экрана;
+/// - `fullscreen:true|false` — подменить результат определения полноэкранного режима на экране острова,
+///   `fullscreen:off` — снова настоящий. На экране без выреза значение ничего не меняет;
 /// - `submit:<текст>` — отправить запрос с текущим контекстом и выбранной в панели моделью;
 ///   `submitModel:<модель>:<текст>` — то же с указанной моделью в обход списка (проверка ответа ядра на плохое значение);
 /// - `cancelSelected` — кнопка отмены у выбранной строки списка задач;
@@ -50,6 +56,22 @@ import AppKit
 /// - `windowClick[:<threadId>]` — клик в окно диалога (окно становится ключевым);
 /// - `windowSnapshot:<путь>` — PNG окна диалога открытой карточки, а без карточки — последнего открытого;
 /// - `dump:<путь>` — состояние приложения в JSON (с открытыми окнами и активным приложением);
+///   корневое `island` — размер тела фигуры острова (без плеч);
+///   в `panel`: `frame` — рамка окна острова, `island` — рамка тела фигуры без плеч (по ней ловятся наведение
+///   и клики вместе с плечами), `notch` — геометрия экрана острова (`width` — ширина выреза, 0 — выреза нет; `bar` — высота
+///   полосы; `center` — середина выреза по x; `override` — подменена ли командой `notch:`), `screen` — рамка
+///   этого экрана; всё в координатах экрана; `wings` — раскладка pill: `left` и `right` — ширины крыльев,
+///   `gap` — промежуток над вырезом (без выреза — 0), `offset` — сдвиг середины тела от середины выреза;
+///   в покое крылья — запас покоя; `correction` — поправка на округление окна (`center` − середина окна);
+///   `clipped` — сколько раз с запуска тело острова с плечами получило размер (начало роста или сжатия),
+///   не помещавшийся в окно: фигура обрезалась бы окном; должно быть 0;
+///   `pillMismatch` — сколько раз после сжатия окна до pill тело или окно разошлись с раскладкой pill;
+///   `expandedMismatch` — сколько раз раскрытый режим после роста остался телом высотой с полосу, без карточки;
+///   оба должны быть 0;
+///   `fullscreen` — полноэкранный режим экрана острова: `value` — действующее значение, `detected` — что
+///   определено по окнам, `override` — подменено ли командой `fullscreen:`; `presence` — что видно у свёрнутого
+///   острова: `hidden`, `rest` (покой) или `wings` (крылья); `windowQueries` — сколько раз с запуска спрошен
+///   список окон (без выреза не растёт);
 ///   `snapshot:<путь>` — PNG панели;
 /// - `quit` — то же, что «Выйти из Luna» в меню.
 ///
@@ -132,6 +154,24 @@ enum DebugCommands {
             case "away": panels.debugPointer = NSPoint(x: panels.debugIslandPoint.x, y: panels.debugIslandPoint.y - 2000)
             case "off": panels.debugPointer = nil
             default: if numbers.count == 2 { panels.debugPointer = NSPoint(x: numbers[0], y: numbers[1]) }
+            }
+        case "notch":
+            let fields = argument.split(separator: ",").map(String.init)
+            switch fields.first {
+            case "off": panels.debugSetNotch(nil)
+            case "none":
+                let height = fields.count > 1 ? Double(fields[1]).map { CGFloat($0) } : nil
+                panels.debugSetNotch(.flat(barHeight: height))
+            default:
+                let numbers = fields.compactMap(Double.init)
+                if numbers.count == 2 { panels.debugSetNotch(.notch(width: numbers[0], barHeight: numbers[1])) }
+            }
+        case "fullscreen":
+            switch argument {
+            case "true": panels.debugSetFullscreen(true)
+            case "false": panels.debugSetFullscreen(false)
+            case "off": panels.debugSetFullscreen(nil)
+            default: break
             }
         case "click":
             let numbers = argument.split(separator: ",").compactMap { Double($0) }
@@ -306,7 +346,7 @@ enum DebugCommands {
         let pillText: String?
         /// Счётчики шторки: род и число.
         let chips: [String]
-        /// Размер видимой части острова.
+        /// Размер видимой части острова — тело фигуры без плеч.
         let island: String
         let agents: [AgentSession]
         let finishedAgents: [String]
@@ -361,7 +401,7 @@ enum DebugCommands {
             dialogs = state.listedDialogs.map(DialogDump.init)
             unseen = state.unseen.sorted()
             pill = String(describing: state.pillState)
-            pillText = state.pillPresentation?.text
+            pillText = state.shownPillPresentation?.text
             chips = state.statusChips.map { "\($0.kind.rawValue):\($0.count)" }
             island = NSStringFromSize(state.islandSize)
             agents = state.agents
