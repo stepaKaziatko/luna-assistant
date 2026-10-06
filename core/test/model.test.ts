@@ -177,7 +177,6 @@ test("менеджер: повторная отправка переписки �
   firstRun.push({ type: "done", result: "ответ 1" });
   await until(() => events.some((entry) => entry.event === "task.done"), "первой задачи");
 
-  // Менеджер принимает model и с followUpOf: запрет — на уровне протокола (main.ts) до LUNA-36.
   const second = manager.submit({ prompt: "2", followUpOf: first.id, model: "sonnet" });
   const run = await nextRun(executor, 1);
   assert.equal(run.request.model, "sonnet");
@@ -256,4 +255,119 @@ test("история: версии 1 и 2 мигрируют в 3, прежни�
     assert.equal(again?.get("a")?.task.model, "sonnet");
     again?.close();
   }
+});
+
+// --- Уточнение: модель точки продолжения
+
+/** Первая задача диалога: `model` — выбор, `exact` — точная модель из события исполнителя. */
+async function answered(ctx: ReturnType<typeof setup>, index: number, model: string | undefined, exact?: string) {
+  const task = ctx.manager.submit({ prompt: `q${index}`, ...(model === undefined ? {} : { model }) });
+  const run = await nextRun(ctx.executor, index);
+  run.push({ type: "session", sessionId: `s${index}` });
+  if (exact !== undefined) run.push({ type: "model", model: exact });
+  run.push({ type: "done", result: `a${index}` });
+  await until(() => ctx.manager.list().find((entry) => entry.id === task.id)?.status === "done", `ответа ${index}`);
+  return task;
+}
+
+test("уточнение без model наследует точную модель продолжаемой задачи; с model — переданную", async () => {
+  const ctx = setup();
+  const first = await answered(ctx, 0, "sonnet", "claude-sonnet-4-6");
+
+  const inherited = ctx.manager.submit({ prompt: "ещё", followUpOf: first.id });
+  assert.equal(inherited.model, "claude-sonnet-4-6");
+  const run = await nextRun(ctx.executor, 1);
+  assert.equal(run.request.model, "claude-sonnet-4-6");
+  assert.deepEqual(run.request.resume, { sessionId: "s0" });
+  run.push({ type: "session", sessionId: "s1" });
+  run.push({ type: "model", model: "claude-sonnet-4-6" });
+  run.push({ type: "done", result: "a1" });
+  await until(() => ctx.manager.list().find((task) => task.id === inherited.id)?.status === "done", "уточнения");
+
+  const switched = ctx.manager.submit({ prompt: "на другой", followUpOf: inherited.id, model: "haiku" });
+  assert.equal(switched.model, "haiku");
+  const switchedRun = await nextRun(ctx.executor, 2);
+  assert.equal(switchedRun.request.model, "haiku");
+  switchedRun.push({ type: "model", model: "claude-haiku-4-5" });
+  switchedRun.push({ type: "done", result: "a2" });
+  await until(() => ctx.manager.list().find((task) => task.id === switched.id)?.status === "done", "уточнения на haiku");
+  // Точная модель из события заменяет выбор, как у первой задачи.
+  assert.equal(ctx.manager.list().find((task) => task.id === switched.id)?.model, "claude-haiku-4-5");
+  assert.equal(ctx.events.filter((entry) => entry.task.id === switched.id).at(-1)?.task.model, "claude-haiku-4-5");
+});
+
+test("уточнение: у точки нет модели — request.model не задан, поля model нет", async () => {
+  const ctx = setup();
+  const first = await answered(ctx, 0, undefined);
+  const followUp = ctx.manager.submit({ prompt: "ещё", followUpOf: first.id });
+  assert.equal("model" in followUp, false);
+  const run = await nextRun(ctx.executor, 1);
+  assert.equal("model" in run.request, false);
+  run.push({ type: "done", result: "ok" });
+});
+
+test("уточнение: модель точки, не проходящая MODEL_PATTERN, не наследуется и в argv не попадает", async () => {
+  for (const bad of ["--x", "a b", "-sonnet", "a\nb", "a".repeat(101)]) {
+    const ctx = setup();
+    const first = await answered(ctx, 0, undefined, bad);
+    assert.equal(ctx.manager.list().find((task) => task.id === first.id)?.model, bad, "модель исполнителя в info остаётся как есть");
+    const followUp = ctx.manager.submit({ prompt: "ещё", followUpOf: first.id });
+    assert.equal("model" in followUp, false, JSON.stringify(bad));
+    const run = await nextRun(ctx.executor, 1);
+    assert.equal("model" in run.request, false, JSON.stringify(bad));
+    run.push({ type: "done", result: "ok" });
+  }
+});
+
+test("уточнение: модель точки читается с диска — после пересоздания менеджера на том же history.db", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "luna-data-"));
+  const history = await openHistory(dir, { log: () => {} });
+  assert.ok(history);
+  const first = await answered(setup(history), 0, "opus", "claude-opus-4-8[1m]");
+  history.close();
+
+  const reopened = await openHistory(dir, { log: () => {} });
+  assert.ok(reopened);
+  const ctx = setup(reopened);
+  const followUp = ctx.manager.submit({ prompt: "ещё", followUpOf: first.id });
+  assert.equal(followUp.model, "claude-opus-4-8[1m]");
+  const run = await nextRun(ctx.executor, 0);
+  assert.equal(run.request.model, "claude-opus-4-8[1m]");
+  run.push({ type: "done", result: "ok" });
+  await until(() => ctx.events.some((entry) => entry.event === "task.done"), "уточнения");
+  reopened.close();
+});
+
+test("уточнение: после неудачного на другой модели следующее без model наследует модель последней done, а не failed", async () => {
+  const ctx = setup();
+  const first = await answered(ctx, 0, "sonnet", "claude-sonnet-4-6");
+
+  const failed = ctx.manager.submit({ prompt: "на несуществующей", followUpOf: first.id, model: "no-such-model" });
+  const failedRun = await nextRun(ctx.executor, 1);
+  assert.equal(failedRun.request.model, "no-such-model");
+  failedRun.push({ type: "model", model: "no-such-model" });
+  failedRun.push({ type: "failed", error: { kind: "unknown", message: "There's an issue with the selected model" } });
+  await until(() => ctx.manager.list().find((task) => task.id === failed.id)?.status === "failed", "отказа");
+
+  // Точка продолжения прежняя — последняя done; на ней же и модель.
+  const retry = ctx.manager.submit({ prompt: "ещё раз", followUpOf: first.id });
+  assert.equal(retry.model, "claude-sonnet-4-6");
+  const retryRun = await nextRun(ctx.executor, 2);
+  assert.equal(retryRun.request.model, "claude-sonnet-4-6");
+  retryRun.push({ type: "done", result: "ok" });
+});
+
+test("уточнение: повторная отправка переписки идёт на унаследованной модели", async () => {
+  const ctx = setup();
+  const first = await answered(ctx, 0, "sonnet", "claude-sonnet-4-6");
+  const second = ctx.manager.submit({ prompt: "ещё", followUpOf: first.id });
+  const run = await nextRun(ctx.executor, 1);
+  assert.equal(run.request.model, "claude-sonnet-4-6");
+  run.push({ type: "failed", error: { kind: "session_not_found", message: "No conversation found" } });
+
+  const resend = await nextRun(ctx.executor, 2);
+  assert.equal(resend.request.resume, undefined);
+  assert.equal(resend.request.model, "claude-sonnet-4-6");
+  resend.push({ type: "done", result: "ответ" });
+  await until(() => ctx.manager.list().find((task) => task.id === second.id)?.status === "done", "уточнения");
 });

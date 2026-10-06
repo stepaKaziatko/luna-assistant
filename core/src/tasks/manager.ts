@@ -6,6 +6,7 @@ import type { Executor, ExecutorEvent } from "../executors/executor.ts";
 import { buildPrompt, FORMAT_RULES, type HistoryTurn } from "../prompt/build.ts";
 import type { ExecutorId, TaskInfo, TaskSubmitParams } from "../rpc/protocol.gen.ts";
 import { foldCase, INTERRUPTED_MESSAGE, type StoredTask, type TaskHistory } from "./history.ts";
+import { isValidModel } from "./model.ts";
 
 export type TaskEventName = "task.started" | "task.progress" | "task.done" | "task.failed" | "task.cancelled";
 
@@ -40,7 +41,7 @@ interface Entry {
   /** Сессия исполнителя, которую продолжает уточнение. */
   resume?: { sessionId: string };
   /**
-   * Модель, выбранная при отправке, — в терминах исполнителя. В протокол не выходит: `info.model`
+   * Модель, выбранная при отправке (или унаследованная уточнением), — в терминах исполнителя. В протокол не выходит: `info.model`
    * заменяется точной моделью исполнителя, а при повторной отправке переписки он должен
    * получить именно выбор.
    */
@@ -74,8 +75,10 @@ export class TaskManager {
     };
     const entry: Entry = { info, abort: new AbortController() };
 
+    let inheritedModel: string | undefined;
     if (params.followUpOf !== undefined) {
       const point = this.followUpPoint(params.followUpOf);
+      if (isValidModel(point.task.model)) inheritedModel = point.task.model;
       // Уточнение — в той же сессии и той же директории: сессии Claude Code привязаны к пути.
       info.threadId = point.task.threadId;
       info.executor = point.task.executor;
@@ -84,10 +87,13 @@ export class TaskManager {
     } else if (params.context) {
       info.context = params.context;
     }
-    // Запрет `model` вместе с `followUpOf` — на уровне протокола (main.ts, до LUNA-36); менеджер принимает оба.
-    if (params.model !== undefined) {
-      info.model = params.model;
-      entry.model = params.model;
+    // Уточнение без `model` остаётся на модели точки продолжения. Она пришла из вывода CLI или
+    // истории и попадёт в argv, поэтому проходит ту же проверку шаблона, что и значение из протокола;
+    // не прошла — как «модели нет». `entry.model` в истории не хранится: источник — только `TaskInfo`.
+    const model = params.model ?? inheritedModel;
+    if (model !== undefined) {
+      info.model = model;
+      entry.model = model;
     }
 
     this.entries.set(info.id, entry);

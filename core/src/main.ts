@@ -22,6 +22,7 @@ import type {
 } from "./rpc/protocol.gen.ts";
 import { openHistory } from "./tasks/history.ts";
 import { ActiveDialogError, FollowUpError, TaskManager } from "./tasks/manager.ts";
+import { isValidModel } from "./tasks/model.ts";
 
 const VERSION = "0.5.0";
 
@@ -29,12 +30,6 @@ const VERSION = "0.5.0";
 function log(message: string): void {
   process.stderr.write(`[core] ${message}\n`);
 }
-
-/**
- * Допустимое значение модели. Оно попадает в argv CLI исполнителя, поэтому первый знак —
- * буква или цифра (не `-флаг`), пробелы и управляющие символы не проходят.
- */
-const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:[\]/-]{0,99}$/;
 
 function asObject(params: unknown): Record<string, unknown> {
   if (params === null || typeof params !== "object" || Array.isArray(params)) {
@@ -78,7 +73,7 @@ rpc.method("task.submit", (params): TaskSubmitResult => {
   if (typeof prompt !== "string" || prompt.trim() === "") {
     throw new RpcError(ErrorCode.InvalidParams, "prompt must be a non-empty string");
   }
-  if (model !== undefined && (typeof model !== "string" || !MODEL_PATTERN.test(model))) {
+  if (model !== undefined && !isValidModel(model)) {
     throw new RpcError(ErrorCode.InvalidParams, "invalid model");
   }
   if (followUpOf !== undefined) {
@@ -86,10 +81,9 @@ rpc.method("task.submit", (params): TaskSubmitResult => {
     // Уточнение идёт тому же исполнителю и без нового контекста: диалог — о том, с чего начался.
     if (rawContext !== undefined) throw new RpcError(ErrorCode.InvalidParams, "context is not allowed with followUpOf");
     if (executor !== undefined) throw new RpcError(ErrorCode.InvalidParams, "executor is not allowed with followUpOf");
-    // Уточнение на другой модели — LUNA-36; до неё значение не принимается, а не теряется молча.
-    if (model !== undefined) throw new RpcError(ErrorCode.InvalidParams, "model is not allowed with followUpOf");
+    // Модель уточнения необязательна: без неё менеджер берёт модель продолжаемой задачи.
     try {
-      return { task: tasks.submit({ prompt, followUpOf }) };
+      return { task: tasks.submit({ prompt, followUpOf, ...(model !== undefined ? { model } : {}) }) };
     } catch (error) {
       if (error instanceof FollowUpError) throw new RpcError(ErrorCode.InvalidParams, error.message);
       throw error;

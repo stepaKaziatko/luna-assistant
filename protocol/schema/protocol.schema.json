@@ -94,8 +94,8 @@
         "prompt": { "type": "string" },
         "context": { "$ref": "#/definitions/TaskContext" },
         "executor": { "$ref": "#/definitions/ExecutorId" },
-        "model": { "type": "string", "description": "модель для этой задачи; строка непрозрачна для протокола, её смысл знает исполнитель (для Claude Code — алиас opus/sonnet/haiku или полный идентификатор); не передана — модель по умолчанию исполнителя; вместе с followUpOf не передаётся (до LUNA-36)" },
-        "followUpOf": { "type": "string", "description": "id задачи диалога, которую продолжает уточнение; вместе с ним context, executor и model не передаются (model — до LUNA-36)" }
+        "model": { "type": "string", "description": "модель для этой задачи; строка непрозрачна для протокола, её смысл знает исполнитель (для Claude Code — алиас opus/sonnet/haiku или полный идентификатор); не передана — модель по умолчанию исполнителя; с followUpOf — модель этого уточнения; без неё уточнение продолжается на модели продолжаемой задачи" },
+        "followUpOf": { "type": "string", "description": "id задачи диалога, которую продолжает уточнение; вместе с ним context и executor не передаются, model — можно (модель уточнения)" }
       }
     },
     "TaskSubmitResult": {

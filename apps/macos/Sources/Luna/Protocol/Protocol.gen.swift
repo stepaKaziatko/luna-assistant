@@ -24,12 +24,13 @@ enum ExecutorId: String, Codable, Equatable, Sendable {
 struct TaskSubmitParams: Codable, Equatable, Sendable {
     let context: TaskContext?
     let executor: ExecutorId?
-    /// id задачи диалога, которую продолжает уточнение; вместе с ним context, executor и model
-    /// не передаются (model — до LUNA-36)
+    /// id задачи диалога, которую продолжает уточнение; вместе с ним context и executor не
+    /// передаются, model — можно (модель уточнения)
     let followUpOf: String?
     /// модель для этой задачи; строка непрозрачна для протокола, её смысл знает исполнитель (для
     /// Claude Code — алиас opus/sonnet/haiku или полный идентификатор); не передана — модель по
-    /// умолчанию исполнителя; вместе с followUpOf не передаётся (до LUNA-36)
+    /// умолчанию исполнителя; с followUpOf — модель этого уточнения; без неё уточнение
+    /// продолжается на модели продолжаемой задачи
     let model: String?
     let prompt: String
 }

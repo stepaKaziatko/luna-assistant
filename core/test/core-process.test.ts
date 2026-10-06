@@ -364,8 +364,12 @@ test("task.submit с model: некорректные значения — Invali
   const long = `a${"b".repeat(99)}`;
   for (const model of ["sonnet", "claude-opus-4-8[1m]", long]) await accepted(model);
 
-  // Вместе с followUpOf model не принимается до LUNA-36 — и для задачи, которой нет, и для существующей.
-  assert.equal(await invalid({ prompt: "ещё", model: "sonnet", followUpOf: "missing" }), "model is not allowed with followUpOf");
+  // Некорректная модель с followUpOf — «invalid model» раньше любой другой проверки, в том числе для задачи, которой нет.
+  for (const model of ["--x", "a b", "", "a".repeat(101)]) {
+    assert.equal(await invalid({ prompt: "ещё", model, followUpOf: "missing" }), "invalid model", JSON.stringify(model));
+  }
+  // Допустимая модель с неизвестной задачей — отказ по задаче, а не по модели.
+  assert.equal(await invalid({ prompt: "ещё", model: "sonnet", followUpOf: "missing" }), "task not found: missing");
 
   const runs = readFileSync(join(dir, "argv"), "utf8").split("---\n").filter((run) => run !== "");
   assert.equal(runs.length, 3);
@@ -374,6 +378,39 @@ test("task.submit с model: некорректные значения — Invali
     return argv[argv.indexOf("--model") + 1];
   });
   assert.deepEqual([...models].sort(), ["claude-opus-4-8[1m]", long, "sonnet"].sort());
+
+  // Уточнение: с model — переданная, без неё — точная модель продолжаемой задачи; context и executor по-прежнему нельзя.
+  const submitFollowUp = async (params: object) => {
+    const finished = core.waitFor((message) => message.method === "task.done" || message.method === "task.failed");
+    const response = (await core.request("task.submit", params)) as Message & { result?: { task: TaskInfo }; error?: unknown };
+    assert.equal(response.error, undefined, JSON.stringify(params));
+    const task = (await finished).params?.task as TaskInfo;
+    assert.equal(task.status, "done", JSON.stringify(task.error));
+    return { submitted: response.result?.task as TaskInfo, task };
+  };
+  const base = (await submitFollowUp({ prompt: "основа", model: "opus" })).task;
+  assert.equal(base.model, "claude-fable-5");
+  await invalid({ prompt: "ещё", model: "haiku", followUpOf: base.id, context: { url: "https://example.com" } });
+  await invalid({ prompt: "ещё", model: "haiku", followUpOf: base.id, executor: "claude-code" });
+
+  const switched = await submitFollowUp({ prompt: "на другой", model: "haiku", followUpOf: base.id });
+  assert.equal(switched.submitted.model, "haiku");
+  assert.equal(switched.submitted.threadId, base.id);
+  const inherited = await submitFollowUp({ prompt: "на той же", followUpOf: switched.task.id });
+  assert.equal(inherited.submitted.model, "claude-fable-5");
+
+  // Запуски идут по порядку: три задачи выше, затем основа, уточнение на haiku и уточнение без модели.
+  const argvOf = (index: number) => {
+    const run = readFileSync(join(dir, "argv"), "utf8").split("---\n").filter((entry) => entry !== "")[index];
+    assert.ok(run, `запуск №${index}`);
+    return run.trimEnd().split("\n");
+  };
+  const switchedArgv = argvOf(4);
+  assert.deepEqual(switchedArgv.slice(switchedArgv.indexOf("--model"), switchedArgv.indexOf("--model") + 2), ["--model", "haiku"]);
+  assert.equal(switchedArgv[switchedArgv.indexOf("--resume") + 1], base.sessionId);
+  const inheritedArgv = argvOf(5);
+  assert.equal(inheritedArgv[inheritedArgv.indexOf("--model") + 1], "claude-fable-5");
+  assert.equal(inheritedArgv[inheritedArgv.indexOf("--resume") + 1], switched.task.sessionId);
   assert.equal(await core.stop(), 0);
 
   // Без модели в запросе флага нет (LUNA_CLAUDE_MODEL не задан).
