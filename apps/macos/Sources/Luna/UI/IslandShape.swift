@@ -36,6 +36,24 @@ struct IslandShape: Shape {
         return shape.path(in: rect).contains(CGPoint(x: point.x, y: max(depth, 0.5)))
     }
 
+    /// Контур фигуры на экране: тело без плеч, его середина и радиус низа.
+    struct Contour: Equatable {
+        var body: CGSize
+        var centerX: CGFloat
+        var bottomRadius: CGFloat
+
+        func contains(_ point: CGPoint, top: CGFloat) -> Bool {
+            IslandShape.contains(point, body: body, centerX: centerX, top: top, bottomRadius: bottomRadius)
+        }
+    }
+
+    /// Зона наведения и удержания: контур текущей фигуры и, пока открыт блок под курсором, контур свёрнутого
+    /// острова, из которого он вырос. Блок бывает уже острова с крыльями: курсор на крыле открыл блок — он же
+    /// его и удерживает, иначе блок закрывался бы и открывался по кругу. Объединяются ровно контуры, без запаса.
+    static func hoverContains(_ point: CGPoint, top: CGFloat, current: Contour, collapsed: Contour?) -> Bool {
+        current.contains(point, top: top) || collapsed?.contains(point, top: top) == true
+    }
+
     /// Пружина острова тянет размер тела и радиус низа: фигура перетекает, не меняя типа.
     var animatableData: AnimatablePair<AnimatablePair<CGFloat, CGFloat>, CGFloat> {
         get { AnimatablePair(AnimatablePair(width, height), bottomRadius) }

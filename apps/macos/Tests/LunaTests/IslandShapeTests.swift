@@ -136,3 +136,65 @@ final class IslandContourTests: XCTestCase {
         XCTAssertFalse(hit(x1 + 40 + IslandShape.shoulderSize + 5, top - body.height / 2, center: shifted))
     }
 }
+
+/// Зона удержания блока под курсором: объединение контура блока и свёрнутого острова, из которого он вырос.
+/// Геометрия — из воспроизведения LUNA-45: вырез 250×38 по середине x = 756, верх экрана y = 982; остров с крыльями
+/// 360,5×38 сдвинут крыльями на 16,25 вправо, открытый блок — 340×267 по середине выреза.
+final class IslandHoverZoneTests: XCTestCase {
+    private let top: CGFloat = 982
+    private let pill = IslandShape.Contour(
+        body: CGSize(width: 360.5, height: 38), centerX: 756 + 16.25, bottomRadius: IslandShape.bottomRadius(collapsed: true)
+    )
+    private let peek = IslandShape.Contour(
+        body: CGSize(width: 340, height: 267), centerX: 756, bottomRadius: IslandShape.bottomRadius(collapsed: false)
+    )
+    private let shoulder = IslandShape.shoulderSize
+    /// Высота полосы: середина строки меню.
+    private var barY: CGFloat { top - 19 }
+
+    /// Удержание открытого блока.
+    private func holds(_ x: CGFloat, _ y: CGFloat) -> Bool {
+        IslandShape.hoverContains(CGPoint(x: x, y: y), top: top, current: peek, collapsed: pill)
+    }
+
+    func testWingBeyondPeekHoldsOpenPeek() {
+        let wing = CGPoint(x: 951, y: barY)
+        XCTAssertFalse(peek.contains(wing, top: top), "крыло острова за краем блока — вне контура блока")
+        XCTAssertTrue(pill.contains(wing, top: top), "но на свёрнутом острове")
+        XCTAssertTrue(holds(wing.x, wing.y), "блок удерживается курсором на крыле")
+        XCTAssertFalse(
+            IslandShape.hoverContains(wing, top: top, current: peek, collapsed: nil),
+            "без контура острова блок закрылся бы — это и было мерцание"
+        )
+    }
+
+    func testMenuBarBeyondWidestShoulderIsOutside() {
+        // Справа шире остров с крыльями, слева — блок.
+        let right = max(pill.centerX + pill.body.width / 2, peek.centerX + peek.body.width / 2) + shoulder + 5
+        let left = min(pill.centerX - pill.body.width / 2, peek.centerX - peek.body.width / 2) - shoulder - 5
+        for y in [barY, top - 3] {
+            XCTAssertFalse(holds(right, y), "строка меню в 5 pt за правым плечом, y = \(y)")
+            XCTAssertFalse(holds(left, y), "строка меню в 5 pt за левым плечом, y = \(y)")
+        }
+        XCTAssertTrue(holds(right - shoulder, top - 3), "плечо острова у верхнего края — ещё зона")
+    }
+
+    func testUnionFollowsContoursNotBoundingRect() {
+        let pillRight = pill.centerX + pill.body.width / 2
+        let peekRight = peek.centerX + peek.body.width / 2
+        XCTAssertFalse(holds(pillRight + 15, top - 15), "под вогнутым плечом острова — строка меню")
+        XCTAssertFalse(holds(peekRight + 14, top - pill.body.height - 10), "ниже острова за краем блока — не зона")
+    }
+
+    func testPeekBodyBelowBarHolds() {
+        XCTAssertTrue(holds(peek.centerX, top - 160), "тело блока ниже полосы")
+        XCTAssertTrue(holds(peek.centerX - peek.body.width / 2 + 5, top - 100), "у левого края тела блока")
+    }
+
+    func testCollapsedIslandOpensOnlyByItsContour() {
+        // В pill зона — один контур острова: строка меню у его плеча блок не открывает.
+        let right = pill.centerX + pill.body.width / 2 + shoulder + 5
+        XCTAssertFalse(IslandShape.hoverContains(CGPoint(x: right, y: barY), top: top, current: pill, collapsed: nil))
+        XCTAssertTrue(IslandShape.hoverContains(CGPoint(x: 951, y: barY), top: top, current: pill, collapsed: nil))
+    }
+}

@@ -44,6 +44,9 @@ final class PanelController {
     private(set) var expandedMismatches = 0
     /// Отложенная проверка раскрытого острова; новая смена режима её отменяет.
     private var expandedCheck: DispatchWorkItem?
+    /// Сколько раз `HoverIntent` выдал открытие и закрытие блока под курсором с запуска опроса курсора.
+    private(set) var hoverOpens = 0
+    private(set) var hoverCloses = 0
     #endif
 
     init(state: AppState, menu makeMenu: @escaping () -> NSMenu) {
@@ -169,6 +172,10 @@ final class PanelController {
         pointerTimer?.invalidate()
         pointerTimer = nil
         hover = HoverIntent()
+        #if DEBUG
+        hoverOpens = 0
+        hoverCloses = 0
+        #endif
         guard needed else {
             MotionGate.shared.pointerNear = false
             return
@@ -190,11 +197,16 @@ final class PanelController {
         // Курсор рядом — шторка оживает: к ней, похоже, идут. «Рядом» — прямоугольник с запасом, это не попадание.
         MotionGate.shared.pointerNear = islandFrame.insetBy(dx: -Self.nearMargin, dy: -Self.nearMargin).contains(pointer)
         // Над фигурой — по её контуру с плечами: курсор, идущий по строке меню мимо, блок не открывает.
-        let inside = islandContains(pointer)
+        // Открытый блок удерживает и контур острова, из которого он вырос.
+        let inside = hoverContains(pointer)
         // В «В фоне» курсор над шторкой удерживает её; срок проверяется здесь же, на каждом опросе.
         state.pointerMoved(overIsland: inside)
         guard pointerTimer != nil else { return }
         let action = state.settings.hoverPeek ? hover.update(inside: inside, at: ProcessInfo.processInfo.systemUptime) : nil
+        #if DEBUG
+        if action == .open { hoverOpens += 1 }
+        if action == .close { hoverCloses += 1 }
+        #endif
         switch action {
         case .open:
             // С зажатой кнопкой мимо шторки что-то тащат — блок не мешает.
@@ -236,14 +248,30 @@ final class PanelController {
         return NSRect(x: centerX - width / 2, y: top - height, width: width, height: height)
     }
 
+    /// Контур видимой фигуры: тело `islandFrame` с плечами, низ со скруглением текущего режима.
+    private var islandContour: IslandShape.Contour {
+        let body = islandFrame
+        return IslandShape.Contour(
+            body: body.size, centerX: body.midX, bottomRadius: IslandShape.bottomRadius(collapsed: state.mode == .pill)
+        )
+    }
+
     /// Точка экрана над фигурой острова: тело с плечами, низ со скруглением текущего режима. Запаса нет:
     /// промах на пару точек закрывает блок только через `HoverIntent.closeDelay`.
     private func islandContains(_ point: NSPoint) -> Bool {
-        let body = islandFrame
-        return IslandShape.contains(
-            point, body: body.size, centerX: body.midX, top: body.maxY,
-            bottomRadius: IslandShape.bottomRadius(collapsed: state.mode == .pill)
-        )
+        islandContour.contains(point, top: islandFrame.maxY)
+    }
+
+    /// Точка экрана в зоне наведения: над видимой фигурой, а пока открыт блок под курсором — ещё и над свёрнутым
+    /// островом, который стоял бы на его месте. Сдвиг тела — из раскладки pill: `islandBodyOffset` в блоке равен 0.
+    /// Только для наведения и удержания; клики решает нарисованная фигура, правый клик — `islandContains`.
+    private func hoverContains(_ point: NSPoint) -> Bool {
+        let collapsed = state.mode == .peek ? IslandShape.Contour(
+            body: state.pillLayout.body,
+            centerX: (placement?.notch.centerX ?? panel.frame.midX) + state.pillLayout.bodyOffset,
+            bottomRadius: IslandShape.bottomRadius(collapsed: true)
+        ) : nil
+        return IslandShape.hoverContains(point, top: islandFrame.maxY, current: islandContour, collapsed: collapsed)
     }
 
     private func apply(_ mode: AppState.Mode) {
@@ -452,6 +480,8 @@ extension PanelController {
             "menuOpen": String(openMenu != nil), "pointerPolling": String(pointerTimer != nil),
             "islandShown": String(state.islandShown), "clipped": String(clippedResizes),
             "pillMismatch": String(collapsedMismatches), "expandedMismatch": String(expandedMismatches),
+            // Сколько раз наведение открыло и закрыло блок под курсором: по ним видно мерцание.
+            "hoverOpen": String(hoverOpens), "hoverClose": String(hoverCloses),
             // Рамка видимой фигуры острова в координатах экрана — та, по которой ловятся наведение и клики.
             "island": NSStringFromRect(islandFrame),
         ]
