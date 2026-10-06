@@ -13,7 +13,9 @@ import AppKit
 ///   `settingsClose` — закрыть, `settingsSnapshot:<путь>` — его PNG;
 /// - `set:<настройка>=<значение>` — поменять настройку: `islandMode` (`always`/`background`), `hoverPeek`, `pillAvatars`, `pillText`, `animateAvatars`,
 ///   `soundsEnabled` (`true`/`false`), `soundVolume` (0…1), `tint`, `accessory`, `sound.<событие>` (имя или пусто),
-///   `model` — выбор модели Claude Code в панели ввода (значение из списка; пусто или чужое — «По умолчанию»);
+///   `model` — выбор модели Claude Code в панели ввода (значение из списка; пусто или чужое — «По умолчанию»),
+///   `followUpModel` — выбор модели в поле продолжения открытой карточки (как клик по пункту меню; пусто — «По умолчанию»,
+///   у диалога с моделью такого пункта нет; модель точки продолжения — то же, что «не менял»);
 ///   Шторка в режиме «В фоне»: `dump` показывает `panel.isVisible` (окно на экране; после ухода шторки
 ///   становится `false` через полсекунды, когда доиграет анимация), `panel.pointerPolling` и `motion.timer`;
 /// - `agent:<id сессии>` — открыть карточку сессии агента; `agentJump:<id>` — перейти к её окну;
@@ -147,7 +149,10 @@ enum DebugCommands {
             try? settings.debugSnapshot()?.write(to: URL(fileURLWithPath: argument))
         case "set":
             let fields = argument.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
-            if fields.count == 2 { set(fields[0], to: fields[1], in: state.settings) }
+            if fields.count == 2 {
+                if fields[0] == "followUpModel" { state.selectFollowUpModel(fields[1].isEmpty ? nil : fields[1]) }
+                else { set(fields[0], to: fields[1], in: state.settings) }
+            }
         case "submitModel":
             let fields = argument.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
             guard fields.count == 2 else { return }
@@ -279,6 +284,10 @@ enum DebugCommands {
         let listMessage: String?
         let followUpDraft: String
         let followUpError: String?
+        /// Модель, на которой уйдёт уточнение открытой карточки: выбранная или модель точки продолжения; пусто — «По умолчанию».
+        let followUpModel: String
+        /// Пункты меню выбора модели у поля продолжения: группы между разделителями, название пункта.
+        let followUpMenu: [[String]]
         let dialogs: [DialogDump]
         let unseen: [String]
         let pill: String
@@ -333,6 +342,10 @@ enum DebugCommands {
             listMessage = state.listMessage
             followUpDraft = state.followUpDraft
             followUpError = state.followUpError
+            let shownDialog = state.shownThreadId.flatMap { state.dialog(threadId: $0) }
+            let choice = shownDialog.map(state.followUpChoice)
+            followUpModel = choice?.shown ?? ""
+            followUpMenu = choice?.sections(models: state.settings.models(for: ExecutorId.claudeCode.rawValue)).map { $0.map(\.title) } ?? []
             dialogs = state.listedDialogs.map(DialogDump.init)
             unseen = state.unseen.sorted()
             pill = String(describing: state.pillState)

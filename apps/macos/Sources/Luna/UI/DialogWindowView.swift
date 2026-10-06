@@ -34,6 +34,12 @@ struct DialogWindowView: View {
                         .foregroundStyle(.secondary)
                         .help(source.url ?? source.title ?? "")
                 }
+                // Модель последней задачи: у задач диалога модели могут различаться. Выбора здесь нет.
+                if let model = dialog.modelTitle {
+                    Text("Claude Code · \(model)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer()
             if let answer = dialog.tasks.last(where: { $0.status == .done })?.result {

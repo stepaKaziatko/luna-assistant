@@ -29,7 +29,7 @@ struct InputView: View {
             }
 
             HStack {
-                ModelPicker()
+                InputModelPicker()
                 Spacer()
                 Text("↩ отправить · esc закрыть")
             }
@@ -46,45 +46,18 @@ struct InputView: View {
     }
 }
 
-/// «Claude Code · Модель» — единственный элемент выбора в нижней строке панели ввода. Исполнитель
-/// в нём пока подпись; его переключатель (LUNA-17) станет частью этого же элемента, а не вторым.
-/// Меню — «По умолчанию» и список моделей, текущая отмечена; выбор пишется в настройки сразу.
-private struct ModelPicker: View {
+/// Панель ввода: меню — «По умолчанию» и список моделей, текущая отмечена; выбор пишется в настройки сразу.
+private struct InputModelPicker: View {
     @EnvironmentObject private var settings: LunaSettings
 
     private let executor = ExecutorId.claudeCode.rawValue
 
     var body: some View {
-        Menu {
-            choice(title: ModelName.defaultTitle, model: nil)
-            Divider()
-            ForEach(settings.models(for: executor), id: \.self) { model in
-                choice(title: ModelName.short(model), model: model)
-            }
-        } label: {
-            Text("Claude Code · \(current)")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.visible)
-        .fixedSize()
-        .help("Модель, на которой уйдёт вопрос")
-    }
-
-    private var current: String {
-        settings.model(for: executor).map(ModelName.short) ?? ModelName.defaultTitle
-    }
-
-    private func choice(title: String, model: String?) -> some View {
-        Button {
-            settings.setModel(model, for: executor)
-        } label: {
-            if settings.model(for: executor) == model {
-                Label(title, systemImage: "checkmark")
-            } else {
-                Text(title)
-            }
-        }
+        ModelPicker(
+            sections: ModelMenu.inputSections(models: settings.models(for: executor)),
+            selected: settings.model(for: executor),
+            help: "Модель, на которой уйдёт вопрос",
+            onSelect: { settings.setModel($0, for: executor) }
+        )
     }
 }

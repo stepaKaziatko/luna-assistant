@@ -169,23 +169,152 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(state.draft, "привет")
     }
 
-    func testFollowUpDoesNotSendModel() async throws {
+    // MARK: - Уточнение
+
+    private func answer(
+        _ id: String, thread: String? = nil, _ status: TaskStatus = .done, model: String?, createdAt: Int, sessionId: String? = "s"
+    ) -> TaskInfo {
+        TaskInfo(
+            context: nil, createdAt: createdAt, error: nil, executor: .claudeCode, finishedAt: createdAt + 1, id: id, model: model,
+            progress: nil, prompt: "запрос \(id)", result: "ответ \(id)", sessionId: sessionId, status: status, threadId: thread ?? id
+        )
+    }
+
+    /// Карточка диалога `a`, открытая поверх подставного ядра.
+    private func card(_ tasks: [TaskInfo]) -> (AppState, FakeCore) {
         let state = AppState(settings: LunaSettings(defaults: scratchDefaults()))
         let core = FakeCore()
         state.core = core
-        state.settings.setModel("opus", for: claude)
-        state.applyHistory([
-            TaskInfo(
-                context: nil, createdAt: 1, error: nil, executor: .claudeCode, finishedAt: 2, id: "a", model: "claude-opus-4-8",
-                progress: nil, prompt: "первый", result: "ответ", sessionId: "s", status: .done, threadId: "a"
-            ),
-        ])
+        state.applyHistory(tasks)
         state.open(threadId: "a")
+        return (state, core)
+    }
+
+    private var opusAnswer: TaskInfo { answer("a", model: "claude-opus-4-8", createdAt: 1) }
+
+    func testFollowUpWithoutChangeOmitsModel() async throws {
+        let (state, core) = card([opusAnswer])
+        state.settings.setModel("opus", for: claude)
         state.followUpDraft = "ещё"
         state.submitFollowUp()
         try await until("запроса к ядру") { core.calls.count == 1 }
         let sent = try submitted(core, 0)
         XCTAssertEqual(sent.followUpOf, "a")
         XCTAssertNil(sent.model)
+        let raw = try XCTUnwrap(JSONSerialization.jsonObject(with: core.calls[0].params) as? [String: Any])
+        XCTAssertNil(raw["model"], "поле model не передаётся")
+    }
+
+    func testFollowUpSendsChosenModelAndKeepsInputPanelChoice() async throws {
+        let (state, core) = card([opusAnswer])
+        state.settings.setModel("sonnet", for: claude)
+        state.selectFollowUpModel("haiku")
+        XCTAssertEqual(state.followUpModel, "haiku")
+        XCTAssertEqual(state.settings.model(for: claude), "sonnet", "последний выбор панели ввода не меняется")
+
+        state.followUpDraft = "ещё"
+        state.submitFollowUp()
+        try await until("запроса к ядру") { core.calls.count == 1 }
+        XCTAssertEqual(try submitted(core, 0).model, "haiku")
+
+        // Ответ ядра принят — выбор сброшен, диалог снова предвыбирает модель точки.
+        core.reply(0, TaskSubmitResult(task: answer("a2", thread: "a", .queued, model: "haiku", createdAt: 3, sessionId: nil)))
+        try await until("сброса выбора") { state.followUpModel == nil }
+        XCTAssertEqual(state.settings.model(for: claude), "sonnet")
+    }
+
+    func testChoosingPointModelIsNoChange() async throws {
+        let (state, core) = card([opusAnswer])
+        state.selectFollowUpModel("haiku")
+        state.selectFollowUpModel("claude-opus-4-8")
+        XCTAssertNil(state.followUpModel)
+
+        state.followUpDraft = "ещё"
+        state.submitFollowUp()
+        try await until("запроса к ядру") { core.calls.count == 1 }
+        XCTAssertNil(try submitted(core, 0).model)
+    }
+
+    func testFollowUpOfDialogWithoutModelDefaultsAndSendsChoice() async throws {
+        let (state, core) = card([answer("a", model: nil, createdAt: 1)])
+        let dialog = try XCTUnwrap(state.dialog(threadId: "a"))
+        XCTAssertNil(state.followUpChoice(for: dialog).shown)
+        XCTAssertEqual(state.followUpChoice(for: dialog).label, "Claude Code · По умолчанию")
+
+        state.selectFollowUpModel("sonnet")
+        XCTAssertEqual(state.followUpChoice(for: dialog).label, "Claude Code · Sonnet")
+        state.selectFollowUpModel(nil)
+        XCTAssertNil(state.followUpModel, "«По умолчанию» у диалога без модели — не менял")
+
+        state.selectFollowUpModel("sonnet")
+        state.followUpDraft = "ещё"
+        state.submitFollowUp()
+        try await until("запроса к ядру") { core.calls.count == 1 }
+        XCTAssertEqual(try submitted(core, 0).model, "sonnet")
+    }
+
+    func testPreselectionFollowsContinuationPointNotLastTask() throws {
+        // Уточнение на другой модели не удалось: последняя задача — failed на haiku, а ядро продолжит ответ на Opus.
+        let failed = answer("a2", thread: "a", .failed, model: "haiku", createdAt: 3, sessionId: nil)
+        let (state, _) = card([opusAnswer, failed])
+        let dialog = try XCTUnwrap(state.dialog(threadId: "a"))
+        XCTAssertEqual(dialog.last.id, "a2")
+        XCTAssertEqual(dialog.continuationPoint?.id, "a")
+        XCTAssertEqual(state.followUpChoice(for: dialog).shown, "claude-opus-4-8")
+        XCTAssertNil(state.followUpChoice(for: dialog).requestModel)
+        // А подпись окна — модель последней задачи.
+        XCTAssertEqual(dialog.modelTitle, "Haiku")
+    }
+
+    func testFailedSubmitKeepsChoiceAndDraft() async throws {
+        let (state, core) = card([opusAnswer])
+        state.selectFollowUpModel("--x")
+        state.followUpDraft = "ещё"
+        state.submitFollowUp()
+        try await until("запроса к ядру") { core.calls.count == 1 }
+        core.calls[0].reply(.failure(RpcFailure(code: -32602, message: "invalid model")))
+        try await until("ошибки под полем") { state.followUpError != nil }
+        XCTAssertEqual(state.followUpModel, "--x")
+        XCTAssertEqual(state.followUpDraft, "ещё")
+    }
+
+    func testChoiceResetsWhenDialogChanges() {
+        let (state, _) = card([opusAnswer, answer("b", model: "claude-sonnet-4-6", createdAt: 2)])
+        state.selectFollowUpModel("haiku")
+        state.open(threadId: "b")
+        XCTAssertNil(state.followUpModel)
+        state.selectFollowUpModel("haiku")
+        XCTAssertEqual(state.followUpModel, "haiku")
+        state.open(threadId: "b")
+        XCTAssertEqual(state.followUpModel, "haiku", "тот же диалог — выбор остаётся")
+    }
+
+    func testFollowUpMenuSections() {
+        let models = ["opus", "sonnet", "haiku"]
+        // Диалог с моделью: она первой, «По умолчанию» нет.
+        let known = FollowUpModelChoice(pointModel: "claude-sonnet-4-6", selection: nil)
+        XCTAssertEqual(known.sections(models: models).map { $0.map(\.title) }, [["Sonnet 4.6"], ["Opus", "Sonnet", "Haiku"]])
+        XCTAssertEqual(known.sections(models: models).flatMap { $0 }.map(\.model), ["claude-sonnet-4-6", "opus", "sonnet", "haiku"])
+        // Модель точки, совпавшая со списком, не дублируется.
+        let alias = FollowUpModelChoice(pointModel: "sonnet", selection: nil)
+        XCTAssertEqual(alias.sections(models: models).map { $0.map(\.title) }, [["Sonnet"], ["Opus", "Haiku"]])
+        // Без модели: «По умолчанию» и список.
+        let unknown = FollowUpModelChoice(pointModel: nil, selection: nil)
+        XCTAssertEqual(unknown.sections(models: models).map { $0.map(\.title) }, [["По умолчанию"], ["Opus", "Sonnet", "Haiku"]])
+        XCTAssertEqual(FollowUpModelChoice(pointModel: "", selection: nil).sections(models: []).map { $0.map(\.title) }, [["По умолчанию"]])
+        // Панель ввода — прежнее меню.
+        XCTAssertEqual(ModelMenu.inputSections(models: models).map { $0.map(\.title) }, [["По умолчанию"], ["Opus", "Sonnet", "Haiku"]])
+        XCTAssertEqual(known.label, "Claude Code · Sonnet 4.6")
+    }
+
+    func testDialogModelTitle() {
+        func dialog(_ models: [String?]) -> Dialog {
+            Dialog(threadId: "a", tasks: models.enumerated().map { answer("t\($0.offset)", thread: "a", model: $0.element, createdAt: $0.offset) })
+        }
+        XCTAssertEqual(dialog(["claude-sonnet-4-6"]).modelTitle, "Sonnet 4.6")
+        XCTAssertEqual(dialog(["claude-sonnet-4-6", "haiku"]).modelTitle, "Haiku", "у задач диалога модели могут различаться — последняя")
+        XCTAssertNil(dialog([nil]).modelTitle)
+        XCTAssertNil(dialog([""]).modelTitle)
+        XCTAssertNil(dialog(["claude-sonnet-4-6", nil]).modelTitle, "у последней задачи без модели ничего не показывается")
     }
 }

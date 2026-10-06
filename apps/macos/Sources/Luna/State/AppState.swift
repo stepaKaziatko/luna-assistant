@@ -33,6 +33,9 @@ final class AppState: ObservableObject {
     @Published private(set) var selectedThreadId: String?
     /// Текст поля «Продолжить диалог…» — свой, не общий с черновиком панели ввода.
     @Published var followUpDraft = ""
+    /// Модель, которую пользователь выбрал для уточнения в карточке; nil — не менял. «Последний выбор»
+    /// панели ввода (`LunaSettings`) он не трогает и живёт, пока не отправлено уточнение или не сменился диалог.
+    @Published private(set) var followUpModel: String?
     /// Почему уточнение не отправилось; показывается в карточке под полем.
     @Published private(set) var followUpError: String?
     /// Пока ядро не ответило на отправку уточнения, поле скрыто: второе уточнение ядро отклонит.
@@ -510,6 +513,17 @@ final class AppState: ObservableObject {
         openWindows.removeAll { $0 == threadId }
     }
 
+    /// Выбор модели уточнения у диалога: модель точки продолжения и то, что пользователь поменял.
+    func followUpChoice(for dialog: Dialog) -> FollowUpModelChoice {
+        FollowUpModelChoice(pointModel: dialog.continuationPoint?.model, selection: followUpModel)
+    }
+
+    /// Выбор в элементе у поля продолжения. Модель точки — то же, что «не менял».
+    func selectFollowUpModel(_ model: String?) {
+        guard let threadId = shownThreadId, let point = dialog(threadId: threadId)?.continuationPoint else { return }
+        followUpModel = model == FollowUpModelChoice(pointModel: point.model, selection: nil).shown ? nil : model
+    }
+
     /// `Tab` в карточке: фокус в поле продолжения, если диалог можно продолжить.
     func focusFollowUp() -> Bool {
         guard let shownThreadId, dialog(threadId: shownThreadId)?.continuationPoint != nil else { return false }
@@ -528,6 +542,7 @@ final class AppState: ObservableObject {
             // Набранное уточнение принадлежит своему диалогу.
             followUpDraft = ""
             followUpError = nil
+            followUpModel = nil
         }
         mode = .result(threadId: threadId)
     }
@@ -630,6 +645,7 @@ final class AppState: ObservableObject {
             followUpError = CoreClientError.notRunning.localizedDescription
             return
         }
+        let model = FollowUpModelChoice(pointModel: point.model, selection: followUpModel).requestModel
         followUpDraft = ""
         followUpError = nil
         isSendingFollowUp = true
@@ -637,9 +653,10 @@ final class AppState: ObservableObject {
         _Concurrency.Task {
             defer { isSendingFollowUp = false }
             do {
-                let params = TaskSubmitParams(context: nil, executor: nil, followUpOf: point.id, model: nil, prompt: prompt)
+                let params = TaskSubmitParams(context: nil, executor: nil, followUpOf: point.id, model: model, prompt: prompt)
                 let response: TaskSubmitResult = try await core.request("task.submit", params)
                 if task(id: response.task.id) == nil { apply(response.task) }
+                followUpModel = nil
             } catch {
                 // Набранный текст не теряется; пока шёл запрос, пользователь мог начать новый.
                 if followUpDraft.isEmpty { followUpDraft = prompt }
