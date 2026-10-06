@@ -7,7 +7,7 @@ final class IslandModeTests: XCTestCase {
     private func session(_ id: String, _ state: AgentState = .idle) -> AgentSession {
         AgentSession(
             activity: nil, agent: "claude-code", cwd: "/work/shop",
-            host: AgentHost(appPath: nil, kind: .unknown, name: nil, tty: nil, workspace: nil), id: id, openUrl: nil,
+            host: AgentHost(appPath: nil, kind: .unknown, name: nil, tty: nil, workspace: nil), id: id, model: nil, openUrl: nil,
             pid: 1, project: "shop", startedAt: 0, state: state, title: "сессия \(id)", trail: nil, updatedAt: 0, waitingFor: nil
         )
     }
@@ -15,7 +15,7 @@ final class IslandModeTests: XCTestCase {
     private func task(_ id: String, _ status: TaskStatus) -> TaskInfo {
         TaskInfo(
             context: nil, createdAt: 0, error: nil, executor: .claudeCode, finishedAt: nil, id: id,
-            progress: nil, prompt: "запрос \(id)", result: nil, sessionId: nil, status: status, threadId: id
+            model: nil, progress: nil, prompt: "запрос \(id)", result: nil, sessionId: nil, status: status, threadId: id
         )
     }
 

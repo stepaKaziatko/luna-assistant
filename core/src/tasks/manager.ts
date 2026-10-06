@@ -6,6 +6,7 @@ import type { Executor, ExecutorEvent } from "../executors/executor.ts";
 import { buildPrompt, FORMAT_RULES, type HistoryTurn } from "../prompt/build.ts";
 import type { ExecutorId, TaskInfo, TaskSubmitParams } from "../rpc/protocol.gen.ts";
 import { foldCase, INTERRUPTED_MESSAGE, type StoredTask, type TaskHistory } from "./history.ts";
+import { isValidModel } from "./model.ts";
 
 export type TaskEventName = "task.started" | "task.progress" | "task.done" | "task.failed" | "task.cancelled";
 
@@ -39,6 +40,12 @@ interface Entry {
   workdir?: string;
   /** Сессия исполнителя, которую продолжает уточнение. */
   resume?: { sessionId: string };
+  /**
+   * Модель, выбранная при отправке (или унаследованная уточнением), — в терминах исполнителя. В протокол не выходит: `info.model`
+   * заменяется точной моделью исполнителя, а при повторной отправке переписки он должен
+   * получить именно выбор.
+   */
+  model?: string;
 }
 
 export class TaskManager {
@@ -68,8 +75,10 @@ export class TaskManager {
     };
     const entry: Entry = { info, abort: new AbortController() };
 
+    let inheritedModel: string | undefined;
     if (params.followUpOf !== undefined) {
       const point = this.followUpPoint(params.followUpOf);
+      if (isValidModel(point.task.model)) inheritedModel = point.task.model;
       // Уточнение — в той же сессии и той же директории: сессии Claude Code привязаны к пути.
       info.threadId = point.task.threadId;
       info.executor = point.task.executor;
@@ -77,6 +86,14 @@ export class TaskManager {
       entry.resume = { sessionId: point.sessionId };
     } else if (params.context) {
       info.context = params.context;
+    }
+    // Уточнение без `model` остаётся на модели точки продолжения. Она пришла из вывода CLI или
+    // истории и попадёт в argv, поэтому проходит ту же проверку шаблона, что и значение из протокола;
+    // не прошла — как «модели нет». `entry.model` в истории не хранится: источник — только `TaskInfo`.
+    const model = params.model ?? inheritedModel;
+    if (model !== undefined) {
+      info.model = model;
+      entry.model = model;
     }
 
     this.entries.set(info.id, entry);
@@ -288,6 +305,7 @@ export class TaskManager {
         formatRules: FORMAT_RULES,
         cwd,
         signal: abort.signal,
+        ...(entry.model !== undefined ? { model: entry.model } : {}),
         ...(entry.resume ? { resume: entry.resume } : {}),
       }));
 
@@ -302,7 +320,13 @@ export class TaskManager {
         this.save(entry);
         info.progress = RESEND_PROGRESS;
         this.emit("task.progress", info);
-        outcome = await this.follow(entry, executor.run({ prompt: resend, formatRules: FORMAT_RULES, cwd, signal: abort.signal }));
+        outcome = await this.follow(entry, executor.run({
+          prompt: resend,
+          formatRules: FORMAT_RULES,
+          cwd,
+          signal: abort.signal,
+          ...(entry.model !== undefined ? { model: entry.model } : {}),
+        }));
       }
 
       if (isFinal(info)) return;
@@ -331,6 +355,11 @@ export class TaskManager {
       switch (event.type) {
         case "session":
           info.sessionId = event.sessionId;
+          this.save(entry);
+          break;
+        case "model":
+          // Отдельного task.progress нет: модель уходит в ближайшем progress/done/failed.
+          info.model = event.model;
           this.save(entry);
           break;
         case "progress":

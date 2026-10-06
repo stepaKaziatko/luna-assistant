@@ -31,7 +31,7 @@ struct AgentWindowView: View {
                     .lineLimit(2)
                     .textSelection(.enabled)
                 HStack(spacing: 6) {
-                    Text("\(session.project) · \(session.agentName)")
+                    Text("\(session.project) · \(session.agentName)" + (session.modelTitle.map { " · \($0)" } ?? ""))
                     if session.host.name != nil {
                         Text("·")
                         HostLabel(host: session.host)

@@ -5,6 +5,7 @@ struct ResultView: View {
     let threadId: String
 
     @EnvironmentObject private var state: AppState
+    @EnvironmentObject private var settings: LunaSettings
     @State private var contentHeight: CGFloat = 0
     @FocusState private var followUpFocused: Bool
 
@@ -77,7 +78,7 @@ struct ResultView: View {
     @ViewBuilder
     private func footer(_ dialog: Dialog) -> some View {
         if dialog.continuationPoint != nil && !state.isSendingFollowUp {
-            followUpField
+            followUpField(dialog)
         }
         if let error = state.followUpError {
             Label(error, systemImage: "exclamationmark.triangle.fill")
@@ -87,7 +88,7 @@ struct ResultView: View {
         }
         if dialog.last.status == .done {
             HStack {
-                Text(caption(dialog.last))
+                Text(dialog.last.resultCaption)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -100,8 +101,9 @@ struct ResultView: View {
     }
 
     /// Фокус — по `Tab` или клику; `↩` отправляет, пустое не уходит, `esc` закрывает карточку.
-    private var followUpField: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+    private func followUpField(_ dialog: Dialog) -> some View {
+        let choice = state.followUpChoice(for: dialog)
+        return HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: "arrow.turn.down.right")
                 .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(.secondary)
@@ -111,6 +113,12 @@ struct ResultView: View {
                 .lineLimit(1...4)
                 .focused($followUpFocused)
                 .onSubmit(state.submitFollowUp)
+            ModelPicker(
+                sections: choice.sections(models: settings.models(for: ExecutorId.claudeCode.rawValue)),
+                selected: choice.shown,
+                help: "Модель, на которой уйдёт уточнение",
+                onSelect: state.selectFollowUpModel
+            )
             if followUpFocused {
                 Text("↩ отправить").font(.system(size: 11)).foregroundStyle(.secondary)
             } else {
@@ -120,9 +128,5 @@ struct ResultView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
-    }
-
-    private func caption(_ task: TaskInfo) -> String {
-        task.durationSeconds.map { "Claude Code · \($0) с" } ?? "Claude Code"
     }
 }

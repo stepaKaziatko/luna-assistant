@@ -50,8 +50,8 @@ export function foldCase(text: string): string {
   return text.toLowerCase();
 }
 
-/** Версия схемы `history.db`: 1 — LUNA-23, 2 — идентификатор диалога. */
-const SCHEMA_VERSION = 2;
+/** Версия схемы `history.db`: 1 — LUNA-23, 2 — идентификатор диалога, 3 — модель. */
+const SCHEMA_VERSION = 3;
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS tasks (
@@ -66,7 +66,8 @@ const SCHEMA = `
     created_at  INTEGER NOT NULL,
     finished_at INTEGER,
     workdir     TEXT,
-    thread_id   TEXT
+    thread_id   TEXT,
+    model       TEXT
   );
   CREATE INDEX IF NOT EXISTS tasks_created_at ON tasks (created_at);
 `;
@@ -76,6 +77,9 @@ const MIGRATE_V1 = `
   ALTER TABLE tasks ADD COLUMN thread_id TEXT;
   UPDATE tasks SET thread_id = id WHERE thread_id IS NULL;
 `;
+
+/** Версия 2 → 3: модель задачи; у прежних задач её нет (NULL). */
+const MIGRATE_V2 = "ALTER TABLE tasks ADD COLUMN model TEXT;";
 
 /**
  * Открывает `history.db` в каталоге данных и приводит её в порядок: задачи, оставшиеся
@@ -149,14 +153,14 @@ class SqliteHistory implements TaskHistory {
     db.function("luna_fold", { deterministic: true }, (text) => (typeof text === "string" ? foldCase(text) : null));
     migrate(db);
     this.upsert = db.prepare(`
-      INSERT INTO tasks (id, prompt, context, status, executor, result, error, session_id, created_at, finished_at, workdir, thread_id)
-      VALUES ($id, $prompt, $context, $status, $executor, $result, $error, $sessionId, $createdAt, $finishedAt, $workdir, $threadId)
+      INSERT INTO tasks (id, prompt, context, status, executor, result, error, session_id, created_at, finished_at, workdir, thread_id, model)
+      VALUES ($id, $prompt, $context, $status, $executor, $result, $error, $sessionId, $createdAt, $finishedAt, $workdir, $threadId, $model)
       ON CONFLICT (id) DO UPDATE SET
         prompt = excluded.prompt, context = excluded.context, status = excluded.status,
         executor = excluded.executor, result = excluded.result, error = excluded.error,
         session_id = excluded.session_id, created_at = excluded.created_at,
         finished_at = excluded.finished_at, workdir = COALESCE(excluded.workdir, tasks.workdir),
-        thread_id = excluded.thread_id
+        thread_id = excluded.thread_id, model = excluded.model
     `);
     this.select = db.prepare("SELECT * FROM tasks ORDER BY created_at DESC, rowid DESC LIMIT ?");
     this.selectById = db.prepare("SELECT * FROM tasks WHERE id = ?");
@@ -193,6 +197,7 @@ class SqliteHistory implements TaskHistory {
       $finishedAt: task.finishedAt ?? null,
       $workdir: workdir ?? null,
       $threadId: task.threadId,
+      $model: task.model ?? null,
     });
   }
 
@@ -264,6 +269,7 @@ interface Row {
   finished_at: number | null;
   workdir: string | null;
   thread_id: string | null;
+  model: string | null;
 }
 
 function toStored(row: Row): StoredTask {
@@ -275,6 +281,7 @@ function toStored(row: Row): StoredTask {
     executor: row.executor,
     createdAt: row.created_at,
   };
+  if (row.model !== null) task.model = row.model;
   if (row.context !== null) task.context = JSON.parse(row.context) as TaskInfo["context"];
   if (row.result !== null) task.result = row.result;
   if (row.error !== null) task.error = JSON.parse(row.error) as TaskInfo["error"];
@@ -292,8 +299,9 @@ function migrate(db: DatabaseSync): void {
   }
   db.exec("BEGIN IMMEDIATE");
   try {
-    // Таблица версии 1 уже есть: CREATE TABLE IF NOT EXISTS её не тронет, колонку добавляет миграция.
+    // Таблица прежней версии уже есть: CREATE TABLE IF NOT EXISTS её не тронет, колонки добавляют миграции.
     if (version === 1) db.exec(MIGRATE_V1);
+    if (version === 1 || version === 2) db.exec(MIGRATE_V2);
     db.exec(SCHEMA);
     db.exec(`CREATE INDEX IF NOT EXISTS tasks_thread_id ON tasks (thread_id, created_at); PRAGMA user_version = ${SCHEMA_VERSION};`);
     db.exec("COMMIT");

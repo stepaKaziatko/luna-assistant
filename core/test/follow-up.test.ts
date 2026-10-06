@@ -209,7 +209,7 @@ test("после перезапуска ядра диалог восстанав
   );
 });
 
-test("history.db версии 1 переходит на версию 2 без потери задач", async () => {
+test("history.db версии 1 переходит на текущую версию без потери задач", async () => {
   const dir = mkdtempSync(join(tmpdir(), "luna-data-"));
   const { DatabaseSync } = await import("node:sqlite");
   const v1 = new DatabaseSync(join(dir, "history.db"));
@@ -238,7 +238,7 @@ test("history.db версии 1 переходит на версию 2 без п
   core.history.close();
 
   const check = new DatabaseSync(join(dir, "history.db"));
-  assert.deepEqual({ ...(check.prepare("PRAGMA user_version").get() as object) }, { user_version: 2 });
+  assert.deepEqual({ ...(check.prepare("PRAGMA user_version").get() as object) }, { user_version: 3 });
   check.close();
 });
 

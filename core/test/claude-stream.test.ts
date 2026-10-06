@@ -13,6 +13,7 @@ function parseFixture(name: string): ExecutorEvent[] {
 test("успешный запуск: сессия, прогресс по инструментам, результат", () => {
   assert.deepEqual(parseFixture("success.jsonl"), [
     { type: "session", sessionId: "6872ce2a-d1fa-476e-b60c-9c963deff778" },
+    { type: "model", model: "claude-fable-5" },
     { type: "progress", text: "читает README.md" },
     { type: "progress", text: "пишет ответ…" },
     { type: "done", result: "Проект — крошечный демо-проект для захвата фикстур (fixture capture)." },
@@ -37,6 +38,7 @@ test("исчерпан лимит: ошибка rate_limit", () => {
 
 test("сессия для --resume не найдена: session_not_found с человеческим текстом", () => {
   const events = parseFixture("session-not-found.jsonl");
+  // Поток без init: модели в нём нет.
   assert.equal(events.length, 2);
   assert.deepEqual(events[0], { type: "session", sessionId: "3f0c9a52-7d1e-4b8a-9c6f-2e5d8a1b4c70" });
   const last = events.at(-1);

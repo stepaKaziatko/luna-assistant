@@ -25,8 +25,13 @@ struct TaskSubmitParams: Codable, Equatable, Sendable {
     let context: TaskContext?
     let executor: ExecutorId?
     /// id задачи диалога, которую продолжает уточнение; вместе с ним context и executor не
-    /// передаются
+    /// передаются, model — можно (модель уточнения)
     let followUpOf: String?
+    /// модель для этой задачи; строка непрозрачна для протокола, её смысл знает исполнитель (для
+    /// Claude Code — алиас opus/sonnet/haiku или полный идентификатор); не передана — модель по
+    /// умолчанию исполнителя; с followUpOf — модель этого уточнения; без неё уточнение
+    /// продолжается на модели продолжаемой задачи
+    let model: String?
     let prompt: String
 }
 
@@ -56,6 +61,10 @@ struct TaskInfo: Codable, Equatable, Sendable {
     /// Unix time, ms
     let finishedAt: Int?
     let id: String
+    /// модель, на которой выполняется задача: как выбрана при отправке, а когда исполнитель
+    /// сообщил точную — она (алиас sonnet → claude-sonnet-4-6); нет — модель по умолчанию
+    /// исполнителя ещё не известна
+    let model: String?
     let progress: String?
     let prompt: String
     let result, sessionId: String?
@@ -141,6 +150,9 @@ struct AgentSession: Codable, Equatable, Sendable {
     let host: AgentHost
     /// id сессии агента
     let id: String
+    /// модель последнего ответа агента в журнале сессии, как её записал агент
+    /// («claude-opus-5-5»); нет, пока агент не отвечал или журнал не прочитан
+    let model: String?
     /// ссылка, по которой приложение-хозяин открывает именно эту сессию; есть не у всех хозяев
     let openUrl: String?
     let pid: Int

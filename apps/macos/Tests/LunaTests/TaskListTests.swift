@@ -40,7 +40,7 @@ final class TaskListTests: XCTestCase {
     ) -> TaskInfo {
         TaskInfo(
             context: nil, createdAt: createdAt, error: nil, executor: .claudeCode, finishedAt: nil, id: id,
-            progress: nil, prompt: prompt ?? "запрос \(id)", result: nil, sessionId: "s", status: status, threadId: thread ?? id
+            model: nil, progress: nil, prompt: prompt ?? "запрос \(id)", result: nil, sessionId: "s", status: status, threadId: thread ?? id
         )
     }
 

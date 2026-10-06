@@ -20,14 +20,16 @@ struct InputView: View {
 
             if hasChips { ContextChips() }
 
+            // Ошибка — над нижней строкой: выбор модели остаётся доступным, когда ядро отклонило запрос.
+            if let problem = state.problem {
+                Label(problem, systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .lineLimit(2)
+            }
+
             HStack {
-                if let problem = state.problem {
-                    Label(problem, systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                        .lineLimit(2)
-                } else {
-                    Text("Claude Code")
-                }
+                InputModelPicker()
                 Spacer()
                 Text("↩ отправить · esc закрыть")
             }
@@ -41,5 +43,21 @@ struct InputView: View {
 
     private var hasChips: Bool {
         state.context?.payload != nil || !state.captureIssues.isEmpty
+    }
+}
+
+/// Панель ввода: меню — «Модель CLI» и список моделей, предвыбор (последний выбор или умолчание из настроек) отмечен; выбор пишется в настройки сразу.
+private struct InputModelPicker: View {
+    @EnvironmentObject private var settings: LunaSettings
+
+    private let executor = ExecutorId.claudeCode.rawValue
+
+    var body: some View {
+        ModelPicker(
+            sections: ModelMenu.inputSections(models: settings.models(for: executor)),
+            selected: settings.model(for: executor),
+            help: "Модель, на которой уйдёт вопрос",
+            onSelect: { settings.setModel($0, for: executor) }
+        )
     }
 }

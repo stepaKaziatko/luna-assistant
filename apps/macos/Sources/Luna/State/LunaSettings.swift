@@ -25,6 +25,20 @@ final class LunaSettings: ObservableObject {
     /// Звук каждого события по имени системного звука; пустая строка — без звука.
     @Published private(set) var sounds: [SoundEvent: String]
 
+    /// Модели, из которых выбирают в панели ввода, по id исполнителя. Пусто или не задано —
+    /// встроенный список (`builtInModels`). В списке только допустимые имена (`ModelList.isValid`), без повторов.
+    @Published private(set) var modelLists: [String: [String]]
+    /// Последний выбор модели в панели ввода по id исполнителя. Пустая строка — явно выбранная «Модель CLI»
+    /// (флаг `--model` не передаётся даже при заданном умолчании). Модели, которой нет в списке, здесь не бывает:
+    /// её стирают чтение и смена списка.
+    @Published private(set) var modelChoices: [String: String]
+    /// Модель по умолчанию по id исполнителя: предвыбор панели, пока в ней ничего не выбрано. Нет — «Модель CLI».
+    /// Модели, которой нет в списке, здесь не бывает.
+    @Published private(set) var modelDefaults: [String: String]
+
+    /// Встроенные списки моделей. Свой список исполнителя пользователь задаёт в настройках.
+    static let builtInModels: [String: [String]] = [ExecutorId.claudeCode.rawValue: ["opus", "sonnet", "haiku"]]
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         islandMode = defaults.string(forKey: Key.islandMode).flatMap(IslandMode.init) ?? .always
@@ -38,6 +52,104 @@ final class LunaSettings: ObservableObject {
         soundVolume = min(1, max(0, defaults.object(forKey: Key.soundVolume) as? Double ?? 0.5))
         let stored = defaults.dictionary(forKey: Key.sounds) as? [String: String] ?? [:]
         sounds = Dictionary(uniqueKeysWithValues: SoundEvent.allCases.map { ($0, stored[$0.rawValue] ?? $0.defaultSound) })
+        // Повреждённое хранилище (не тот тип, имена не по шаблону) читается как «не задано»: встроенный список, «Модель CLI».
+        let lists = (defaults.dictionary(forKey: Key.modelLists) as? [String: [String]] ?? [:]).compactMapValues(Self.cleaned)
+        let choices = defaults.dictionary(forKey: Key.modelChoices) as? [String: String] ?? [:]
+        let preferred = defaults.dictionary(forKey: Key.modelDefaults) as? [String: String] ?? [:]
+        modelLists = lists
+        func available(_ executor: String) -> [String] { lists[executor] ?? Self.builtInModels[executor] ?? [] }
+        // Выбор и умолчание, которых нет в списке, читаются как «Модель CLI» и стираются из хранилища.
+        let validChoices = choices.filter { $0.value.isEmpty || available($0.key).contains($0.value) }
+        let validDefaults = preferred.filter { available($0.key).contains($0.value) }
+        modelChoices = validChoices
+        modelDefaults = validDefaults
+        if validChoices.count != choices.count { defaults.set(validChoices, forKey: Key.modelChoices) }
+        if validDefaults.count != preferred.count { defaults.set(validDefaults, forKey: Key.modelDefaults) }
+    }
+
+    /// Список моделей исполнителя: свой или встроенный.
+    func models(for executor: String) -> [String] {
+        modelLists[executor] ?? Self.builtInModels[executor] ?? []
+    }
+
+    /// Задан ли свой список (а не встроенный).
+    func hasCustomModels(for executor: String) -> Bool {
+        modelLists[executor] != nil
+    }
+
+    /// Модель по умолчанию из настроек; nil — «Модель CLI».
+    func defaultModel(for executor: String) -> String? {
+        modelDefaults[executor]
+    }
+
+    /// Предвыбор панели ввода — единственное место, где он решается: последний выбор, если он ещё в списке;
+    /// иначе умолчание из настроек; иначе nil — «Модель CLI». Явно выбранная «Модель CLI» — тоже выбор.
+    func model(for executor: String) -> String? {
+        if let choice = modelChoices[executor] { return choice.isEmpty ? nil : choice }
+        return modelDefaults[executor]
+    }
+
+    /// Запоминает выбор в панели; nil — «Модель CLI». Пока задано умолчание, это явный выбор и он запоминается;
+    /// без умолчания «нет выбора» и «Модель CLI» — одно и то же. Модель вне списка не принимается и сбрасывает выбор.
+    func setModel(_ model: String?, for executor: String) {
+        var choices = modelChoices
+        if let model, models(for: executor).contains(model) {
+            choices[executor] = model
+        } else if model == nil, modelDefaults[executor] != nil {
+            choices[executor] = ""
+        } else {
+            choices[executor] = nil
+        }
+        guard choices != modelChoices else { return }
+        modelChoices = choices
+        defaults.set(choices, forKey: Key.modelChoices)
+    }
+
+    /// Задаёт модель по умолчанию; nil — «Модель CLI». Модель вне списка не принимается и сбрасывает умолчание.
+    /// Реальная смена стирает последний выбор панели (и явную «Модель CLI»): иначе новое умолчание не увидит никто,
+    /// кто уже пользовался панелью. То же значение ничего не стирает.
+    func setDefaultModel(_ model: String?, for executor: String) {
+        let new = model.flatMap { models(for: executor).contains($0) ? $0 : nil }
+        guard new != modelDefaults[executor] else { return }
+        var preferred = modelDefaults
+        preferred[executor] = new
+        modelDefaults = preferred
+        defaults.set(preferred, forKey: Key.modelDefaults)
+        if modelChoices[executor] != nil {
+            var choices = modelChoices
+            choices[executor] = nil
+            modelChoices = choices
+            defaults.set(choices, forKey: Key.modelChoices)
+        }
+    }
+
+    /// Меняет список моделей исполнителя: имена проверяются и очищаются от повторов (`ModelList.clean`), пустой
+    /// результат возвращает встроенный список. Выбор и умолчание, которых в новом списке нет, стираются каждый сам;
+    /// остальное живёт, явная «Модель CLI» смену списка переживает.
+    func setModels(_ models: [String], for executor: String) {
+        var lists = modelLists
+        lists[executor] = Self.cleaned(models)
+        modelLists = lists
+        defaults.set(lists, forKey: Key.modelLists)
+        let now = self.models(for: executor)
+        if let choice = modelChoices[executor], !choice.isEmpty, !now.contains(choice) {
+            var choices = modelChoices
+            choices[executor] = nil
+            modelChoices = choices
+            defaults.set(choices, forKey: Key.modelChoices)
+        }
+        if let preferred = modelDefaults[executor], !now.contains(preferred) {
+            var preferredAll = modelDefaults
+            preferredAll[executor] = nil
+            modelDefaults = preferredAll
+            defaults.set(preferredAll, forKey: Key.modelDefaults)
+        }
+    }
+
+    /// Допустимые имена без повторов; ничего не осталось — nil (список не задан).
+    private static func cleaned(_ models: [String]) -> [String]? {
+        let kept = ModelList.clean(models).accepted
+        return kept.isEmpty ? nil : kept
     }
 
     /// Имя звука события; nil — событие без звука.
@@ -67,6 +179,9 @@ final class LunaSettings: ObservableObject {
         static let soundsEnabled = "soundsEnabled"
         static let soundVolume = "soundVolume"
         static let sounds = "sounds"
+        static let modelLists = "executorModelLists"
+        static let modelChoices = "executorModelChoices"
+        static let modelDefaults = "executorDefaultModels"
     }
 }
 

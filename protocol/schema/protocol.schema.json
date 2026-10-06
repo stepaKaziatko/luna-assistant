@@ -65,6 +65,7 @@
         "context": { "$ref": "#/definitions/TaskContext" },
         "status": { "$ref": "#/definitions/TaskStatus" },
         "executor": { "$ref": "#/definitions/ExecutorId" },
+        "model": { "type": "string", "description": "модель, на которой выполняется задача: как выбрана при отправке, а когда исполнитель сообщил точную — она (алиас sonnet → claude-sonnet-4-6); нет — модель по умолчанию исполнителя ещё не известна" },
         "progress": { "type": "string" },
         "result": { "type": "string" },
         "error": { "$ref": "#/definitions/TaskError" },
@@ -93,7 +94,8 @@
         "prompt": { "type": "string" },
         "context": { "$ref": "#/definitions/TaskContext" },
         "executor": { "$ref": "#/definitions/ExecutorId" },
-        "followUpOf": { "type": "string", "description": "id задачи диалога, которую продолжает уточнение; вместе с ним context и executor не передаются" }
+        "model": { "type": "string", "description": "модель для этой задачи; строка непрозрачна для протокола, её смысл знает исполнитель (для Claude Code — алиас opus/sonnet/haiku или полный идентификатор); не передана — модель по умолчанию исполнителя; с followUpOf — модель этого уточнения; без неё уточнение продолжается на модели продолжаемой задачи" },
+        "followUpOf": { "type": "string", "description": "id задачи диалога, которую продолжает уточнение; вместе с ним context и executor не передаются, model — можно (модель уточнения)" }
       }
     },
     "TaskSubmitResult": {
@@ -212,6 +214,7 @@
           "items": { "$ref": "#/definitions/AgentStep" }
         },
         "host": { "$ref": "#/definitions/AgentHost" },
+        "model": { "type": "string", "description": "модель последнего ответа агента в журнале сессии, как её записал агент («claude-opus-5-5»); нет, пока агент не отвечал или журнал не прочитан" },
         "openUrl": { "type": "string", "description": "ссылка, по которой приложение-хозяин открывает именно эту сессию; есть не у всех хозяев" },
         "startedAt": { "type": "integer", "description": "Unix time, ms" },
         "updatedAt": { "type": "integer", "description": "Unix time, ms: последняя смена состояния или запись в журнале сессии" }

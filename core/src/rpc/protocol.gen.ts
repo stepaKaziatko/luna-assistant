@@ -19,10 +19,17 @@ export interface TaskSubmitParams {
     executor?: ExecutorId;
     /**
      * id задачи диалога, которую продолжает уточнение; вместе с ним context и executor не
-     * передаются
+     * передаются, model — можно (модель уточнения)
      */
     followUpOf?: string;
-    prompt:      string;
+    /**
+     * модель для этой задачи; строка непрозрачна для протокола, её смысл знает исполнитель (для
+     * Claude Code — алиас opus/sonnet/haiku или полный идентификатор); не передана — модель по
+     * умолчанию исполнителя; с followUpOf — модель этого уточнения; без неё уточнение
+     * продолжается на модели продолжаемой задачи
+     */
+    model?: string;
+    prompt: string;
 }
 
 export interface TaskContext {
@@ -54,11 +61,17 @@ export interface TaskInfo {
      */
     finishedAt?: number;
     id:          string;
-    progress?:   string;
-    prompt:      string;
-    result?:     string;
-    sessionId?:  string;
-    status:      TaskStatus;
+    /**
+     * модель, на которой выполняется задача: как выбрана при отправке, а когда исполнитель
+     * сообщил точную — она (алиас sonnet → claude-sonnet-4-6); нет — модель по умолчанию
+     * исполнителя ещё не известна
+     */
+    model?:     string;
+    progress?:  string;
+    prompt:     string;
+    result?:    string;
+    sessionId?: string;
+    status:     TaskStatus;
     /**
      * id первой задачи диалога; у задачи без уточнений равен id
      */
@@ -134,6 +147,11 @@ export interface AgentSession {
      * id сессии агента
      */
     id: string;
+    /**
+     * модель последнего ответа агента в журнале сессии, как её записал агент
+     * («claude-opus-5-5»); нет, пока агент не отвечал или журнал не прочитан
+     */
+    model?: string;
     /**
      * ссылка, по которой приложение-хозяин открывает именно эту сессию; есть не у всех хозяев
      */

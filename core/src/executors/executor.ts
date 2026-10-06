@@ -3,6 +3,8 @@ import type { ExecutorId, ExecutorStatus, TaskError } from "../rpc/protocol.gen.
 /** Нормализованные события исполнителя; ядро превращает их в task.* для shell. */
 export type ExecutorEvent =
   | { type: "session"; sessionId: string }
+  /** Точная модель, на которой работает исполнитель; приходит, когда он её сообщил. */
+  | { type: "model"; model: string }
   | { type: "progress"; text: string }
   | { type: "done"; result: string }
   | { type: "failed"; error: TaskError };
@@ -14,6 +16,8 @@ export interface ExecutorRequest {
   formatRules: string;
   cwd: string;
   signal: AbortSignal;
+  /** Модель для этой задачи в терминах исполнителя; не задана — его модель по умолчанию. */
+  model?: string;
   /** Уточнение: продолжить сессию исполнителя, в которой выполнялась прежняя задача диалога. */
   resume?: { sessionId: string };
 }

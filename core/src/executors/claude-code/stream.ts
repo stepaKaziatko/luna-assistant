@@ -15,6 +15,8 @@ interface StreamLine {
   type?: string;
   subtype?: string;
   session_id?: string;
+  /** У `system`/`init` — модель сессии. */
+  model?: unknown;
   parent_tool_use_id?: string | null;
   error?: string;
   message?: { content?: ContentBlock[] };
@@ -48,6 +50,10 @@ export class ClaudeStreamParser {
     if (typeof data.session_id === "string" && data.session_id !== this.sessionId) {
       this.sessionId = data.session_id;
       events.push({ type: "session", sessionId: data.session_id });
+    }
+    // Модель берётся только из init: в assistant-сообщениях она бывает служебной.
+    if (data.type === "system" && data.subtype === "init" && isRealModel(data.model)) {
+      events.push({ type: "model", model: data.model });
     }
 
     switch (data.type) {
@@ -87,6 +93,11 @@ export class ClaudeStreamParser {
     const kind = this.errorKind ?? kindFromStatus(data.api_error_status) ?? "unknown";
     return { type: "failed", error: { kind, message } };
   }
+}
+
+/** Пустое имя и `<synthetic>` (так CLI подписывает собственные сообщения) моделью не считаются. */
+function isRealModel(model: unknown): model is string {
+  return typeof model === "string" && model.trim() !== "" && model !== "<synthetic>";
 }
 
 function kindFromAssistantError(error: string): TaskErrorKind {

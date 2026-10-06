@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { ClaudeCodeSessions } from "../src/agents/claude-code/sessions.ts";
-import { DETAILED, STEP_LIMIT, summarizeTranscript } from "../src/agents/claude-code/transcript.ts";
+import { appendTranscript, DETAILED, STEP_LIMIT, summarizeTranscript } from "../src/agents/claude-code/transcript.ts";
 import { hostOf, parseProcessTable } from "../src/agents/host.ts";
 import { AgentMonitor } from "../src/agents/monitor.ts";
 import type { AgentSource } from "../src/agents/source.ts";
@@ -211,6 +211,141 @@ test("монитор: уведомляет только подписчика и 
   await monitor.refresh();
   assert.deepEqual(emitted.at(-1)?.map((item) => item.id), ["api-3", "web-1", "web-2"]);
   assert.deepEqual(await monitor.steps("web-1"), []);
+});
+
+test("модель сессии: последний настоящий ответ основной цепочки, без побочных и <synthetic>", async () => {
+  const sessions = await sessionsById();
+  // В журнале: sonnet-4-6 → (побочная цепочка: haiku) → opus-5-5 → <synthetic>.
+  assert.equal(sessions.get(SHOP)?.model, "claude-opus-5-5");
+  // Журнал без message.model и сессия без журнала: поля нет совсем, а не undefined.
+  const moved = sessions.get("66666666-6666-4666-8666-666666666666");
+  assert.ok(moved);
+  assert.equal("model" in moved, false);
+  const terminal = [...sessions.values()].find((session) => session.pid === 102);
+  assert.ok(terminal);
+  assert.equal("model" in terminal, false);
+});
+
+test("журнал: модель задают только ответы основной цепочки с годным значением", () => {
+  const reply = (model: unknown, extra: Record<string, unknown> = {}, withMessage = true): string =>
+    JSON.stringify({ type: "assistant", ...extra, ...(withMessage ? { message: { model, content: [] } } : {}) });
+  for (const [name, line] of [
+    ["<synthetic>", reply("<synthetic>")],
+    ["пустая строка", reply("")],
+    ["пробел", reply("claude opus")],
+    ["управляющий знак", reply("claude\u0007opus")],
+    ["число", reply(5)],
+    ["без message", reply(undefined, {}, false)],
+    ["побочная цепочка", reply("claude-opus-5-5", { isSidechain: true })],
+    ["isMeta", reply("claude-opus-5-5", { isMeta: true })],
+    ["isCompactSummary", reply("claude-opus-5-5", { isCompactSummary: true })],
+    ["модель у записи пользователя", JSON.stringify({ type: "user", message: { model: "claude-opus-5-5", content: "привет" } })],
+  ] as const) {
+    assert.equal("model" in summarizeTranscript([line]), false, name);
+  }
+  // Ответ из одного thinking шагов не даёт, а модель задаёт.
+  const thinking = JSON.stringify({ type: "assistant", message: { model: "claude-opus-5-5", content: [{ type: "thinking", thinking: "…" }] } });
+  const summary = summarizeTranscript([thinking]);
+  assert.equal(summary.model, "claude-opus-5-5");
+  assert.deepEqual(summary.steps, []);
+  // Негодное значение прежнюю модель не затирает, годное — заменяет.
+  assert.equal(appendTranscript(summary, [reply("<synthetic>"), reply("")]).model, "claude-opus-5-5");
+  assert.equal(appendTranscript(summary, [reply("claude-sonnet-4-6")]).model, "claude-sonnet-4-6");
+});
+
+test("модель дочитывается вместе с журналом и переживает его переписывание", async (t) => {
+  const home = mkdtempSync(join(tmpdir(), "luna-claude-"));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const id = "88888888-8888-4888-8888-888888888888";
+  mkdirSync(join(home, "sessions"));
+  mkdirSync(join(home, "projects", "-work-docs"), { recursive: true });
+  writeFileSync(join(home, "sessions", "300.json"), JSON.stringify({ pid: 300, sessionId: id, cwd: "/work/docs", status: "busy", startedAt: 1 }));
+  const journal = join(home, "projects", "-work-docs", `${id}.jsonl`);
+  const reply = (model: string, file: string): string =>
+    JSON.stringify({ type: "assistant", message: { model, content: [{ type: "tool_use", name: "Read", input: { file_path: `/work/docs/${file}` } }] } });
+  writeFileSync(journal, `${reply("claude-sonnet-4-6", "a.md")}\n`);
+
+  const sessions = new ClaudeCodeSessions({ home, isAlive: () => true, processTable: async () => parseProcessTable("") });
+  const current = async (): Promise<AgentSession | undefined> => (await sessions.sessions())[0];
+  assert.equal((await current())?.model, "claude-sonnet-4-6");
+
+  // Тот же размер, другое содержимое старой строки: если бы журнал перечитывался, это было бы видно в ленте.
+  writeFileSync(journal, `${reply("claude-sonnet-4-6", "x.md")}\n`);
+  appendFileSync(journal, `${reply("claude-opus-5-5", "b.md")}\n`);
+  const grown = await current();
+  assert.equal(grown?.model, "claude-opus-5-5");
+  assert.deepEqual(grown?.trail?.map((step) => step.text), ["читает a.md", "читает b.md"], "прежние строки не перечитывались");
+
+  // Служебный ответ без модели: остаётся прежняя.
+  appendFileSync(journal, `${JSON.stringify({ type: "assistant", message: { model: "<synthetic>", content: [] } })}\n`);
+  assert.equal((await current())?.model, "claude-opus-5-5");
+
+  // Недописанная строка модель не меняет, пока не закончится.
+  const half = reply("claude-haiku-4-5-20251001", "c.md");
+  appendFileSync(journal, half.slice(0, 50));
+  assert.equal((await current())?.model, "claude-opus-5-5");
+  appendFileSync(journal, `${half.slice(50)}\n`);
+  assert.equal((await current())?.model, "claude-haiku-4-5-20251001");
+
+  // Файл переписали короче и без ответов агента: модель остаётся из кэша, как заголовок.
+  writeFileSync(journal, `${JSON.stringify({ type: "last-prompt", lastPrompt: "дальше" })}\n`);
+  assert.equal((await current())?.model, "claude-haiku-4-5-20251001");
+});
+
+function snapshotFiles(root: string): Map<string, string> {
+  const files = new Map<string, string>();
+  for (const name of readdirSync(root, { recursive: true, encoding: "utf8" })) {
+    const path = join(root, name);
+    const info = statSync(path);
+    files.set(name, info.isFile() ? `${info.mtimeMs}:${readFileSync(path, "utf8")}` : "dir");
+  }
+  return files;
+}
+
+test("наблюдение за сессиями не меняет файлы агента и не добавляет новых", async (t) => {
+  const home = mkdtempSync(join(tmpdir(), "luna-claude-"));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const id = "99999999-9999-4999-8999-999999999999";
+  mkdirSync(join(home, "sessions"));
+  mkdirSync(join(home, "projects", "-work-site"), { recursive: true });
+  writeFileSync(join(home, "sessions", "400.json"), JSON.stringify({ pid: 400, sessionId: id, cwd: "/work/site", status: "busy", startedAt: 1 }));
+  writeFileSync(
+    join(home, "projects", "-work-site", `${id}.jsonl`),
+    `${JSON.stringify({ type: "assistant", message: { model: "claude-opus-5-5", content: [{ type: "text", text: "Привет" }] } })}\n`,
+  );
+
+  for (const root of [HOME, home]) {
+    const before = snapshotFiles(root);
+    const observer = root === HOME
+      ? source()
+      : new ClaudeCodeSessions({ home, isAlive: () => true, processTable: async () => parseProcessTable("") });
+    const list = await observer.sessions();
+    assert.ok(list.length > 0);
+    await observer.steps(list[0]?.id ?? "", true);
+    await observer.sessions();
+    assert.deepEqual(snapshotFiles(root), before, root);
+  }
+});
+
+test("монитор: смена одной только модели — это изменение", async () => {
+  let model = "claude-sonnet-4-6";
+  const fake: AgentSource = {
+    agent: "claude-code",
+    sessions: async () => [{
+      id: "a", agent: "claude-code", pid: 1, cwd: "/work/web", project: "web", state: "idle", host: { kind: "unknown" },
+      model, startedAt: 1, updatedAt: 1,
+    }],
+    steps: async () => undefined,
+  };
+  const emitted: AgentSession[][] = [];
+  const monitor = new AgentMonitor({ sources: [fake], emit: (sessions) => emitted.push(sessions) });
+  await monitor.list();
+  await monitor.refresh();
+  assert.equal(emitted.length, 0);
+  model = "claude-opus-5-5";
+  await monitor.refresh();
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0]?.[0]?.model, "claude-opus-5-5");
 });
 
 test("фикстуры не содержат настоящих путей", () => {

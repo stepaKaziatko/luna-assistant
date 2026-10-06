@@ -22,8 +22,9 @@ import type {
 } from "./rpc/protocol.gen.ts";
 import { openHistory } from "./tasks/history.ts";
 import { ActiveDialogError, FollowUpError, TaskManager } from "./tasks/manager.ts";
+import { isValidModel } from "./tasks/model.ts";
 
-const VERSION = "0.5.0";
+const VERSION = "0.6.0";
 
 // stdout занят протоколом — диагностика только в stderr.
 function log(message: string): void {
@@ -68,17 +69,21 @@ rpc.method("core.hello", async (): Promise<HelloResult> => ({
 }));
 
 rpc.method("task.submit", (params): TaskSubmitResult => {
-  const { prompt, executor, context: rawContext, followUpOf } = asObject(params) as Partial<TaskSubmitParams>;
+  const { prompt, executor, context: rawContext, followUpOf, model } = asObject(params) as Partial<TaskSubmitParams>;
   if (typeof prompt !== "string" || prompt.trim() === "") {
     throw new RpcError(ErrorCode.InvalidParams, "prompt must be a non-empty string");
+  }
+  if (model !== undefined && !isValidModel(model)) {
+    throw new RpcError(ErrorCode.InvalidParams, "invalid model");
   }
   if (followUpOf !== undefined) {
     if (typeof followUpOf !== "string") throw new RpcError(ErrorCode.InvalidParams, "followUpOf must be a string");
     // Уточнение идёт тому же исполнителю и без нового контекста: диалог — о том, с чего начался.
     if (rawContext !== undefined) throw new RpcError(ErrorCode.InvalidParams, "context is not allowed with followUpOf");
     if (executor !== undefined) throw new RpcError(ErrorCode.InvalidParams, "executor is not allowed with followUpOf");
+    // Модель уточнения необязательна: без неё менеджер берёт модель продолжаемой задачи.
     try {
-      return { task: tasks.submit({ prompt, followUpOf }) };
+      return { task: tasks.submit({ prompt, followUpOf, ...(model !== undefined ? { model } : {}) }) };
     } catch (error) {
       if (error instanceof FollowUpError) throw new RpcError(ErrorCode.InvalidParams, error.message);
       throw error;
@@ -89,6 +94,7 @@ rpc.method("task.submit", (params): TaskSubmitResult => {
   }
   const submit: TaskSubmitParams = { prompt };
   if (executor !== undefined) submit.executor = executor;
+  if (model !== undefined) submit.model = model;
   const context = normalizeContext(rawContext);
   if (context) submit.context = context;
   return { task: tasks.submit(submit) };
