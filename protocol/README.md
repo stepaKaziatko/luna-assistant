@@ -17,6 +17,7 @@ npm run generate   # → core/src/rpc/protocol.gen.ts, apps/macos/Sources/Luna/P
 | `core.hello` | — | `HelloResult` |
 | `task.submit` | `TaskSubmitParams` | `TaskSubmitResult` |
 | `task.cancel` | `TaskCancelParams` | `{}` |
+| `task.approve` | `TaskApproveParams` | `{}` |
 | `task.list` | — или `TaskListParams` | `TaskListResult` |
 | `task.delete` | `TaskDeleteParams` | `TaskDeleteResult` |
 | `task.clear` | `{}` | `TaskClearResult` |
@@ -55,7 +56,9 @@ npm run generate   # → core/src/rpc/protocol.gen.ts, apps/macos/Sources/Luna/P
 
 ## Уведомления (core → shell)
 
-`task.started`, `task.progress`, `task.done`, `task.failed`, `task.cancelled` — у всех params `TaskEventParams`: полный снимок задачи. Shell обновляет задачу по `id`, не полагаясь на порядок событий.
+`task.started`, `task.progress`, `task.needs_approval`, `task.done`, `task.failed`, `task.cancelled` — у всех params `TaskEventParams`: полный снимок задачи. Shell обновляет задачу по `id`, не полагаясь на порядок событий.
+
+`task.needs_approval` — исполнитель остановился перед действием и ждёт ответа человека: снимок задачи `running` с `TaskInfo.approval` (`ApprovalRequest`: инструмент, вид действия, путь, подробности). Ответ — `task.approve` с `taskId`, `approvalId` этого запроса и `allow`; после него приходит `task.progress` со снимком без `approval`. Неизвестная задача, задача без ожидания или устаревший `approvalId` — `InvalidParams`.
 
 `agents.changed` — params `AgentsEventParams`: полный список живых сессий. Приходит при любом изменении списка и только после первого `agents.list`: им shell подписывается.
 

@@ -54,6 +54,26 @@
         "message": { "type": "string" }
       }
     },
+    "ApprovalKind": {
+      "type": "string",
+      "description": "write — запись файла; edit — правка файла или блокнота; shell — команда; other — другой инструмент",
+      "enum": ["write", "edit", "shell", "other"]
+    },
+    "ApprovalRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Действие исполнителя, которое ждёт ответа человека. Все строки — чистый текст: оболочка показывает их как есть, не Markdown и не ссылками",
+      "required": ["id", "tool", "kind", "summary", "createdAt"],
+      "properties": {
+        "id": { "type": "string", "description": "id запроса; ответ task.approve должен назвать именно его" },
+        "tool": { "type": "string", "description": "инструмент исполнителя, как он его называет: «Write»" },
+        "kind": { "$ref": "#/definitions/ApprovalKind" },
+        "summary": { "type": "string", "description": "одна строка о действии: «Записать файл»" },
+        "target": { "type": "string", "description": "над чем действие: абсолютный путь к файлу" },
+        "detail": { "type": "string", "description": "подробности многострочным текстом: начало содержимого, заменяемый и новый фрагмент; длинное обрезано с пометкой" },
+        "createdAt": { "type": "integer", "description": "Unix time, ms" }
+      }
+    },
     "TaskInfo": {
       "type": "object",
       "additionalProperties": false,
@@ -70,6 +90,7 @@
         "result": { "type": "string" },
         "error": { "$ref": "#/definitions/TaskError" },
         "sessionId": { "type": "string" },
+        "approval": { "$ref": "#/definitions/ApprovalRequest", "description": "действие, которого исполнитель ждёт от человека; есть только у задачи running, пока ответ не дан" },
         "createdAt": { "type": "integer", "description": "Unix time, ms" },
         "finishedAt": { "type": "integer", "description": "Unix time, ms" }
       }
@@ -112,6 +133,16 @@
       "required": ["taskId"],
       "properties": {
         "taskId": { "type": "string" }
+      }
+    },
+    "TaskApproveParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["taskId", "approvalId", "allow"],
+      "properties": {
+        "taskId": { "type": "string" },
+        "approvalId": { "type": "string", "description": "id запроса из TaskInfo.approval; устаревший — InvalidParams" },
+        "allow": { "type": "boolean", "description": "true — разрешить действие, false — отклонить" }
       }
     },
     "TaskListParams": {

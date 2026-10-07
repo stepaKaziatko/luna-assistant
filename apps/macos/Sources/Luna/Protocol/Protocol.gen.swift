@@ -53,6 +53,9 @@ struct TaskSubmitResult: Codable, Equatable, Sendable {
 
 // MARK: - TaskInfo
 struct TaskInfo: Codable, Equatable, Sendable {
+    /// действие, которого исполнитель ждёт от человека; есть только у задачи running, пока ответ
+    /// не дан
+    let approval: ApprovalRequest?
     let context: TaskContext?
     /// Unix time, ms
     let createdAt: Int
@@ -71,6 +74,38 @@ struct TaskInfo: Codable, Equatable, Sendable {
     let status: TaskStatus
     /// id первой задачи диалога; у задачи без уточнений равен id
     let threadId: String
+}
+
+/// Действие исполнителя, которое ждёт ответа человека. Все строки — чистый текст: оболочка
+/// показывает их как есть, не Markdown и не ссылками
+///
+/// действие, которого исполнитель ждёт от человека; есть только у задачи running, пока ответ
+/// не дан
+// MARK: - ApprovalRequest
+struct ApprovalRequest: Codable, Equatable, Sendable {
+    /// Unix time, ms
+    let createdAt: Int
+    /// подробности многострочным текстом: начало содержимого, заменяемый и новый фрагмент;
+    /// длинное обрезано с пометкой
+    let detail: String?
+    /// id запроса; ответ task.approve должен назвать именно его
+    let id: String
+    let kind: ApprovalKind
+    /// одна строка о действии: «Записать файл»
+    let summary: String
+    /// над чем действие: абсолютный путь к файлу
+    let target: String?
+    /// инструмент исполнителя, как он его называет: «Write»
+    let tool: String
+}
+
+/// write — запись файла; edit — правка файла или блокнота; shell — команда; other — другой
+/// инструмент
+enum ApprovalKind: String, Codable, Equatable, Sendable {
+    case edit = "edit"
+    case other = "other"
+    case shell = "shell"
+    case write = "write"
 }
 
 // MARK: - TaskError
@@ -97,6 +132,15 @@ enum TaskStatus: String, Codable, Equatable, Sendable {
 
 // MARK: - TaskCancelParams
 struct TaskCancelParams: Codable, Equatable, Sendable {
+    let taskId: String
+}
+
+// MARK: - TaskApproveParams
+struct TaskApproveParams: Codable, Equatable, Sendable {
+    /// true — разрешить действие, false — отклонить
+    let allow: Bool
+    /// id запроса из TaskInfo.approval; устаревший — InvalidParams
+    let approvalId: String
     let taskId: String
 }
 

@@ -49,7 +49,12 @@ export interface TaskSubmitResult {
 }
 
 export interface TaskInfo {
-    context?: TaskContext;
+    /**
+     * действие, которого исполнитель ждёт от человека; есть только у задачи running, пока ответ
+     * не дан
+     */
+    approval?: ApprovalRequest;
+    context?:  TaskContext;
     /**
      * Unix time, ms
      */
@@ -78,6 +83,48 @@ export interface TaskInfo {
     threadId: string;
 }
 
+/**
+ * Действие исполнителя, которое ждёт ответа человека. Все строки — чистый текст: оболочка
+ * показывает их как есть, не Markdown и не ссылками
+ *
+ * действие, которого исполнитель ждёт от человека; есть только у задачи running, пока ответ
+ * не дан
+ */
+export interface ApprovalRequest {
+    /**
+     * Unix time, ms
+     */
+    createdAt: number;
+    /**
+     * подробности многострочным текстом: начало содержимого, заменяемый и новый фрагмент;
+     * длинное обрезано с пометкой
+     */
+    detail?: string;
+    /**
+     * id запроса; ответ task.approve должен назвать именно его
+     */
+    id:   string;
+    kind: ApprovalKind;
+    /**
+     * одна строка о действии: «Записать файл»
+     */
+    summary: string;
+    /**
+     * над чем действие: абсолютный путь к файлу
+     */
+    target?: string;
+    /**
+     * инструмент исполнителя, как он его называет: «Write»
+     */
+    tool: string;
+}
+
+/**
+ * write — запись файла; edit — правка файла или блокнота; shell — команда; other — другой
+ * инструмент
+ */
+export type ApprovalKind = "write" | "edit" | "shell" | "other";
+
 export interface TaskError {
     kind:    TaskErrorKind;
     message: string;
@@ -89,6 +136,18 @@ export type TaskStatus = "queued" | "running" | "done" | "failed" | "cancelled";
 
 export interface TaskCancelParams {
     taskId: string;
+}
+
+export interface TaskApproveParams {
+    /**
+     * true — разрешить действие, false — отклонить
+     */
+    allow: boolean;
+    /**
+     * id запроса из TaskInfo.approval; устаревший — InvalidParams
+     */
+    approvalId: string;
+    taskId:     string;
 }
 
 export interface TaskListParams {
