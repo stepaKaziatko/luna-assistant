@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -423,4 +423,75 @@ test("task.submit с model: некорректные значения — Invali
   const last = readFileSync(join(dir, "argv"), "utf8").split("---\n").filter((run) => run !== "").at(-1) ?? "";
   assert.equal(last.includes("--model"), false);
   assert.equal(await plain.stop(), 0);
+});
+
+test("task.approve через процесс ядра: неверные params — InvalidParams; ответ на висящий запрос — {} и task.progress без approval; сокет убирается при выходе и чистится при старте", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "luna-data-"));
+  // Остаток сокета прежнего запуска: ядро должно убрать его при старте.
+  writeFileSync(join(dir, "approvals-deadbeef.sock"), "");
+  const socketFiles = () => readdirSync(dir).filter((name) => name.endsWith(".sock"));
+  // Подставной исполнитель: вместо моста сам подключается к сокету ядра из --mcp-config, спрашивает
+  // разрешение на Write и после ответа пишет решение в файл и завершает поток результатом.
+  const script = join(dir, "claude.mjs");
+  writeFileSync(
+    script,
+    `
+import { createConnection } from "node:net";
+import { writeFileSync } from "node:fs";
+import { createInterface } from "node:readline";
+const argv = process.argv.slice(2);
+const config = JSON.parse(argv[argv.indexOf("--mcp-config") + 1]);
+const [, socketPath, runId] = config.mcpServers.luna.args;
+process.stdin.resume();
+process.stdout.write(JSON.stringify({ type: "system", subtype: "init", session_id: "s-approve", model: "claude-fable-5" }) + "\\n");
+const socket = createConnection(socketPath);
+socket.setEncoding("utf8");
+createInterface({ input: socket }).once("line", (line) => {
+  writeFileSync(${JSON.stringify(join(dir, "decision"))}, line + "\\n");
+  socket.end();
+  process.stdout.write(JSON.stringify({ type: "result", subtype: "success", is_error: false, result: "записал", session_id: "s-approve" }) + "\\n");
+  process.exit(0);
+});
+socket.write(JSON.stringify({ run: runId, call: { tool_name: "Write", input: { file_path: "hello.txt", content: "hi" }, tool_use_id: "t1" } }) + "\\n");
+`,
+  );
+  const claude = join(dir, "claude");
+  writeFileSync(claude, `#!/bin/sh\nexec "${process.execPath}" "${script}" "$@"\n`);
+  chmodSync(claude, 0o755);
+  const core = startCore({ LUNA_DATA_DIR: dir, LUNA_CLAUDE_BIN: claude });
+  await core.request("core.hello");
+  assert.equal(socketFiles().length, 1, "один сокет этого запуска; остаток прежнего удалён");
+  assert.equal(existsSync(join(dir, "approvals-deadbeef.sock")), false);
+
+  const errorCode = async (params: unknown) =>
+    ((await core.request("task.approve", params)) as Message & { error?: { code: number } }).error?.code;
+  assert.equal(await errorCode("нет"), -32602);
+  assert.equal(await errorCode({}), -32602);
+  assert.equal(await errorCode({ taskId: "missing", approvalId: "a", allow: true }), -32602);
+  assert.equal(await errorCode({ taskId: "missing", approvalId: "a", allow: "yes" }), -32602);
+
+  const needsApproval = core.waitFor((message) => message.method === "task.needs_approval" || message.method === "task.failed");
+  const submitted = (await core.request("task.submit", { prompt: "создай файл" })).result?.task as TaskInfo;
+  const waiting = (await needsApproval).params?.task;
+  assert.equal(waiting?.status, "running", JSON.stringify(waiting?.error));
+  assert.equal(waiting?.approval?.kind, "write");
+  assert.ok(waiting?.approval?.target?.endsWith("hello.txt"), waiting?.approval?.target);
+  assert.equal(await errorCode({ taskId: submitted.id, approvalId: "stale", allow: true }), -32602);
+  assert.equal(await errorCode({ taskId: submitted.id, approvalId: waiting?.approval?.id, allow: 1 }), -32602);
+
+  const progressed = core.waitFor((message) => message.method === "task.progress" && message.params?.task.id === submitted.id);
+  const done = core.waitFor((message) => message.method === "task.done" || message.method === "task.failed");
+  const response = await core.request("task.approve", { taskId: submitted.id, approvalId: waiting?.approval?.id, allow: true });
+  assert.deepEqual(response.result, {});
+  assert.equal((await progressed).params?.task.approval, undefined);
+  const finished = (await done).params?.task;
+  assert.equal(finished?.status, "done", JSON.stringify(finished?.error));
+  assert.equal(finished?.approval, undefined);
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, "decision"), "utf8")), {
+    behavior: "allow",
+    updatedInput: { file_path: "hello.txt", content: "hi" },
+  });
+
+  assert.equal(await core.stop(), 0);
+  assert.deepEqual(socketFiles(), [], "после выхода файла сокета нет");
 });

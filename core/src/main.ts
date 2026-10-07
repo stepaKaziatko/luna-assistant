@@ -3,7 +3,8 @@ import { ClaudeCodeSessions } from "./agents/claude-code/sessions.ts";
 import { AgentMonitor } from "./agents/monitor.ts";
 import { normalizeContext } from "./context/normalize.ts";
 import { cleanupWorkdirs, defaultDataDir } from "./context/workdir.ts";
-import { ClaudeCodeExecutor } from "./executors/claude-code/adapter.ts";
+import { ClaudeCodeExecutor, type ClaudeCodeOptions } from "./executors/claude-code/adapter.ts";
+import { ApprovalSocket } from "./executors/claude-code/socket.ts";
 import type { Executor } from "./executors/executor.ts";
 import { ErrorCode, RpcError, RpcServer } from "./rpc/jsonrpc.ts";
 import type {
@@ -11,6 +12,7 @@ import type {
   AgentStepsParams,
   AgentStepsResult,
   HelloResult,
+  TaskApproveParams,
   TaskCancelParams,
   TaskClearResult,
   TaskDeleteParams,
@@ -21,7 +23,7 @@ import type {
   TaskSubmitResult,
 } from "./rpc/protocol.gen.ts";
 import { openHistory } from "./tasks/history.ts";
-import { ActiveDialogError, FollowUpError, TaskManager } from "./tasks/manager.ts";
+import { ActiveDialogError, ApprovalError, FollowUpError, TaskManager } from "./tasks/manager.ts";
 import { isValidModel } from "./tasks/model.ts";
 
 const VERSION = "0.7.0";
@@ -38,15 +40,25 @@ function asObject(params: unknown): Record<string, unknown> {
   return params as Record<string, unknown>;
 }
 
-const claudeOptions: { binary?: string; model?: string } = {};
-if (process.env.LUNA_CLAUDE_BIN) claudeOptions.binary = process.env.LUNA_CLAUDE_BIN;
-if (process.env.LUNA_CLAUDE_MODEL) claudeOptions.model = process.env.LUNA_CLAUDE_MODEL;
-const executors: Executor[] = [new ClaudeCodeExecutor(claudeOptions)];
-
 const dataDir = defaultDataDir();
 const tasksDir = join(dataDir, "tasks");
 // История читается и приводится в порядок до первого запроса оболочки.
 const history = await openHistory(dataDir, { log });
+// Канал подтверждений: мост Claude Code приносит сюда действия, которые ждут ответа человека.
+// Не открылся (например, путь к каталогу данных слишком длинный для unix-сокета) — ядро работает,
+// но исполнитель отвечает на каждую задачу понятной ошибкой.
+let approvals: ApprovalSocket | undefined;
+try {
+  approvals = await ApprovalSocket.open(dataDir, { log });
+} catch (error) {
+  log(error instanceof Error ? error.message : String(error));
+}
+
+const claudeOptions: ClaudeCodeOptions = {};
+if (process.env.LUNA_CLAUDE_BIN) claudeOptions.binary = process.env.LUNA_CLAUDE_BIN;
+if (process.env.LUNA_CLAUDE_MODEL) claudeOptions.model = process.env.LUNA_CLAUDE_MODEL;
+if (approvals) claudeOptions.approvals = approvals;
+const executors: Executor[] = [new ClaudeCodeExecutor(claudeOptions)];
 const rpc = new RpcServer(process.stdin, process.stdout);
 const tasks = new TaskManager({
   executors,
@@ -107,6 +119,20 @@ rpc.method("task.cancel", (params) => {
   return {};
 });
 
+rpc.method("task.approve", (params) => {
+  const { taskId, approvalId, allow } = asObject(params) as Partial<TaskApproveParams>;
+  if (typeof taskId !== "string") throw new RpcError(ErrorCode.InvalidParams, "taskId must be a string");
+  if (typeof approvalId !== "string") throw new RpcError(ErrorCode.InvalidParams, "approvalId must be a string");
+  if (typeof allow !== "boolean") throw new RpcError(ErrorCode.InvalidParams, "allow must be a boolean");
+  try {
+    tasks.approve(taskId, approvalId, allow);
+  } catch (error) {
+    if (error instanceof ApprovalError) throw new RpcError(ErrorCode.InvalidParams, error.message);
+    throw error;
+  }
+  return {};
+});
+
 // Оболочка зовёт task.list и без params — тогда это обычный список.
 rpc.method("task.list", (params): TaskListResult => {
   if (params === undefined || params === null) return { tasks: tasks.list() };
@@ -149,5 +175,7 @@ log(`started v${VERSION}, data dir: ${dataDir}`);
 await rpc.listen();
 agents.stop();
 tasks.shutdown();
+// Файл сокета снимается до выхода: следующему запуску нечего подчищать.
+approvals?.close();
 history?.close();
 process.exit(0);

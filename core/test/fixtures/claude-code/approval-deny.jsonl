@@ -1,0 +1,4 @@
+{"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{"roots":{},"elicitation":{}},"clientInfo":{"name":"claude-code","title":"Claude Code","version":"2.1.181","description":"Anthropic's agentic coding tool","websiteUrl":"https://claude.com/claude-code"}},"jsonrpc":"2.0","id":0}
+{"method":"notifications/initialized","jsonrpc":"2.0"}
+{"method":"tools/list","jsonrpc":"2.0","id":1}
+{"method":"tools/call","params":{"name":"approve","arguments":{"tool_name":"Write","input":{"file_path":"/tmp/luna-task/hello.txt","content":"hi"},"tool_use_id":"toolu_0129LffrhV8Ks1Ax2iSDJn6c"},"_meta":{"claudecode/toolUseId":"toolu_0129LffrhV8Ks1Ax2iSDJn6c","progressToken":2}},"jsonrpc":"2.0","id":2}

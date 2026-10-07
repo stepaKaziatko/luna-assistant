@@ -10,6 +10,7 @@ import type { ExecutorEvent } from "../src/executors/executor.ts";
 import type { TaskInfo } from "../src/rpc/protocol.gen.ts";
 import { openHistory } from "../src/tasks/history.ts";
 import { TaskManager, type TaskEventName } from "../src/tasks/manager.ts";
+import { openTestApprovals } from "./support/approvals.ts";
 import { ManualExecutor } from "./support/manual-executor.ts";
 import { nextRun, quietPeriod, until } from "./support/wait.ts";
 
@@ -23,12 +24,12 @@ function parseFixture(name: string): ExecutorEvent[] {
 // --- Адаптер: --model из запроса и из options.model
 
 test("buildArgs: --model из значения; без модели флага нет; --model перед --resume", () => {
-  const withModel = buildArgs("RULES", "opus");
+  const withModel = buildArgs({ formatRules: "RULES", model: "opus", mcpConfig: "{}" });
   assert.deepEqual(withModel.slice(-2), ["--model", "opus"]);
-  assert.equal(buildArgs("RULES").includes("--model"), false);
-  assert.equal(buildArgs("RULES", undefined, { sessionId: "s1" }).includes("--model"), false);
+  assert.equal(buildArgs({ formatRules: "RULES", mcpConfig: "{}" }).includes("--model"), false);
+  assert.equal(buildArgs({ formatRules: "RULES", resume: { sessionId: "s1" }, mcpConfig: "{}" }).includes("--model"), false);
 
-  const resumed = buildArgs("RULES", "opus", { sessionId: "s1" });
+  const resumed = buildArgs({ formatRules: "RULES", model: "opus", resume: { sessionId: "s1" }, mcpConfig: "{}" });
   assert.deepEqual(resumed.slice(-4), ["--model", "opus", "--resume", "s1"]);
 });
 
@@ -51,18 +52,19 @@ async function runExecutor(executor: ClaudeCodeExecutor, model?: string): Promis
 const modelArg = (argv: string[]) => argv[argv.indexOf("--model") + 1];
 
 test("адаптер: модель запроса главнее options.model; options.model — запасное значение; без обеих флага нет", async () => {
+  const approvals = await openTestApprovals();
   const both = fakeClaude("success.jsonl");
-  const events = await runExecutor(new ClaudeCodeExecutor({ binary: both.binary, model: "haiku" }), "opus");
+  const events = await runExecutor(new ClaudeCodeExecutor({ binary: both.binary, model: "haiku", approvals }), "opus");
   assert.deepEqual(events.find((event) => event.type === "model"), { type: "model", model: "claude-fable-5" });
   assert.equal(modelArg(both.argv()), "opus");
   assert.equal(both.argv().filter((arg) => arg === "--model").length, 1);
 
   const fallback = fakeClaude("success.jsonl");
-  await runExecutor(new ClaudeCodeExecutor({ binary: fallback.binary, model: "haiku" }));
+  await runExecutor(new ClaudeCodeExecutor({ binary: fallback.binary, model: "haiku", approvals }));
   assert.equal(modelArg(fallback.argv()), "haiku");
 
   const neither = fakeClaude("success.jsonl");
-  await runExecutor(new ClaudeCodeExecutor({ binary: neither.binary }));
+  await runExecutor(new ClaudeCodeExecutor({ binary: neither.binary, approvals }));
   assert.equal(neither.argv().includes("--model"), false);
 });
 

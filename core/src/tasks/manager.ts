@@ -4,11 +4,11 @@ import { join, resolve, sep } from "node:path";
 import { createTaskWorkdir } from "../context/workdir.ts";
 import type { Executor, ExecutorEvent } from "../executors/executor.ts";
 import { buildPrompt, FORMAT_RULES, type HistoryTurn } from "../prompt/build.ts";
-import type { ExecutorId, TaskInfo, TaskSubmitParams } from "../rpc/protocol.gen.ts";
+import type { ApprovalRequest, ExecutorId, TaskInfo, TaskSubmitParams } from "../rpc/protocol.gen.ts";
 import { foldCase, INTERRUPTED_MESSAGE, type StoredTask, type TaskHistory } from "./history.ts";
 import { isValidModel } from "./model.ts";
 
-export type TaskEventName = "task.started" | "task.progress" | "task.done" | "task.failed" | "task.cancelled";
+export type TaskEventName = "task.started" | "task.progress" | "task.needs_approval" | "task.done" | "task.failed" | "task.cancelled";
 
 export interface TaskManagerOptions {
   executors: Executor[];
@@ -33,6 +33,9 @@ export class FollowUpError extends Error {}
 /** Диалог с выполняющейся задачей удалить нельзя; `main.ts` отвечает `InvalidParams`. */
 export class ActiveDialogError extends Error {}
 
+/** Ответ на подтверждение принять нельзя: задачи нет, она не ждёт или запрос устарел; `main.ts` отвечает `InvalidParams`. */
+export class ApprovalError extends Error {}
+
 interface Entry {
   info: TaskInfo;
   abort: AbortController;
@@ -46,6 +49,8 @@ interface Entry {
    * получить именно выбор.
    */
   model?: string;
+  /** Пауза исполнителя, которая ждёт ответа: id запроса из `info.approval` и способ ответить. */
+  pause?: { approvalId: string; respond: (allow: boolean) => void };
 }
 
 export class TaskManager {
@@ -165,9 +170,28 @@ export class TaskManager {
         finishedAt: Date.now(),
       } satisfies Partial<TaskInfo>);
       delete entry.info.progress;
+      delete entry.info.approval;
+      delete entry.pause;
       this.save(entry);
       entry.abort.abort();
     }
+  }
+
+  /**
+   * Ответ человека на паузу исполнителя. Бросает `ApprovalError`, если задача неизвестна или уже
+   * завершена, не ждёт ответа или `approvalId` не совпадает с текущим запросом (устарел). После ответа
+   * `approval` снимается и уходит `task.progress`: задача идёт дальше.
+   */
+  approve(taskId: string, approvalId: string, allow: boolean): void {
+    const entry = this.entries.get(taskId);
+    if (!entry || isFinal(entry.info)) throw new ApprovalError(`task not found or finished: ${taskId}`);
+    const pause = entry.pause;
+    if (!pause) throw new ApprovalError("task is not waiting for approval");
+    if (pause.approvalId !== approvalId) throw new ApprovalError(`approval is outdated: ${approvalId}`);
+    delete entry.pause;
+    delete entry.info.approval;
+    pause.respond(allow);
+    this.emit("task.progress", entry.info);
   }
 
   /**
@@ -367,6 +391,25 @@ export class TaskManager {
           info.progress = event.text;
           this.emit("task.progress", info);
           break;
+        case "pause": {
+          // Новый запрос при висящем прежнем заменяет его: прежний закрывается отказом, чтобы исполнитель
+          // не ждал ответа, которого человек уже не увидит. Очередь запросов — отдельная задача.
+          entry.pause?.respond(false);
+          const approval: ApprovalRequest = {
+            id: randomUUID(),
+            tool: event.request.tool,
+            kind: event.request.kind,
+            summary: event.request.summary,
+            createdAt: Date.now(),
+          };
+          if (event.request.target !== undefined) approval.target = event.request.target;
+          if (event.request.detail !== undefined) approval.detail = event.request.detail;
+          entry.pause = { approvalId: approval.id, respond: event.respond };
+          info.approval = approval;
+          // Статус остаётся running: ждёт не Luna, а исполнитель — ответа человека.
+          this.emit("task.needs_approval", info);
+          break;
+        }
         case "done":
         case "failed":
           return event;
@@ -394,6 +437,9 @@ export class TaskManager {
   private finish(entry: Entry, event: TaskEventName, patch: Partial<TaskInfo>): void {
     Object.assign(entry.info, patch, { finishedAt: Date.now() });
     delete entry.info.progress;
+    // Ответа мосту не нужно: вместе с задачей останавливается и исполнитель.
+    delete entry.info.approval;
+    delete entry.pause;
     this.save(entry);
     this.emit(event, entry.info);
   }
@@ -403,7 +449,8 @@ export class TaskManager {
     // Удалённая задача не возвращается в историю поздней записью из run() или follow().
     if (!this.options.history || this.entries.get(entry.info.id) !== entry) return;
     try {
-      const { progress: _, ...snapshot } = entry.info;
+      // Ожидание ответа, как и прогресс, живёт только в этой сессии: после перезапуска его не продолжить.
+      const { progress: _progress, approval: _approval, ...snapshot } = entry.info;
       this.options.history.save(snapshot, entry.workdir);
     } catch (error) {
       log(`история: задача ${entry.info.id} не записана: ${describe(error)}`);
