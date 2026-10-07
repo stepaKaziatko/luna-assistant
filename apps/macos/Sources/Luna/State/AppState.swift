@@ -50,6 +50,11 @@ final class AppState: ObservableObject {
     @Published private(set) var isSendingFollowUp = false
     /// Растёт, когда поле продолжения должно получить фокус (`Tab` в карточке).
     @Published private(set) var followUpFocusRequest = 0
+    /// Запросы подтверждения (`ApprovalRequest.id`), ответ на которые ушёл ядру, но снимок без `approval` ещё не пришёл:
+    /// кнопки блока в это время неактивны, повторный клик не уходит.
+    @Published private(set) var approvalPending: Set<String> = []
+    /// Почему ответ на подтверждение не принят ядром; показывается под блоком до следующего снимка задачи или смены карточки.
+    @Published private(set) var approvalError: String?
     @Published private(set) var accessibilityHintHidden = UserDefaults.standard.bool(forKey: hideAccessibilityHintKey)
     /// Текст поля поиска в списке задач; каждое изменение уходит запросом к ядру.
     @Published var searchQuery = "" {
@@ -358,6 +363,11 @@ final class AppState: ObservableObject {
     /// Клик по pill ведёт к тому, что требует внимания: к единственному диалогу или агенту,
     /// к списку или к вводу. Порядок тот же, что у pill: сначала то, что ждёт человека.
     func pillClicked() {
+        // Исполнитель стоит и ждёт ответа — сразу карточка самой старой ждущей задачи, минуя список.
+        if let waiting = tasks.filter(\.isAwaitingApproval).min(by: { ($0.approval?.createdAt ?? 0) < ($1.approval?.createdAt ?? 0) }) {
+            show(threadId: waiting.threadId)
+            return
+        }
         var attention: [String] = []
         for task in tasks where (unseen.contains(task.id) || task.isActive) && !attention.contains(task.threadId) {
             attention.append(task.threadId)
@@ -599,6 +609,7 @@ final class AppState: ObservableObject {
             followUpDraft = ""
             followUpError = nil
             followUpModel = nil
+            approvalError = nil
         }
         mode = .result(threadId: threadId)
     }
@@ -733,6 +744,32 @@ final class AppState: ObservableObject {
         }
     }
 
+    // MARK: - Подтверждение действий исполнителя
+
+    /// «Разрешить» или «Отклонить» в блоке подтверждения задачи. Ответ уходит с id текущего запроса; пока ядро
+    /// не прислало снимок без `approval`, запрос числится в `approvalPending`. Карточка остаётся открытой: что стало
+    /// с действием, видно в ней же. Ошибка ядра (запрос устарел, задача завершилась) — строкой под блоком; актуальный
+    /// снимок придёт от ядра и уберёт блок.
+    func approve(taskId: String, allow: Bool) {
+        guard let task = task(id: taskId), let approval = task.approval, task.status == .running,
+              !approvalPending.contains(approval.id) else { return }
+        guard let core else {
+            approvalError = CoreClientError.notRunning.localizedDescription
+            return
+        }
+        approvalPending.insert(approval.id)
+        approvalError = nil
+        _Concurrency.Task {
+            do {
+                let params = TaskApproveParams(allow: allow, approvalId: approval.id, taskId: taskId)
+                let _: EmptyResult = try await core.request("task.approve", params)
+            } catch {
+                approvalPending.remove(approval.id)
+                approvalError = error.localizedDescription
+            }
+        }
+    }
+
     // MARK: - Поиск, удаление и очистка
 
     /// Запрос к ядру — в фоне; пока ответа нет, в списке прежние строки.
@@ -841,10 +878,18 @@ final class AppState: ObservableObject {
         return true
     }
 
-    /// Применяет снимок задачи из ответа или уведомления ядра.
+    /// Применяет снимок задачи из ответа или уведомления ядра. Запрос подтверждения карточку не открывает:
+    /// меняется только pill, остальное — по клику.
     func apply(_ task: TaskInfo) {
-        let before = self.task(id: task.id)?.status
-        if before != task.status { enliven() }
+        let previous = self.task(id: task.id)
+        let before = previous?.status
+        // Новый запрос подтверждения статус не меняет — шторка оживает и на него.
+        if before != task.status || (task.approval != nil && task.approval?.id != previous?.approval?.id) { enliven() }
+        // Ответ дошёл: снимок без прежнего запроса (или с новым) снимает ожидание и прошлую ошибку.
+        if let pending = previous?.approval?.id, task.approval?.id != pending {
+            approvalPending.remove(pending)
+            approvalError = nil
+        }
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             tasks[index] = task
         } else {

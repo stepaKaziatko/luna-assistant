@@ -3,7 +3,8 @@ import MarkdownUI
 import SwiftUI
 
 /// Одна задача диалога так, как её показывают карточка и окно «Открыть полностью»:
-/// у уточнения — запрос над ответом, ниже — ответ, прогресс, ошибка с подсказкой или отмена.
+/// у уточнения — запрос над ответом, ниже — ответ, прогресс (или блок подтверждения, пока исполнитель
+/// ждёт ответа человека), ошибка с подсказкой или отмена.
 struct DialogTaskView: View {
     let task: TaskInfo
     /// Запрос первой задачи — в шапке, у уточнений он над ответом.
@@ -32,13 +33,18 @@ struct DialogTaskView: View {
     private var content: some View {
         switch task.status {
         case .queued, .running:
+            // Исполнитель стоит перед действием: вместо прогресса — «Ждёт подтверждения» и блок с кнопками.
+            let approval = task.isAwaitingApproval ? task.approval : nil
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
-                Text(task.progress ?? (task.status == .queued ? "В очереди…" : "Думаю…"))
+                Text(approval != nil ? "Ждёт подтверждения" : task.progress ?? (task.status == .queued ? "В очереди…" : "Думаю…"))
                     .foregroundStyle(.secondary)
                 Spacer()
                 Button("Отменить") { state.cancel(taskId: task.id) }
                     .controlSize(.small)
+            }
+            if let approval {
+                ApprovalBlock(task: task, approval: approval)
             }
         case .done:
             Markdown(task.result ?? "")

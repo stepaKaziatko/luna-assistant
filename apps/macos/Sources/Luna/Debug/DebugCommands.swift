@@ -45,6 +45,11 @@ import AppKit
 ///   `fullscreen:off` — снова настоящий. На экране без выреза значение ничего не меняет;
 /// - `submit:<текст>` — отправить запрос с текущим контекстом и выбранной в панели моделью;
 ///   `submitModel:<модель>:<текст>` — то же с указанной моделью в обход списка (проверка ответа ядра на плохое значение);
+/// - `taskSet:<json>` — подменить задачу снимком `TaskInfo`, как если бы его прислало ядро (с `approval` — как
+///   `task.needs_approval`, без — как `task.progress`/`task.done`): блок подтверждения проверяется без исполнителя;
+/// - `approve:<true|false>[:<taskId>]` — клик по «Разрешить»/«Отклонить» у задачи с `approval` (без id — у ждущей
+///   задачи открытой карточки); в `dump` — `approvalPending` (запросы, ответ на которые ушёл, а снимка ещё нет)
+///   и `approvalError` (отказ ядра принять ответ);
 /// - `cancelSelected` — кнопка отмены у выбранной строки списка задач;
 /// - `clearHistory` — клик по кнопке «Очистить историю» в списке задач;
 /// - `context:<json>` — подменить захваченный контекст (поля TaskContext; `app` обязателен);
@@ -211,6 +216,15 @@ enum DebugCommands {
         case "submit":
             state.draft = argument
             state.submit()
+        case "taskSet":
+            if let task = try? JSONDecoder().decode(TaskInfo.self, from: Data(argument.utf8)) { state.apply(task) }
+        case "approve":
+            let fields = argument.split(separator: ":", maxSplits: 1).map(String.init)
+            guard let allow = fields.first.map({ $0 == "true" }) else { return }
+            let taskId = fields.count > 1
+                ? fields[1]
+                : state.shownThreadId.flatMap { state.dialog(threadId: $0)?.tasks.first { $0.isAwaitingApproval }?.id }
+            if let taskId { state.approve(taskId: taskId, allow: allow) }
         case "cancelSelected":
             if let threadId = state.selectedThreadId { state.cancel(threadId: threadId) }
         case "clearHistory":
@@ -335,6 +349,9 @@ enum DebugCommands {
         let listMessage: String?
         let followUpDraft: String
         let followUpError: String?
+        /// Запросы подтверждения, ответ на которые ушёл ядру, а снимок без `approval` ещё не пришёл.
+        let approvalPending: [String]
+        let approvalError: String?
         /// Модель, на которой уйдёт уточнение открытой карточки: выбранная или модель точки продолжения; пусто — «Модель CLI».
         let followUpModel: String
         /// Пункты меню выбора модели у поля продолжения: группы между разделителями, название пункта.
@@ -394,6 +411,8 @@ enum DebugCommands {
             listMessage = state.listMessage
             followUpDraft = state.followUpDraft
             followUpError = state.followUpError
+            approvalPending = state.approvalPending.sorted()
+            approvalError = state.approvalError
             let shownDialog = state.shownThreadId.flatMap { state.dialog(threadId: $0) }
             let choice = shownDialog.map(state.followUpChoice)
             followUpModel = choice?.shown ?? ""

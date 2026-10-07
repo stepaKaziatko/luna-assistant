@@ -8,7 +8,7 @@ final class DialogTests: XCTestCase {
         sessionId: String? = "s", error: TaskErrorKind? = nil
     ) -> TaskInfo {
         TaskInfo(
-            context: nil, createdAt: createdAt, error: error.map { TaskError(kind: $0, message: "ошибка") },
+            approval: nil, context: nil, createdAt: createdAt, error: error.map { TaskError(kind: $0, message: "ошибка") },
             executor: .claudeCode, finishedAt: nil, id: id, model: nil, progress: nil, prompt: "запрос \(id)", result: nil,
             sessionId: sessionId, status: status, threadId: thread ?? id
         )

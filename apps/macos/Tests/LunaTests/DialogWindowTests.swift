@@ -7,7 +7,7 @@ import XCTest
 final class DialogWindowTests: XCTestCase {
     private func task(_ id: String, _ status: TaskStatus = .done, thread: String? = nil, createdAt: Int) -> TaskInfo {
         TaskInfo(
-            context: nil, createdAt: createdAt, error: nil, executor: .claudeCode, finishedAt: nil, id: id,
+            approval: nil, context: nil, createdAt: createdAt, error: nil, executor: .claudeCode, finishedAt: nil, id: id,
             model: nil, progress: nil, prompt: "запрос \(id)", result: "ответ \(id)", sessionId: "s", status: status, threadId: thread ?? id
         )
     }

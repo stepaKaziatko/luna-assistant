@@ -6,10 +6,15 @@ enum PillState: Equatable {
     case running(Int)
     case done(Int)
     case error(Int)
+    /// Исполнитель ждёт ответа человека: задач с `approval`.
+    case needsApproval(Int)
 
-    /// Приоритет отображения: error > done > running. Завершённые задачи учитываются,
-    /// пока пользователь не открыл их результат (`unseen`).
+    /// Приоритет отображения: needsApproval > error > done > running. Завершённые задачи учитываются,
+    /// пока пользователь не открыл их результат (`unseen`); ожидание ответа — пока исполнитель стоит.
     static func aggregate(tasks: [TaskInfo], unseen: Set<String>, hasProblem: Bool) -> PillState {
+        let waiting = tasks.count { $0.isAwaitingApproval }
+        if waiting > 0 { return .needsApproval(waiting) }
+
         let failed = tasks.count { $0.status == .failed && unseen.contains($0.id) }
         if failed > 0 || hasProblem { return .error(max(failed, 1)) }
 
@@ -23,6 +28,9 @@ enum PillState: Equatable {
 
 extension TaskInfo {
     var isActive: Bool { status == .queued || status == .running }
+
+    /// Исполнитель остановился перед действием и ждёт «Разрешить» или «Отклонить».
+    var isAwaitingApproval: Bool { status == .running && approval != nil }
 
     /// Сколько секунд заняла завершённая задача.
     var durationSeconds: Int? {
@@ -57,7 +65,7 @@ struct StatusChip: Equatable, Identifiable {
     enum Kind: String {
         /// Задачи Luna с ошибкой или неполадка ядра.
         case failure
-        /// Сессии агентов, которые ждут человека.
+        /// Сессии агентов и задачи Luna, которые ждут человека.
         case attention
         /// Готовые ответы Luna и сессии, закончившие ход, — то, что ещё не смотрели.
         case success
@@ -75,9 +83,10 @@ struct StatusChip: Equatable, Identifiable {
         let failed = tasks.count { $0.status == .failed && unseen.contains($0.id) }
         let done = tasks.count { $0.status == .done && unseen.contains($0.id) }
         let active = tasks.count { $0.isActive }
+        let waiting = tasks.count { $0.isAwaitingApproval }
         return [
             StatusChip(kind: .failure, count: max(failed, hasProblem ? 1 : 0)),
-            StatusChip(kind: .attention, count: agents.waiting.count),
+            StatusChip(kind: .attention, count: waiting + agents.waiting.count),
             StatusChip(kind: .success, count: done + agents.finished.count),
             StatusChip(kind: .working, count: active + agents.working.count),
         ].filter { $0.count > 0 }
@@ -104,13 +113,16 @@ struct PillPresentation: Equatable {
     static let avatarLimit = 4
 
     /// nil — показывать нечего: pill сворачивается в полоску.
-    /// Порядок: ошибка задачи > агент ждёт человека > готовый ответ > агент закончил ход > работа.
+    /// Порядок: задача ждёт подтверждения > ошибка задачи > агент ждёт человека > готовый ответ > агент закончил ход > работа.
     static func make(tasks: PillState, taskProgress: String?, agents: AgentsSummary) -> PillPresentation? {
         let sessions = agents.visible
         func present(_ mood: AvatarMood, _ text: String, _ tone: Tone) -> PillPresentation {
             PillPresentation(mood: mood, text: text, tone: tone, sessions: sessions)
         }
 
+        if case .needsApproval(let count) = tasks {
+            return present(.waiting, count == 1 ? "Нужно подтверждение" : "Нужно подтверждений: \(count)", .attention)
+        }
         if case .error = tasks { return present(.error, "Ошибка", .failure) }
         if let first = agents.waiting.first {
             return present(.waiting, agents.waiting.count == 1 ? "\(first.project) ждёт вас" : "Ждут вас: \(agents.waiting.count)", .attention)

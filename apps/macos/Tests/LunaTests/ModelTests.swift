@@ -49,7 +49,7 @@ final class ModelTests: XCTestCase {
     func testResultCaption() {
         func task(model: String?, finishedAt: Int?) -> TaskInfo {
             TaskInfo(
-                context: nil, createdAt: 1_000, error: nil, executor: .claudeCode, finishedAt: finishedAt, id: "t",
+                approval: nil, context: nil, createdAt: 1_000, error: nil, executor: .claudeCode, finishedAt: finishedAt, id: "t",
                 model: model, progress: nil, prompt: "p", result: "r", sessionId: nil, status: .done, threadId: "t"
             )
         }
@@ -175,7 +175,7 @@ final class ModelTests: XCTestCase {
         _ id: String, thread: String? = nil, _ status: TaskStatus = .done, model: String?, createdAt: Int, sessionId: String? = "s"
     ) -> TaskInfo {
         TaskInfo(
-            context: nil, createdAt: createdAt, error: nil, executor: .claudeCode, finishedAt: createdAt + 1, id: id, model: model,
+            approval: nil, context: nil, createdAt: createdAt, error: nil, executor: .claudeCode, finishedAt: createdAt + 1, id: id, model: model,
             progress: nil, prompt: "запрос \(id)", result: "ответ \(id)", sessionId: sessionId, status: status, threadId: thread ?? id
         )
     }

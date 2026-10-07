@@ -13,7 +13,7 @@ final class PeekAndSettingsTests: XCTestCase {
 
     private func task(_ id: String, _ status: TaskStatus, createdAt: Int = 0) -> TaskInfo {
         TaskInfo(
-            context: nil, createdAt: createdAt, error: nil, executor: .claudeCode, finishedAt: nil, id: id,
+            approval: nil, context: nil, createdAt: createdAt, error: nil, executor: .claudeCode, finishedAt: nil, id: id,
             model: nil, progress: nil, prompt: "запрос \(id)", result: nil, sessionId: nil, status: status, threadId: id
         )
     }
