@@ -206,6 +206,117 @@ final class ApprovalTests: XCTestCase {
         XCTAssertEqual(state.pillState, .idle)
     }
 
+    // MARK: Несколько запросов, отмена и устаревший ответ (LUNA-49)
+
+    func testOthersLineCountsOtherWaitingTasksAndOpensEarliestOther() {
+        let (state, _) = makeState()
+        state.apply(task("late", createdAt: 1, approval: request("req-late", createdAt: 30)))
+        XCTAssertTrue(state.otherApprovals(than: "late").isEmpty, "одна задача — строки нет")
+        XCTAssertNil(ApprovalPresentation.othersLine(state.otherApprovals(than: "late").count))
+
+        state.apply(task("early", createdAt: 2, approval: request("req-early", createdAt: 20)))
+        state.apply(task("plain", createdAt: 3))
+        XCTAssertEqual(state.approvalQueue.map(\.id), ["early", "late"], "порядок — по createdAt запроса")
+        XCTAssertEqual(ApprovalPresentation.othersLine(state.otherApprovals(than: "early").count), "ещё 1 ждёт подтверждения")
+        XCTAssertEqual(ApprovalPresentation.othersLine(state.otherApprovals(than: "late").count), "ещё 1 ждёт подтверждения")
+
+        state.pillClicked()
+        XCTAssertEqual(state.mode, .result(threadId: "early"))
+        state.openNextApproval(after: "early")
+        XCTAssertEqual(state.mode, .result(threadId: "late"), "строка ведёт к самой ранней другой")
+        state.openNextApproval(after: "late")
+        XCTAssertEqual(state.mode, .result(threadId: "early"))
+
+        // Ответ на открытую задачу карточку на следующую не переключает.
+        state.apply(task("early"))
+        XCTAssertEqual(state.mode, .result(threadId: "early"))
+        XCTAssertEqual(state.approvalQueue.map(\.id), ["late"])
+        state.openNextApproval(after: "late")
+        XCTAssertEqual(state.mode, .result(threadId: "early"), "других ждущих нет — клик ничего не открывает")
+    }
+
+    func testApprovalOrderTiesAndPlurals() {
+        let (state, _) = makeState()
+        state.apply(task("b", createdAt: 5, approval: request("r-b", createdAt: 10)))
+        state.apply(task("a", createdAt: 4, approval: request("r-a", createdAt: 10)))
+        state.apply(task("c", createdAt: 1, approval: request("r-c", createdAt: 11)))
+        XCTAssertEqual(state.approvalQueue.map(\.id), ["a", "b", "c"], "равный createdAt запроса — по createdAt задачи")
+        XCTAssertEqual(state.otherApprovals(than: "c").map(\.id), ["a", "b"])
+        XCTAssertEqual(ApprovalPresentation.othersLine(2), "ещё 2 ждут подтверждения")
+        XCTAssertEqual(ApprovalPresentation.othersLine(5), "ещё 5 ждут подтверждения")
+        XCTAssertEqual(ApprovalPresentation.othersLine(11), "ещё 11 ждут подтверждения")
+        XCTAssertEqual(ApprovalPresentation.othersLine(21), "ещё 21 ждёт подтверждения")
+        XCTAssertNil(ApprovalPresentation.othersLine(0))
+    }
+
+    func testCancelledSnapshotWithoutApprovalClearsPendingAndErrorAndBlock() async throws {
+        let (state, core) = makeState()
+        state.apply(task("a", approval: request()))
+        state.pillClicked()
+        state.approve(taskId: "a", allow: true)
+        try await until("запроса task.approve") { core.calls.count == 1 }
+        XCTAssertEqual(state.approvalPending, ["req-1"])
+
+        state.apply(task("a", .cancelled))
+        XCTAssertTrue(state.approvalPending.isEmpty)
+        XCTAssertNil(state.approvalError)
+        XCTAssertNil(state.task(id: "a")?.approval)
+        XCTAssertFalse(state.task(id: "a")?.isAwaitingApproval ?? true, "блока нет")
+        XCTAssertTrue(state.approvalQueue.isEmpty)
+
+        // Ядро отклонило ответ на снятый запрос уже после снимка: блока нет, ошибку показывать некуда, ждать нечего.
+        core.calls[0].reply(.failure(RpcFailure(code: -32602, message: "task not found or finished: a")))
+        try await Task.sleep(nanoseconds: 20_000_000)
+        XCTAssertTrue(state.approvalPending.isEmpty)
+        XCTAssertNil(state.approvalError)
+        XCTAssertFalse(state.task(id: "a")?.isAwaitingApproval ?? true)
+    }
+
+    func testNextApprovalOfSameTaskHasActiveButtons() async throws {
+        let (state, core) = makeState()
+        state.apply(task("a", approval: request("req-1")))
+        state.pillClicked()
+        state.approve(taskId: "a", allow: true)
+        try await until("запроса task.approve") { core.calls.count == 1 }
+        XCTAssertEqual(state.approvalPending, ["req-1"])
+
+        // Следующий запрос той же задачи из очереди ядра.
+        state.apply(task("a", approval: request("req-2", createdAt: 11)))
+        XCTAssertTrue(state.approvalPending.isEmpty, "кнопки нового запроса активны")
+        XCTAssertFalse(state.approvalPending.contains("req-2"))
+        XCTAssertEqual(state.task(id: "a")?.approval?.id, "req-2")
+        XCTAssertEqual(state.mode, .result(threadId: "a"))
+
+        // Ответ на первый приходит позже — новый запрос он не трогает, даже отказом ядра.
+        core.calls[0].reply(.failure(RpcFailure(code: -32602, message: "approval is outdated: req-1")))
+        try await Task.sleep(nanoseconds: 20_000_000)
+        XCTAssertTrue(state.approvalPending.isEmpty)
+        XCTAssertNil(state.approvalError)
+
+        state.approve(taskId: "a", allow: false)
+        try await until("второго task.approve") { core.calls.count == 2 }
+        let params = try JSONDecoder().decode(ApproveParams.self, from: core.calls[1].params)
+        XCTAssertEqual(params.approvalId, "req-2")
+        XCTAssertFalse(params.allow)
+    }
+
+    func testOutdatedAnswerErrorReenablesButtonsAndNextSnapshotClearsIt() async throws {
+        let (state, core) = makeState()
+        state.apply(task("a", approval: request()))
+        state.pillClicked()
+        state.approve(taskId: "a", allow: true)
+        try await until("запроса task.approve") { core.calls.count == 1 }
+        core.calls[0].reply(.failure(RpcFailure(code: -32602, message: "approval is outdated: req-1")))
+        try await until("ошибки") { state.approvalError != nil }
+        XCTAssertTrue(state.approvalPending.isEmpty, "кнопки снова активны")
+        XCTAssertEqual(state.approvalError, "approval is outdated: req-1")
+        XCTAssertTrue(state.task(id: "a")?.isAwaitingApproval ?? false, "блок на месте до снимка")
+
+        state.apply(task("a", .failed))
+        XCTAssertNil(state.approvalError, "снимок без approval убирает ошибку")
+        XCTAssertFalse(state.task(id: "a")?.isAwaitingApproval ?? true)
+    }
+
     // MARK: Команда shell (LUNA-48)
 
     private func shell(_ command: String) -> ApprovalRequest {

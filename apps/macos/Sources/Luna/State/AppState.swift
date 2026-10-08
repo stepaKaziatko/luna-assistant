@@ -370,7 +370,7 @@ final class AppState: ObservableObject {
     /// к списку или к вводу. Порядок тот же, что у pill: сначала то, что ждёт человека.
     func pillClicked() {
         // Исполнитель стоит и ждёт ответа — сразу карточка самой старой ждущей задачи, минуя список.
-        if let waiting = tasks.filter(\.isAwaitingApproval).min(by: { ($0.approval?.createdAt ?? 0) < ($1.approval?.createdAt ?? 0) }) {
+        if let waiting = approvalQueue.first {
             show(threadId: waiting.threadId)
             return
         }
@@ -791,9 +791,38 @@ final class AppState: ObservableObject {
                 let _: EmptyResult = try await core.request("task.approve", params)
             } catch {
                 approvalPending.remove(approval.id)
-                approvalError = error.localizedDescription
+                // Снимок без этого запроса уже пришёл (задача отменена, показан следующий) — блока под ошибкой нет
+                // или он о другом запросе: ошибку показывать некуда.
+                if self.task(id: taskId)?.approval?.id == approval.id { approvalError = error.localizedDescription }
             }
         }
+    }
+
+    /// Задачи, ждущие подтверждения, в порядке поступления запросов: по `approval.createdAt`, при равенстве —
+    /// по `TaskInfo.createdAt`. Этим порядком пользуются клик по pill, строка «ещё N» в блоке и `dump`.
+    var approvalQueue: [TaskInfo] { Self.approvalOrder(tasks) }
+
+    nonisolated static func approvalOrder(_ tasks: [TaskInfo]) -> [TaskInfo] {
+        tasks.enumerated()
+            .filter { $0.element.isAwaitingApproval }
+            .sorted { lhs, rhs in
+                let left = (lhs.element.approval?.createdAt ?? 0, lhs.element.createdAt, lhs.offset)
+                let right = (rhs.element.approval?.createdAt ?? 0, rhs.element.createdAt, rhs.offset)
+                return left < right
+            }
+            .map(\.element)
+    }
+
+    /// Другие задачи, ждущие подтверждения, кроме `taskId`, — в том же порядке: для строки «ещё N» в блоке.
+    func otherApprovals(than taskId: String) -> [TaskInfo] {
+        approvalQueue.filter { $0.id != taskId }
+    }
+
+    /// Клик по строке «ещё N» в блоке задачи `taskId`: карточка самой ранней другой ждущей задачи. Сама карточка
+    /// на следующую задачу не переключается — только по этому клику или по pill.
+    func openNextApproval(after taskId: String) {
+        guard let next = otherApprovals(than: taskId).first else { return }
+        show(threadId: next.threadId)
     }
 
     // MARK: - Поиск, удаление и очистка

@@ -50,6 +50,14 @@ struct ApprovalBlock: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            // Другие задачи тоже ждут ответа: строка ведёт к самой ранней из них. Сама карточка не переключается.
+            if let others = ApprovalPresentation.othersLine(state.otherApprovals(than: task.id).count) {
+                Button(others) { state.openNextApproval(after: task.id) }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .help("Открыть следующий запрос подтверждения")
+            }
             if let error = state.approvalError {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 11))
@@ -73,6 +81,13 @@ struct ApprovalPresentation: Equatable {
     let command: String?
     /// Подробности под действием; пустые не показываются.
     let detail: String?
+
+    /// Строка «ещё N ждут подтверждения» о других ждущих задачах; nil — других нет.
+    static func othersLine(_ count: Int) -> String? {
+        guard count > 0 else { return nil }
+        let verb = count % 10 == 1 && count % 100 != 11 ? "ждёт" : "ждут"
+        return "ещё \(count) \(verb) подтверждения"
+    }
 
     init(_ approval: ApprovalRequest) {
         summary = approval.summary
