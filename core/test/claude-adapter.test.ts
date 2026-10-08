@@ -574,3 +574,17 @@ test("Bash после веба: deny про веб, паузы нет — тем
   assert.deepEqual(decisionOf(dir), { behavior: "deny", message: WEB_DENIED_MESSAGE });
   assert.equal(events.filter((event) => event.type === "web").length, 1);
 });
+
+test("порядок отказов моста: длинная команда после веба получает отказ про веб — граница показа проверяется после WEB_DENIED", async () => {
+  const approvals = await openTestApprovals();
+  const init = fixtureLines("success.jsonl")[0] ?? "";
+  const bash = { command: "я".repeat(COMMAND_LIMIT + 1) };
+  const { binary, dir } = scriptedClaude({
+    before: [init, assistantToolUse("toolu_w", "WebSearch", { query: "rfc 2119" }), assistantToolUse("toolu_2", "Bash", bash)],
+    call: { tool_name: "Bash", input: bash, tool_use_id: "toolu_2" },
+    after: [RESULT],
+  });
+  const { pause } = await collectWithApproval(new ClaudeCodeExecutor({ binary, approvals }), true);
+  assert.equal(pause, undefined);
+  assert.deepEqual(decisionOf(dir), { behavior: "deny", message: WEB_DENIED_MESSAGE });
+});
