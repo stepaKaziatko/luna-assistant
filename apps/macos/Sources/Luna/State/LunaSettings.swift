@@ -35,6 +35,9 @@ final class LunaSettings: ObservableObject {
     /// Модель по умолчанию по id исполнителя: предвыбор панели, пока в ней ничего не выбрано. Нет — «Модель CLI».
     /// Модели, которой нет в списке, здесь не бывает.
     @Published private(set) var modelDefaults: [String: String]
+    /// Уровень разрешений по id исполнителя (`PermissionLevel`). Не задан — `manual`. Что уровень значит,
+    /// решает исполнитель; Luna только передаёт его в `task.submit`.
+    @Published private(set) var permissions: [String: PermissionLevel]
 
     /// Встроенные списки моделей. Свой список исполнителя пользователь задаёт в настройках.
     static let builtInModels: [String: [String]] = [ExecutorId.claudeCode.rawValue: ["opus", "sonnet", "haiku"]]
@@ -65,6 +68,23 @@ final class LunaSettings: ObservableObject {
         modelDefaults = validDefaults
         if validChoices.count != choices.count { defaults.set(validChoices, forKey: Key.modelChoices) }
         if validDefaults.count != preferred.count { defaults.set(validDefaults, forKey: Key.modelDefaults) }
+        // Незнакомое или повреждённое значение — как «не задано», то есть `manual`.
+        let storedPermissions = defaults.dictionary(forKey: Key.permissions) as? [String: Any] ?? [:]
+        permissions = storedPermissions.compactMapValues { ($0 as? String).flatMap(PermissionLevel.init) }
+    }
+
+    /// Уровень разрешений исполнителя; не задан — `manual`.
+    func permission(for executor: String) -> PermissionLevel {
+        permissions[executor] ?? .manual
+    }
+
+    /// Запоминает уровень исполнителя. Меняет его только человек в настройках; идущие задачи остаются на своём.
+    func setPermission(_ level: PermissionLevel, for executor: String) {
+        guard permissions[executor] != level else { return }
+        var all = permissions
+        all[executor] = level
+        permissions = all
+        defaults.set(all.mapValues(\.rawValue), forKey: Key.permissions)
     }
 
     /// Список моделей исполнителя: свой или встроенный.
@@ -182,6 +202,7 @@ final class LunaSettings: ObservableObject {
         static let modelLists = "executorModelLists"
         static let modelChoices = "executorModelChoices"
         static let modelDefaults = "executorDefaultModels"
+        static let permissions = "executorPermissions"
     }
 }
 

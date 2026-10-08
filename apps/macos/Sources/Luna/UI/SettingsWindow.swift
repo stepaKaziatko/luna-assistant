@@ -9,6 +9,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     static let size = CGSize(width: 480, height: 640)
 
     private let settings: LunaSettings
+    private let permissions: ExecutorPermissions
     private let sounds: SoundPlayer
     private let navigation = SettingsNavigation()
     private var window: NSWindow?
@@ -18,8 +19,9 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     /// Что делает ⌘Q и кнопка «Выйти из Luna».
     private let quit: () -> Void
 
-    init(settings: LunaSettings, sounds: SoundPlayer, quit: @escaping () -> Void) {
+    init(settings: LunaSettings, permissions: ExecutorPermissions, sounds: SoundPlayer, quit: @escaping () -> Void) {
         self.settings = settings
+        self.permissions = permissions
         self.sounds = sounds
         self.quit = quit
     }
@@ -41,7 +43,10 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.contentView = NSHostingView(
-            rootView: SettingsView(sounds: sounds, quit: quit).environmentObject(settings).environmentObject(navigation)
+            rootView: SettingsView(sounds: sounds, quit: quit)
+                .environmentObject(settings)
+                .environmentObject(navigation)
+                .environmentObject(permissions)
         )
         window.center()
         return window
@@ -95,6 +100,12 @@ extension SettingsWindow {
 
     func debugSetModelDraft(_ text: String) {
         navigation.modelDraft = text
+    }
+
+    /// Прокрутить вкладку «Основные» к разделу (`permissions`); пусто — сбросить цель.
+    func debugScroll(to section: String) {
+        navigation.debugScrollTarget = nil
+        if !section.isEmpty { navigation.debugScrollTarget = section }
     }
 
     func debugClose() {

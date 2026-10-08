@@ -115,7 +115,13 @@ final class AppState: ObservableObject {
     @Published var islandPresented: Bool
 
     let settings: LunaSettings
+    /// Уровни разрешений, объявленные исполнителями в `core.hello`; их показывают настройки.
+    let permissions = ExecutorPermissions()
     var core: CoreRequesting?
+    #if DEBUG
+    /// Последний отправленный `task.submit` — для `dump` debug-сборки.
+    private(set) var debugLastSubmit: TaskSubmitParams?
+    #endif
     /// Переход к окну сессии; в тестах подменяется.
     var jump: (AgentSession) -> Void = AgentJump.open
     /// Звук события; настройки звука проверяет проигрыватель. Без него (тесты) Luna молчит.
@@ -669,6 +675,13 @@ final class AppState: ObservableObject {
     /// Модель, на которой уйдёт следующий вопрос: предвыбор панели ввода (последний выбор, иначе умолчание из настроек); nil — «Модель CLI».
     var selectedModel: String? { settings.model(for: ExecutorId.claudeCode.rawValue) }
 
+    /// Уровень разрешений, с которым уйдёт следующая задача или уточнение: текущая настройка, если исполнитель
+    /// её объявил, иначе `manual`. Идущие задачи остаются на своём уровне.
+    var requestPermission: PermissionLevel {
+        let executor = ExecutorId.claudeCode.rawValue
+        return PermissionLevel.request(saved: settings.permission(for: executor), declared: permissions.levels(for: executor))
+    }
+
     func submit() {
         submit(model: selectedModel)
     }
@@ -683,6 +696,7 @@ final class AppState: ObservableObject {
         }
         var captured = context
         let pending = capture
+        let permission = requestPermission
         draft = ""
         collapse()
 
@@ -690,7 +704,12 @@ final class AppState: ObservableObject {
             do {
                 // Быстрая отправка может обогнать захват; он ограничен таймаутами, поэтому дожидаемся.
                 if let pending, captured != nil { captured?.details = await pending.value }
-                let params = TaskSubmitParams(context: captured?.payload, executor: nil, followUpOf: nil, model: model, prompt: prompt)
+                let params = TaskSubmitParams(
+                    context: captured?.payload, executor: nil, followUpOf: nil, model: model, permission: permission, prompt: prompt
+                )
+                #if DEBUG
+                debugLastSubmit = params
+                #endif
                 let response: TaskSubmitResult = try await core.request("task.submit", params)
                 // События задачи могли прийти раньше ответа — снимок из ответа их не перезаписывает.
                 if task(id: response.task.id) == nil { apply(response.task) }
@@ -713,6 +732,8 @@ final class AppState: ObservableObject {
             return
         }
         let model = FollowUpModelChoice(pointModel: point.model, selection: followUpModel).requestModel
+        // Уточнение берёт текущий уровень из настроек, а не уровень исходной задачи.
+        let permission = requestPermission
         followUpDraft = ""
         followUpError = nil
         isSendingFollowUp = true
@@ -720,7 +741,12 @@ final class AppState: ObservableObject {
         _Concurrency.Task {
             defer { isSendingFollowUp = false }
             do {
-                let params = TaskSubmitParams(context: nil, executor: nil, followUpOf: point.id, model: model, prompt: prompt)
+                let params = TaskSubmitParams(
+                    context: nil, executor: nil, followUpOf: point.id, model: model, permission: permission, prompt: prompt
+                )
+                #if DEBUG
+                debugLastSubmit = params
+                #endif
                 let response: TaskSubmitResult = try await core.request("task.submit", params)
                 if task(id: response.task.id) == nil { apply(response.task) }
                 followUpModel = nil
@@ -910,12 +936,14 @@ final class AppState: ObservableObject {
     }
 
     func apply(_ hello: HelloResult) {
+        permissions.apply(hello)
         let missing = hello.executors.filter { !$0.available }
         problem = missing.isEmpty ? nil : "Claude Code не найден — установите CLI и выполните вход."
     }
 
     func coreStopped(status: Int32) {
         core = nil
+        permissions.reset()
         problem = "Ядро остановилось (код \(status)). Перезапустите Luna."
     }
 

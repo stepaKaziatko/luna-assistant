@@ -21,12 +21,17 @@ final class SettingsNavigation: ObservableObject {
     @Published var tab = Tab.general
     /// Что набрано в поле «добавить модель»: живёт здесь, чтобы debug-сборка могла показать подсветку ошибки.
     @Published var modelDraft = ""
+    #if DEBUG
+    /// Раздел вкладки «Основные», к которому прокрутить форму (`settingsScroll:`): снимок окна видит только экран.
+    @Published var debugScrollTarget: String?
+    #endif
 }
 
 /// Окно настроек: шторка, сочетания клавиш и модели, облик Luna, звуки.
 struct SettingsView: View {
     @EnvironmentObject private var settings: LunaSettings
     @EnvironmentObject private var navigation: SettingsNavigation
+    @EnvironmentObject private var permissions: ExecutorPermissions
     let sounds: SoundPlayer
     /// Завершает Luna: у приложения без Dock и главного меню выйти должно быть откуда-то ещё, кроме значка.
     let quit: () -> Void
@@ -56,6 +61,18 @@ struct SettingsView: View {
     }
 
     private var general: some View {
+        #if DEBUG
+        ScrollViewReader { proxy in
+            generalForm.onChange(of: navigation.debugScrollTarget) { _, target in
+                if let target { proxy.scrollTo(target, anchor: .top) }
+            }
+        }
+        #else
+        generalForm
+        #endif
+    }
+
+    private var generalForm: some View {
         Form {
             Section {
                 Picker("Показывать шторку", selection: $settings.islandMode) {
@@ -74,6 +91,7 @@ struct SettingsView: View {
                 Text("Шторка")
             }
             modelsSection
+            permissionsSection
             Section("Сочетания клавиш") {
                 KeyboardShortcuts.Recorder("Спросить", name: .toggleInput)
                 KeyboardShortcuts.Recorder("Последний результат", name: .openLastResult)
@@ -144,6 +162,41 @@ struct SettingsView: View {
         } footer: {
             Text("«\(ModelName.defaultTitle)» — флаг --model не передаётся: работает LUNA_CLAUDE_MODEL, если она задана, иначе модель из настроек Claude Code. Выбор в панели ввода главнее умолчания.")
         }
+    }
+
+    /// Уровень разрешений Claude Code: выбор только из уровней, которые исполнитель объявил в `core.hello`.
+    /// Что спрашивать на уровне, решает Claude Code; Luna своих правил поверх не вводит.
+    private var permissionsSection: some View {
+        let choices = PermissionLevel.choices(declared: permissions.levels(for: executor), saved: settings.permission(for: executor))
+        return Section {
+            Picker("Уровень", selection: permission) {
+                ForEach(choices.levels, id: \.self) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.radioGroup)
+            .disabled(!choices.enabled)
+            ForEach(choices.levels, id: \.self) { level in
+                Text("\(level.title): \(level.explanation)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if !choices.enabled {
+                Text("Ядро не запущено — уровень можно будет выбрать, когда оно ответит.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Разрешения")
+        } footer: {
+            Text("Задачи по веб-страницам всегда идут только на чтение. Новый уровень действует со следующей задачи.")
+        }
+        .id("permissions")
+    }
+
+    private var permission: Binding<PermissionLevel> {
+        Binding(
+            get: { settings.permission(for: executor) },
+            set: { settings.setPermission($0, for: executor) }
+        )
     }
 
     private func addModel() {

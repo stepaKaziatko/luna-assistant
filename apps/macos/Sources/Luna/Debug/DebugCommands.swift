@@ -11,7 +11,8 @@ import AppKit
 /// - `click:<dx>,<dy>` — клик по острову; точка — от его верхней середины, x вправо, y вниз;
 /// - `settings` — открыть окно настроек, `settingsTab:<general|avatar|sounds>` — выбрать вкладку,
 ///   `settingsClose` — закрыть, `settingsSnapshot:<путь>` — его PNG, `settingsModelDraft:<текст>` — набрать
-///   в поле «Добавить» раздела «Модели» (подсветка некорректной строки видна на снимке);
+///   в поле «Добавить» раздела «Модели» (подсветка некорректной строки видна на снимке), `settingsScroll:permissions` —
+///   прокрутить «Основные» к разделу «Разрешения» (снимок видит только видимую часть формы);
 /// - `set:<настройка>=<значение>` — поменять настройку: `islandMode` (`always`/`background`), `hoverPeek`, `pillAvatars`, `pillText`, `animateAvatars`,
 ///   `soundsEnabled` (`true`/`false`), `soundVolume` (0…1), `tint`, `accessory`, `sound.<событие>` (имя или пусто),
 ///   `model` — выбор модели Claude Code в панели ввода (значение из списка; чужое — выбор стёрт; пусто — явная «Модель CLI»,
@@ -20,6 +21,9 @@ import AppKit
 ///   реальная смена стирает выбор панели),
 ///   `models` — список моделей через запятую, как правка в настройках: имена проверяются, повторы убираются,
 ///   пусто — встроенный список,
+///   `permission` — уровень разрешений Claude Code (`manual`/`edit_automatically`, как выбор в разделе «Разрешения»;
+///   незнакомое значение не меняет ничего); в `dump` — `settings.permission`, `permissionLevels` из `core.hello`,
+///   `requestPermission` (с чем уйдёт следующая задача) и `lastSubmitPermission` (с чем ушла последняя),
 ///   `followUpModel` — выбор модели в поле продолжения открытой карточки (как клик по пункту меню; пусто — «Модель CLI»,
 ///   у диалога с моделью такого пункта нет; модель точки продолжения — то же, что «не менял»);
 ///   Шторка в режиме «В фоне»: `dump` показывает `panel.isVisible` (окно на экране; после ухода шторки
@@ -184,6 +188,7 @@ enum DebugCommands {
         case "settings": state.openSettings()
         case "settingsTab": settings.debugSelect(tab: argument)
         case "settingsModelDraft": settings.debugSetModelDraft(argument)
+        case "settingsScroll": settings.debugScroll(to: argument)
         case "settingsClose": settings.debugClose()
         case "settingsKey":
             if let (keyCode, modifiers) = keyStroke(argument) {
@@ -303,6 +308,8 @@ enum DebugCommands {
         case "accessory": if let accessory = AvatarAccessory(rawValue: value) { settings.accessory = accessory }
         case "model": settings.setModel(value.isEmpty ? nil : value, for: ExecutorId.claudeCode.rawValue)
         case "defaultModel": settings.setDefaultModel(value.isEmpty ? nil : value, for: ExecutorId.claudeCode.rawValue)
+        case "permission":
+            if let level = PermissionLevel(rawValue: value) { settings.setPermission(level, for: ExecutorId.claudeCode.rawValue) }
         case "models":
             settings.setModels(value.split(separator: ",", omittingEmptySubsequences: false).map(String.init), for: ExecutorId.claudeCode.rawValue)
         default:
@@ -374,6 +381,12 @@ enum DebugCommands {
         let settings: [String: String]
         /// Действующий список моделей панели ввода и поля продолжения.
         let models: [String]
+        /// Уровни разрешений Claude Code из `core.hello`; nil — ядро ещё не ответило. Сохранённый уровень — `settings.permission`.
+        let permissionLevels: [String]?
+        /// С каким уровнем уйдёт следующий `task.submit` (сохранённый, если он объявлен, иначе `manual`).
+        let requestPermission: String
+        /// `permission` последнего отправленного `task.submit`; nil — отправок не было.
+        let lastSubmitPermission: String?
         /// Какую модель показывают задачам: `TaskInfo.model` по id задачи.
         let taskModels: [String: String]
         let settingsVisible: Bool
@@ -440,9 +453,13 @@ enum DebugCommands {
             ]
             values["model"] = state.selectedModel ?? ""
             values["defaultModel"] = state.settings.defaultModel(for: ExecutorId.claudeCode.rawValue) ?? ""
+            values["permission"] = state.settings.permission(for: ExecutorId.claudeCode.rawValue).rawValue
             for event in SoundEvent.allCases { values["sound.\(event.rawValue)"] = state.settings.sound(for: event) ?? "" }
             settings = values
             models = state.settings.models(for: ExecutorId.claudeCode.rawValue)
+            permissionLevels = state.permissions.levels(for: ExecutorId.claudeCode.rawValue)?.map(\.rawValue)
+            requestPermission = state.requestPermission.rawValue
+            lastSubmitPermission = state.debugLastSubmit?.permission?.rawValue
             taskModels = Dictionary(uniqueKeysWithValues: state.tasks.compactMap { task in task.model.map { (task.id, $0) } })
             self.settingsVisible = settingsVisible
             self.sounds = sounds
