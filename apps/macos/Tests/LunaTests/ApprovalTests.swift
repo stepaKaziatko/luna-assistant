@@ -205,6 +205,55 @@ final class ApprovalTests: XCTestCase {
         XCTAssertEqual(state.mode, .result(threadId: "a"))
         XCTAssertEqual(state.pillState, .idle)
     }
+
+    // MARK: Команда shell (LUNA-48)
+
+    private func shell(_ command: String) -> ApprovalRequest {
+        ApprovalRequest(
+            createdAt: 10, detail: "Размер: 4 строки, 9 знаков\nКаталог задачи: /work\nПодпись агента: собрать", id: "req-sh",
+            kind: .shell, summary: "Выполнить команду", target: command, tool: "Bash"
+        )
+    }
+
+    func testShellPresentationKeepsCommandExactlyAsTarget() {
+        let multiline = "a\n  b\n\nc"
+        let presentation = ApprovalPresentation(shell(multiline))
+        XCTAssertEqual(presentation.command, multiline, "переводы строк и отступы на месте")
+        XCTAssertEqual(presentation.command?.split(separator: "\n", omittingEmptySubsequences: false).count, 4, "строки не схлопнуты")
+        XCTAssertNil(presentation.inlineTarget, "команда не попадает в строку с кнопками")
+        XCTAssertEqual(presentation.summary, "Выполнить команду")
+        XCTAssertEqual(presentation.detail, "Размер: 4 строки, 9 знаков\nКаталог задачи: /work\nПодпись агента: собрать")
+
+        let long = String(repeating: "я", count: 20_000)
+        XCTAssertEqual(ApprovalPresentation(shell(long)).command, long, "длинная команда — без обрезки")
+        XCTAssertEqual(ApprovalPresentation(shell(long)).command?.count, 20_000)
+
+        let spaced = "  echo 1  \n"
+        XCTAssertEqual(ApprovalPresentation(shell(spaced)).command, spaced, "пробелы по краям и последний перевод строки не срезаны")
+    }
+
+    func testCommandScrollerThumb() {
+        XCTAssertNil(CommandText.thumb(content: 100, visible: 100, offset: 0), "всё помещается — полосы нет")
+        let top = try! XCTUnwrap(CommandText.thumb(content: 680, visible: 170, offset: 0))
+        XCTAssertEqual(top.y, 3, "в начале бегунок наверху")
+        XCTAssertEqual(top.height, 164 * 170 / 680, accuracy: 0.01, "высота — доля видимого")
+        let bottom = try! XCTUnwrap(CommandText.thumb(content: 680, visible: 170, offset: 510))
+        XCTAssertEqual(bottom.y + bottom.height, 167, accuracy: 0.01, "в конце бегунок внизу")
+        let huge = try! XCTUnwrap(CommandText.thumb(content: 1_000_000, visible: 170, offset: 0))
+        XCTAssertEqual(huge.height, 16, "у очень длинной команды бегунок не исчезает")
+    }
+
+    func testWritePresentationUnchanged() {
+        let presentation = ApprovalPresentation(request())
+        XCTAssertEqual(presentation.inlineTarget, "/work/hello.txt")
+        XCTAssertNil(presentation.command)
+        XCTAssertEqual(presentation.summary, "Записать файл")
+        XCTAssertEqual(presentation.detail, "hi\n\nРазмер: 2 знака")
+
+        let empty = ApprovalRequest(createdAt: 1, detail: "", id: "r", kind: .other, summary: "Использовать инструмент X", target: nil, tool: "X")
+        XCTAssertNil(ApprovalPresentation(empty).detail, "пустые подробности не показываются")
+        XCTAssertNil(ApprovalPresentation(empty).command)
+    }
 }
 
 private struct EmptyReply: Encodable {}
