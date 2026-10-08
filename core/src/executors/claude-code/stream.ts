@@ -7,6 +7,7 @@ import { describeTool } from "./tools.ts";
 
 interface ContentBlock {
   type?: string;
+  id?: string;
   name?: string;
   input?: Record<string, unknown>;
 }
@@ -31,9 +32,26 @@ interface StreamLine {
 /** Так CLI сообщает, что сессии для `--resume` нет (Claude Code 2.1.181). */
 const SESSION_NOT_FOUND = "No conversation found with session ID";
 
+/** Инструменты Claude Code, которые приносят содержимое из сети: после них задача недоверенная. */
+export const WEB_TOOLS: ReadonlySet<string> = new Set(["WebFetch", "WebSearch"]);
+
 export class ClaudeStreamParser {
   private errorKind: TaskErrorKind | undefined;
   private sessionId: string | undefined;
+  /** Вызовы инструментов (`tool_use.id`), уже прошедшие через разбор, — в том числе у субагентов. */
+  private readonly toolUses = new Set<string>();
+  /** В потоке был вызов `WebFetch`/`WebSearch` — неважно, успешный ли. */
+  private web = false;
+
+  /** Был ли в разобранном выводе поход в веб. */
+  get webUsed(): boolean {
+    return this.web;
+  }
+
+  /** Разобрана ли уже строка с вызовом инструмента `id`. */
+  hasToolUse(id: string): boolean {
+    return this.toolUses.has(id);
+  }
 
   /** Принимает одну строку stdout и возвращает события, которые из неё следуют. */
   push(line: string): ExecutorEvent[] {
@@ -59,6 +77,15 @@ export class ClaudeStreamParser {
     switch (data.type) {
       case "assistant":
         if (data.error) this.errorKind = kindFromAssistantError(data.error);
+        // Веб считается и у субагентов: прочитанное ими возвращается в основную сессию.
+        for (const block of data.message?.content ?? []) {
+          if (block.type !== "tool_use") continue;
+          if (typeof block.id === "string") this.toolUses.add(block.id);
+          if (!this.web && block.name !== undefined && WEB_TOOLS.has(block.name)) {
+            this.web = true;
+            events.push({ type: "web" });
+          }
+        }
         // События субагентов не показываем: статус ведёт основная сессия.
         if (data.parent_tool_use_id) break;
         for (const block of data.message?.content ?? []) {

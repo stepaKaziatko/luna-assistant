@@ -5,13 +5,15 @@ import { fileURLToPath } from "node:url";
 import type { ExecutorStatus } from "../../rpc/protocol.gen.ts";
 import type { Executor, ExecutorEvent, ExecutorRequest } from "../executor.ts";
 import { resolveBinary } from "../resolve-binary.ts";
-import { decide, describeApproval, type Decision } from "./approval.ts";
+import { decide, describeApproval, WEB_DENIED, type Decision, type ToolCall } from "./approval.ts";
 import type { ApprovalSocket } from "./socket.ts";
 import { ClaudeStreamParser } from "./stream.ts";
 
 // Чтение разрешено без вопроса. Запись файлов доступна, но каждый вызов проходит через мост
 // (`--permission-prompt-tool`) и ждёт ответа человека в Luna; Bash появится вместе с показом команды.
-const READ_ONLY_TOOLS = "WebFetch,WebSearch,Read,Glob,Grep";
+// Запуск только на чтение (`readOnly`) получает перечень чтения целиком и ничего сверх него: новые
+// инструменты попадают в него, только если их сюда допишут.
+export const READ_ONLY_TOOLS = "WebFetch,WebSearch,Read,Glob,Grep";
 const WRITE_TOOLS = "Write,Edit,NotebookEdit";
 export const AVAILABLE_TOOLS = `${READ_ONLY_TOOLS},${WRITE_TOOLS}`;
 export const ALLOWED_TOOLS = READ_ONLY_TOOLS;
@@ -19,6 +21,19 @@ export const ALLOWED_TOOLS = READ_ONLY_TOOLS;
 /** Имя MCP-сервера моста и его инструмента: так CLI называет permission prompt. */
 export const MCP_SERVER = "luna";
 export const PERMISSION_TOOL = `mcp__${MCP_SERVER}__approve`;
+
+/**
+ * Сколько мост ждёт, пока в разобранном выводе CLI появится вызов, о котором он спрашивает. CLI
+ * пишет строку с `tool_use` раньше, чем зовёт мост, — ожидание покрывает лишь разницу в доставке
+ * двух потоков. Не дождались — отказ: без строки неизвестно, ходил ли исполнитель в веб.
+ */
+export const TOOL_USE_WAIT_MS = 5000;
+
+/** Отказ на вызов, который пришёл или остался без ответа к концу запуска. */
+const FINISHED: Decision = { behavior: "deny", message: "Luna: задача завершена" };
+
+/** Отказ, когда строки с вызовом в выводе CLI так и не появилось. */
+const UNMATCHED: Decision = { behavior: "deny", message: "Luna: запрос не сверен с выводом исполнителя, действие не выполнено" };
 
 // Маркеры родительской сессии Claude Code. Если ядро запущено из неё (разработка),
 // дочерний `claude -p` не должен считать себя её частью.
@@ -38,17 +53,22 @@ export interface ClaudeCodeOptions {
   binary?: string;
   /** Запасное значение для --model, когда в запросе модели нет; иначе — модель из настроек CLI. */
   model?: string;
-  /** Канал подтверждений от моста к ядру; без него исполнитель запускать нельзя. */
+  /** Канал подтверждений от моста к ядру; без него исполнитель запускать нельзя (кроме запуска на чтение). */
   approvals?: ApprovalSocket;
+  /** Сколько вызов моста ждёт своей строки в выводе CLI; по умолчанию `TOOL_USE_WAIT_MS`. */
+  toolUseWaitMs?: number;
 }
 
-export interface ClaudeArgs {
+export type ClaudeArgs = {
   formatRules: string;
   model?: string;
   resume?: { sessionId: string };
+} & (
   /** Содержимое `--mcp-config`: только наш мост, см. `bridgeConfig`. */
-  mcpConfig: string;
-}
+  | { readOnly?: false; mcpConfig: string }
+  /** Только чтение: ни инструментов записи, ни моста — спрашивать человека не о чем. */
+  | { readOnly: true }
+);
 
 /** Файл моста рядом с адаптером: `bridge.ts` в исходниках, `bridge.js` в сборке. */
 export const BRIDGE_PATH = fileURLToPath(new URL(import.meta.url.replace(/adapter\.(ts|js)$/, "bridge.$1")));
@@ -60,8 +80,20 @@ export function bridgeConfig(socketPath: string, runId: string, node = process.e
   });
 }
 
-/** Аргументы `claude -p`; с `resume` — те же флаги плюс `--resume <sessionId>`. */
+/**
+ * Аргументы `claude -p`; с `resume` — те же флаги плюс `--resume <sessionId>`. `readOnly` проверяется
+ * первым и перебивает всё остальное: перечень инструментов — только чтение, моста нет.
+ */
 export function buildArgs(options: ClaudeArgs): string[] {
+  const access = options.readOnly
+    ? ["--permission-mode", "default", "--tools", READ_ONLY_TOOLS]
+    : [
+        "--mcp-config", options.mcpConfig,
+        "--permission-prompt-tool", PERMISSION_TOOL,
+        // Уровень `manual`: всё, что CLI не разрешил сам, идёт человеку через мост.
+        "--permission-mode", "default",
+        "--tools", AVAILABLE_TOOLS,
+      ];
   const args = [
     "-p",
     "--output-format", "stream-json",
@@ -72,11 +104,7 @@ export function buildArgs(options: ClaudeArgs): string[] {
     "--setting-sources", "",
     "--disable-slash-commands",
     "--strict-mcp-config",
-    "--mcp-config", options.mcpConfig,
-    "--permission-prompt-tool", PERMISSION_TOOL,
-    // Уровень `manual`: всё, что CLI не разрешил сам, идёт человеку через мост.
-    "--permission-mode", "default",
-    "--tools", AVAILABLE_TOOLS,
+    ...access,
     "--allowedTools", ALLOWED_TOOLS,
     "--append-system-prompt", options.formatRules,
   ];
@@ -108,8 +136,9 @@ export class ClaudeCodeExecutor implements Executor {
       };
       return;
     }
+    // Запуску на чтение канал не нужен: спрашивать человека не о чем.
     const approvals = this.options.approvals;
-    if (!approvals) {
+    if (!approvals && !request.readOnly) {
       yield {
         type: "failed",
         error: { kind: "unknown", message: "Канал подтверждений не открыт: исполнитель не может спрашивать разрешения. Проверьте каталог данных Luna." },
@@ -124,7 +153,7 @@ export class ClaudeCodeExecutor implements Executor {
     const runId = randomUUID();
     const args = buildArgs({
       formatRules: request.formatRules,
-      mcpConfig: bridgeConfig(approvals.path, runId),
+      ...(request.readOnly || !approvals ? { readOnly: true as const } : { mcpConfig: bridgeConfig(approvals.path, runId) }),
       ...(request.model ?? this.options.model ? { model: request.model ?? this.options.model } : {}),
       ...(request.resume ? { resume: request.resume } : {}),
     });
@@ -148,9 +177,14 @@ export class ClaudeCodeExecutor implements Executor {
 
     // События двух источников — вывода CLI и вызовов моста — идут потребителю одной очередью.
     const queue = new EventQueue();
+    const parser = new ClaudeStreamParser();
+    const stdout = new StreamProgress(parser, this.options.toolUseWaitMs ?? TOOL_USE_WAIT_MS);
     // Ответы, которых мост ещё ждёт: по окончании запуска они закрываются отказом, чтобы ничего не висело.
     const waiting = new Set<(decision: Decision) => void>();
-    const unregister = approvals.register(runId, (call) => new Promise<Decision>((resolve) => {
+    let over = false;
+    const ask = (call: ToolCall) => new Promise<Decision>((resolve) => {
+      // Пока вызов ждал вывода, запуск мог закончиться: спрашивать уже некого.
+      if (over) return resolve(FINISHED);
       waiting.add(resolve);
       queue.push({
         type: "pause",
@@ -161,9 +195,17 @@ export class ClaudeCodeExecutor implements Executor {
           resolve(decide(call, allow));
         },
       });
-    }));
+    });
+    const unregister = request.readOnly || !approvals
+      ? () => {}
+      : approvals.register(runId, async (call) => {
+          // Мост и stdout — разные потоки: решение принимается, когда разобран весь вывод до этого вызова.
+          if (!(await stdout.reached(call.tool_use_id))) return UNMATCHED;
+          // После веба запись и команды запрещены: человеку такой запрос не показывается.
+          if (parser.webUsed) return WEB_DENIED;
+          return ask(call);
+        });
 
-    const parser = new ClaudeStreamParser();
     void (async () => {
       let finished = false;
       for await (const line of createInterface({ input: child.stdout, crlfDelay: Infinity })) {
@@ -171,7 +213,9 @@ export class ClaudeCodeExecutor implements Executor {
           if (event.type === "done" || event.type === "failed") finished = true;
           queue.push(event);
         }
+        stdout.advance();
       }
+      stdout.end();
       const { code, error } = await exit;
       if (!finished && !request.signal.aborted) {
         const detail = error?.message ?? (stderr.trim() || `код выхода ${code}`);
@@ -183,12 +227,59 @@ export class ClaudeCodeExecutor implements Executor {
     try {
       for await (const event of queue) yield event;
     } finally {
+      over = true;
       unregister();
-      for (const resolve of waiting) resolve({ behavior: "deny", message: "Luna: задача завершена" });
+      for (const resolve of waiting) resolve(FINISHED);
       waiting.clear();
       request.signal.removeEventListener("abort", kill);
       if (child.exitCode === null && child.signalCode === null) kill();
     }
+  }
+}
+
+/** Докуда разобран вывод CLI: вызов моста ждёт строки со своим `tool_use_id`. */
+class StreamProgress {
+  private readonly parser: ClaudeStreamParser;
+  private readonly waiters = new Set<() => void>();
+  private readonly waitMs: number;
+  private ended = false;
+
+  constructor(parser: ClaudeStreamParser, waitMs: number) {
+    this.parser = parser;
+    this.waitMs = waitMs;
+  }
+
+  /**
+   * True — строка с вызовом `id` разобрана (или вывод кончился: больше ждать нечего). False — не
+   * дождались за `waitMs`. Без `id` сверять не с чем — решение по тому, что уже разобрано.
+   */
+  reached(id: string | undefined): Promise<boolean> {
+    const done = () => id === undefined || this.ended || this.parser.hasToolUse(id);
+    if (done()) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const check = () => {
+        if (!done()) return;
+        this.waiters.delete(check);
+        clearTimeout(timer);
+        resolve(true);
+      };
+      const timer = setTimeout(() => {
+        this.waiters.delete(check);
+        resolve(false);
+      }, this.waitMs);
+      this.waiters.add(check);
+    });
+  }
+
+  /** Разобрана очередная строка. */
+  advance(): void {
+    for (const check of [...this.waiters]) check();
+  }
+
+  /** Вывод кончился. */
+  end(): void {
+    this.ended = true;
+    this.advance();
   }
 }
 

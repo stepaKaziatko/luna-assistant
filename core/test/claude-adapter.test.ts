@@ -12,9 +12,10 @@ import {
   buildArgs,
   ClaudeCodeExecutor,
   PERMISSION_TOOL,
+  READ_ONLY_TOOLS,
 } from "../src/executors/claude-code/adapter.ts";
-import { DETAIL_LIMIT } from "../src/executors/claude-code/approval.ts";
-import type { ExecutorEvent } from "../src/executors/executor.ts";
+import { DETAIL_LIMIT, WEB_DENIED_MESSAGE } from "../src/executors/claude-code/approval.ts";
+import type { ExecutorEvent, ExecutorRequest } from "../src/executors/executor.ts";
 import { openTestApprovals } from "./support/approvals.ts";
 
 const fixture = (name: string) => fileURLToPath(new URL(`./fixtures/claude-code/${name}`, import.meta.url));
@@ -31,40 +32,62 @@ function fakeClaude(script: string): { binary: string; dir: string } {
   return { binary, dir };
 }
 
+/** Вызов инструмента так, как его присылает мост. */
+type BridgeCall = { tool_name: string; input: Record<string, unknown>; tool_use_id?: string };
+
 /**
- * Подменный `claude`, который перед ответом спрашивает разрешение так, как это делал бы мост: находит
- * сокет ядра и id запуска в `--mcp-config`, шлёт туда вызов инструмента и записывает решение в файл.
+ * Подменный `claude`, который спрашивает разрешение так, как это делал бы мост: находит сокет ядра
+ * и id запуска в `--mcp-config`, шлёт туда вызов инструмента и записывает решение в файл. Строки
+ * `before` выводятся до вызова моста, `after` — после ответа. `callFirst` — вызов уходит в мост раньше
+ * строк `before` (они выводятся через `delayMs`): так проверяется, что решение ждёт вывода CLI.
  */
-function approvingClaude(call: { tool_name: string; input: Record<string, unknown> }): { binary: string; dir: string } {
+function scriptedClaude(options: { before: string[]; call: BridgeCall; after: string[]; callFirst?: boolean; delayMs?: number }): { binary: string; dir: string } {
   const dir = mkdtempSync(join(tmpdir(), "luna-fake-claude-"));
   const script = join(dir, "claude.mjs");
   writeFileSync(
     script,
     `
 import { createConnection } from "node:net";
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 const argv = process.argv.slice(2);
 writeFileSync(${JSON.stringify(join(dir, "argv"))}, argv.join("\\n") + "\\n");
 const config = JSON.parse(argv[argv.indexOf("--mcp-config") + 1]);
 const [, socketPath, runId] = config.mcpServers.luna.args;
 process.stdin.resume();
-process.stdout.write(readFileSync(${JSON.stringify(fixture("success.jsonl"))}, "utf8").split("\\n")[0] + "\\n");
+const print = (lines) => { for (const line of lines) process.stdout.write(line + "\\n"); };
+const before = ${JSON.stringify(options.before)};
+if (${options.callFirst ? "true" : "false"}) setTimeout(() => print(before), ${options.delayMs ?? 0});
+else print(before);
 const socket = createConnection(socketPath);
 socket.setEncoding("utf8");
 createInterface({ input: socket }).once("line", (line) => {
   writeFileSync(${JSON.stringify(join(dir, "decision"))}, line + "\\n");
   socket.end();
-  process.stdout.write(JSON.stringify({ type: "result", subtype: "success", is_error: false, result: "готово", session_id: "s" }) + "\\n");
+  print(${JSON.stringify(options.after)});
   process.exit(0);
 });
-socket.write(JSON.stringify({ run: runId, call: ${JSON.stringify({ ...call, tool_use_id: "toolu_1" })} }) + "\\n");
+socket.write(JSON.stringify({ run: runId, call: ${JSON.stringify(options.call)} }) + "\\n");
 `,
   );
   const binary = join(dir, "claude");
   writeFileSync(binary, `#!/bin/sh\nexec "${process.execPath}" "${script}" "$@"\n`);
   chmodSync(binary, 0o755);
   return { binary, dir };
+}
+
+const fixtureLines = (name: string) => readFileSync(fixture(name), "utf8").trimEnd().split("\n");
+const assistantToolUse = (id: string, name: string, input: Record<string, unknown>, parent: string | null = null) =>
+  JSON.stringify({ type: "assistant", parent_tool_use_id: parent, session_id: "s", message: { content: [{ type: "tool_use", id, name, input }] } });
+const RESULT = JSON.stringify({ type: "result", subtype: "success", is_error: false, result: "готово", session_id: "s" });
+
+/** Подменный `claude` для обычной паузы: init, строка с вызовом инструмента, вопрос мосту, результат. */
+function approvingClaude(call: { tool_name: string; input: Record<string, unknown> }): { binary: string; dir: string } {
+  return scriptedClaude({
+    before: [fixtureLines("success.jsonl")[0] ?? "", assistantToolUse("toolu_1", call.tool_name, call.input)],
+    call: { ...call, tool_use_id: "toolu_1" },
+    after: [RESULT],
+  });
 }
 
 async function collect(executor: ClaudeCodeExecutor, signal = new AbortController().signal): Promise<ExecutorEvent[]> {
@@ -77,11 +100,11 @@ async function collect(executor: ClaudeCodeExecutor, signal = new AbortControlle
 
 /** Ведёт исполнителя до первой паузы, отвечает на неё и собирает поток до конца. */
 async function collectWithApproval(
-  executor: ClaudeCodeExecutor, allow: boolean, cwd = tmpdir(),
+  executor: ClaudeCodeExecutor, allow: boolean, cwd = tmpdir(), extra: Partial<ExecutorRequest> = {},
 ): Promise<{ events: ExecutorEvent[]; pause: Extract<ExecutorEvent, { type: "pause" }> | undefined }> {
   const events: ExecutorEvent[] = [];
   let pause: Extract<ExecutorEvent, { type: "pause" }> | undefined;
-  for await (const event of executor.run({ prompt: "x", formatRules: "RULES", cwd, signal: new AbortController().signal })) {
+  for await (const event of executor.run({ prompt: "x", formatRules: "RULES", cwd, signal: new AbortController().signal, ...extra })) {
     events.push(event);
     if (event.type === "pause") {
       pause = event;
@@ -281,4 +304,156 @@ test("отмена убивает процесс и не порождает ош
   // Первая строка потока — init: из неё идут оба события, session и model.
   assert.deepEqual(events.map((event) => event.type), ["session", "model"]);
   assert.ok(Date.now() - started < 5000, "процесс должен завершиться сразу после отмены");
+});
+
+// --- Только чтение и веб (LUNA-47)
+
+/** Вызов `approve` из записанного обмена CLI с мостом. */
+function bridgeCall(name: string): BridgeCall {
+  for (const line of fixtureLines(name)) {
+    const message = JSON.parse(line) as { method?: string; params?: { arguments?: BridgeCall } };
+    if (message.method === "tools/call" && message.params?.arguments) return message.params.arguments;
+  }
+  throw new Error(`в ${name} нет tools/call`);
+}
+
+/** Строки вывода CLI до строки с вызовом `toolUseId` включительно и после неё. */
+function splitAt(lines: string[], toolUseId: string): { before: string[]; after: string[] } {
+  const at = lines.findIndex((line) => line.includes(`"id":"${toolUseId}"`));
+  assert.ok(at >= 0, `строка с ${toolUseId}`);
+  return { before: lines.slice(0, at + 1), after: lines.slice(at + 1) };
+}
+
+const decisionOf = (dir: string) => JSON.parse(readFileSync(join(dir, "decision"), "utf8")) as unknown;
+const argvOf = (dir: string) => readFileSync(join(dir, "argv"), "utf8").trimEnd().split("\n");
+const toolsOf = (argv: string[]) => new Set((argv[argv.indexOf("--tools") + 1] ?? "").split(","));
+
+test("buildArgs readOnly: --tools — ровно перечень чтения, без моста и --permission-prompt-tool; изоляция та же; с resume — плюс --resume", () => {
+  const plain = buildArgs({ formatRules: "RULES", model: "sonnet", readOnly: true });
+  const resumed = buildArgs({ formatRules: "RULES", model: "sonnet", readOnly: true, resume: { sessionId: "s-1" } });
+  assert.deepEqual(resumed, [...plain, "--resume", "s-1"]);
+  assert.deepEqual(toolsOf(plain), new Set(["WebFetch", "WebSearch", "Read", "Glob", "Grep"]));
+  assert.equal(READ_ONLY_TOOLS, "WebFetch,WebSearch,Read,Glob,Grep");
+  for (const tool of ["Write", "Edit", "NotebookEdit", "Bash"]) assert.equal(toolsOf(plain).has(tool), false, tool);
+  assert.equal(plain.includes("--permission-prompt-tool"), false);
+  assert.equal(plain.includes("--mcp-config"), false);
+  assert.equal(plain.some((arg) => arg.includes(PERMISSION_TOOL)), false);
+  const value = (flag: string) => plain[plain.indexOf(flag) + 1];
+  assert.equal(value("--permission-mode"), "default");
+  assert.equal(value("--setting-sources"), "");
+  assert.ok(plain.includes("--disable-slash-commands"));
+  assert.ok(plain.includes("--strict-mcp-config"));
+  assert.equal(value("--append-system-prompt"), "RULES");
+  assert.equal(value("--model"), "sonnet");
+});
+
+test("запуск readOnly: без канала подтверждений доходит до done, в CLI — только чтение и ни моста, ни --permission-prompt-tool", async () => {
+  const { binary, dir } = fakeClaude(`cat "${fixture("success.jsonl")}"`);
+  const events: ExecutorEvent[] = [];
+  for await (const event of new ClaudeCodeExecutor({ binary }).run({
+    prompt: "x", formatRules: "RULES", cwd: tmpdir(), signal: new AbortController().signal, readOnly: true,
+  })) events.push(event);
+  assert.equal(events.at(-1)?.type, "done");
+  const argv = argvOf(dir);
+  assert.deepEqual(toolsOf(argv), new Set(READ_ONLY_TOOLS.split(",")));
+  assert.equal(argv.includes("--mcp-config"), false);
+  assert.equal(argv.includes("--permission-prompt-tool"), false);
+  assert.equal(argv[argv.indexOf("--permission-mode") + 1], "default");
+});
+
+test("запуск readOnly с открытым каналом: мост всё равно не подключается", async () => {
+  const approvals = await openTestApprovals();
+  const { binary, dir } = fakeClaude(`cat "${fixture("success.jsonl")}"`);
+  const events: ExecutorEvent[] = [];
+  for await (const event of new ClaudeCodeExecutor({ binary, approvals }).run({
+    prompt: "x", formatRules: "RULES", cwd: tmpdir(), signal: new AbortController().signal, readOnly: true, resume: { sessionId: "s-1" },
+  })) events.push(event);
+  assert.equal(events.at(-1)?.type, "done");
+  const argv = argvOf(dir);
+  assert.equal(argv.includes("--mcp-config"), false);
+  assert.equal(argv.includes("--permission-prompt-tool"), false);
+  assert.deepEqual(toolsOf(argv), new Set(READ_ONLY_TOOLS.split(",")));
+  assert.deepEqual(argv.slice(-2), ["--resume", "s-1"]);
+});
+
+test("веб, затем запись (живой поток sonnet): мост получает deny про веб, паузы нет, исполнитель сообщает о вебе", async () => {
+  const approvals = await openTestApprovals();
+  const call = bridgeCall("web-then-write.bridge.jsonl");
+  assert.equal(call.tool_name, "Write");
+  const { before, after } = splitAt(fixtureLines("web-then-write.jsonl"), call.tool_use_id ?? "");
+  const { binary, dir } = scriptedClaude({ before, call, after });
+  const { events, pause } = await collectWithApproval(new ClaudeCodeExecutor({ binary, approvals }), true);
+
+  assert.equal(pause, undefined, "запрос не должен дойти до человека");
+  assert.deepEqual(decisionOf(dir), { behavior: "deny", message: WEB_DENIED_MESSAGE });
+  assert.equal(events.filter((event) => event.type === "web").length, 1);
+  // Событие о вебе приходит раньше итога.
+  assert.ok(events.findIndex((event) => event.type === "web") < events.findIndex((event) => event.type === "done"));
+  assert.equal(events.at(-1)?.type, "done");
+});
+
+test("WebFetch в основной сессии и WebSearch у субагента (синтетика): запись после них отклоняется без человека", async () => {
+  const approvals = await openTestApprovals();
+  const init = fixtureLines("success.jsonl")[0] ?? "";
+  const write = { file_path: "/abs/x.txt", content: "x" };
+  for (const web of [
+    assistantToolUse("toolu_w", "WebFetch", { url: "https://example.com" }),
+    assistantToolUse("toolu_w", "WebSearch", { query: "rfc 2119" }, "toolu_agent"),
+  ]) {
+    const { binary, dir } = scriptedClaude({
+      before: [init, web, assistantToolUse("toolu_2", "Write", write)],
+      call: { tool_name: "Write", input: write, tool_use_id: "toolu_2" },
+      after: [RESULT],
+    });
+    const { events, pause } = await collectWithApproval(new ClaudeCodeExecutor({ binary, approvals }), true);
+    assert.equal(pause, undefined);
+    assert.deepEqual(decisionOf(dir), { behavior: "deny", message: WEB_DENIED_MESSAGE });
+    assert.equal(events.filter((event) => event.type === "web").length, 1);
+  }
+});
+
+test("вызов моста пришёл раньше строки вывода: решение ждёт её и видит веб", async () => {
+  const approvals = await openTestApprovals();
+  const init = fixtureLines("success.jsonl")[0] ?? "";
+  const write = { file_path: "/abs/x.txt", content: "x" };
+  const { binary, dir } = scriptedClaude({
+    before: [init, assistantToolUse("toolu_w", "WebFetch", { url: "https://example.com" }), assistantToolUse("toolu_2", "Write", write)],
+    call: { tool_name: "Write", input: write, tool_use_id: "toolu_2" },
+    after: [RESULT],
+    callFirst: true,
+    delayMs: 100,
+  });
+  const { pause } = await collectWithApproval(new ClaudeCodeExecutor({ binary, approvals }), true);
+  assert.equal(pause, undefined);
+  assert.deepEqual(decisionOf(dir), { behavior: "deny", message: WEB_DENIED_MESSAGE });
+});
+
+test("строка вызова так и не появилась: отказ без человека, задача не висит", async () => {
+  const approvals = await openTestApprovals();
+  const { binary, dir } = scriptedClaude({
+    before: [fixtureLines("success.jsonl")[0] ?? ""],
+    call: { tool_name: "Write", input: { file_path: "/abs/x.txt", content: "x" }, tool_use_id: "toolu_missing" },
+    after: [RESULT],
+  });
+  const { events, pause } = await collectWithApproval(new ClaudeCodeExecutor({ binary, approvals, toolUseWaitMs: 50 }), true);
+  assert.equal(pause, undefined);
+  assert.equal((decisionOf(dir) as { behavior: string }).behavior, "deny");
+  assert.equal(events.at(-1)?.type, "done");
+});
+
+test("вызов моста без веба (обмен approval-allow): пауза приходит как раньше, события о вебе нет", async () => {
+  const approvals = await openTestApprovals();
+  const call = bridgeCall("approval-allow.jsonl");
+  const { binary, dir } = scriptedClaude({
+    before: [fixtureLines("success.jsonl")[0] ?? "", assistantToolUse(call.tool_use_id ?? "", call.tool_name, call.input)],
+    call,
+    after: [RESULT],
+    callFirst: true,
+    delayMs: 50,
+  });
+  const { events, pause } = await collectWithApproval(new ClaudeCodeExecutor({ binary, approvals }), true);
+  assert.ok(pause, "пауза не пришла");
+  assert.equal(pause.request.tool, "Write");
+  assert.equal(events.some((event) => event.type === "web"), false);
+  assert.equal((decisionOf(dir) as { behavior: string }).behavior, "allow");
 });

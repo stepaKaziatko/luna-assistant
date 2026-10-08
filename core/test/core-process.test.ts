@@ -444,6 +444,8 @@ const config = JSON.parse(argv[argv.indexOf("--mcp-config") + 1]);
 const [, socketPath, runId] = config.mcpServers.luna.args;
 process.stdin.resume();
 process.stdout.write(JSON.stringify({ type: "system", subtype: "init", session_id: "s-approve", model: "claude-fable-5" }) + "\\n");
+// Как настоящий CLI: строка с вызовом инструмента — до вопроса мосту.
+process.stdout.write(JSON.stringify({ type: "assistant", session_id: "s-approve", message: { content: [{ type: "tool_use", id: "t1", name: "Write", input: { file_path: "hello.txt", content: "hi" } }] } }) + "\\n");
 const socket = createConnection(socketPath);
 socket.setEncoding("utf8");
 createInterface({ input: socket }).once("line", (line) => {

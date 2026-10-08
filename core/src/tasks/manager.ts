@@ -7,6 +7,7 @@ import { buildPrompt, FORMAT_RULES, type HistoryTurn } from "../prompt/build.ts"
 import type { ApprovalRequest, ExecutorId, TaskInfo, TaskSubmitParams } from "../rpc/protocol.gen.ts";
 import { foldCase, INTERRUPTED_MESSAGE, type StoredTask, type TaskHistory } from "./history.ts";
 import { isValidModel } from "./model.ts";
+import { isWebContext } from "./web.ts";
 
 export type TaskEventName = "task.started" | "task.progress" | "task.needs_approval" | "task.done" | "task.failed" | "task.cancelled";
 
@@ -51,6 +52,11 @@ interface Entry {
   model?: string;
   /** Пауза исполнителя, которая ждёт ответа: id запроса из `info.approval` и способ ответить. */
   pause?: { approvalId: string; respond: (allow: boolean) => void };
+  /**
+   * Диалог касался веба (`web.ts`): исполнитель получает `readOnly`, паузы отклоняются без человека.
+   * Только растёт: ставится при отправке или по событию `web`, не снимается. В протокол не выходит.
+   */
+  webUsed: boolean;
 }
 
 export class TaskManager {
@@ -78,7 +84,7 @@ export class TaskManager {
       executor: params.executor ?? this.options.defaultExecutor,
       createdAt: Date.now(),
     };
-    const entry: Entry = { info, abort: new AbortController() };
+    const entry: Entry = { info, abort: new AbortController(), webUsed: false };
 
     let inheritedModel: string | undefined;
     if (params.followUpOf !== undefined) {
@@ -89,8 +95,11 @@ export class TaskManager {
       info.executor = point.task.executor;
       entry.workdir = point.workdir ?? join(this.options.tasksDir, point.task.threadId);
       entry.resume = { sessionId: point.sessionId };
+      // Уточнение наследует недоверие диалога: признак пишется и у него — первая задача может уйти из истории.
+      entry.webUsed = this.dialogUsedWeb(info.threadId);
     } else if (params.context) {
       info.context = params.context;
+      entry.webUsed = isWebContext(params.context);
     }
     // Уточнение без `model` остаётся на модели точки продолжения. Она пришла из вывода CLI или
     // истории и попадёт в argv, поэтому проходит ту же проверку шаблона, что и значение из протокола;
@@ -132,6 +141,17 @@ export class TaskManager {
       throw new FollowUpError("executor session of this dialog is lost");
     }
     return { task: target.info, sessionId, ...(target.workdir ? { workdir: target.workdir } : {}) };
+  }
+
+  /**
+   * Касался ли диалог веба: у первой задачи контекст со страницы или у какой-то задачи стоит признак.
+   * `context.url` первой задачи учитывается всегда — записи прежних версий признака не имеют.
+   */
+  private dialogUsedWeb(threadId: string): boolean {
+    const tainted = (task: TaskInfo, webUsed: boolean | undefined) => webUsed === true || (task.id === threadId && isWebContext(task.context));
+    for (const { task, webUsed } of this.storedThread(threadId)) if (tainted(task, webUsed)) return true;
+    for (const entry of this.entries.values()) if (entry.info.threadId === threadId && tainted(entry.info, entry.webUsed)) return true;
+    return false;
   }
 
   /** Задачи диалога в порядке создания: с диска и из памяти, память свежее. */
@@ -331,6 +351,7 @@ export class TaskManager {
         signal: abort.signal,
         ...(entry.model !== undefined ? { model: entry.model } : {}),
         ...(entry.resume ? { resume: entry.resume } : {}),
+        ...(entry.webUsed ? { readOnly: true } : {}),
       }));
 
       // Исполнитель потерял сессию уточнения — один раз отправляем ему переписку заново,
@@ -350,6 +371,8 @@ export class TaskManager {
           cwd,
           signal: abort.signal,
           ...(entry.model !== undefined ? { model: entry.model } : {}),
+          // Признак мог появиться в первом запуске: повторный идёт уже на чтение.
+          ...(entry.webUsed ? { readOnly: true } : {}),
         }));
       }
 
@@ -391,7 +414,26 @@ export class TaskManager {
           info.progress = event.text;
           this.emit("task.progress", info);
           break;
+        case "web":
+          if (entry.webUsed) break;
+          entry.webUsed = true;
+          // Сразу на диск: падение ядра после похода в веб не должно снять недоверие с диалога.
+          this.save(entry);
+          // Запрос, показанный до веба, больше не разрешить: закрывается отказом.
+          if (entry.pause) {
+            entry.pause.respond(false);
+            delete entry.pause;
+            delete info.approval;
+            this.emit("task.progress", info);
+          }
+          break;
         case "pause": {
+          // После веба запись и команды запрещены: запрос не показывается человеку, отказ — сразу.
+          // Исполнитель обязан отклонить такой запрос сам; это вторая линия.
+          if (entry.webUsed) {
+            event.respond(false);
+            break;
+          }
           // Новый запрос при висящем прежнем заменяет его: прежний закрывается отказом, чтобы исполнитель
           // не ждал ответа, которого человек уже не увидит. Очередь запросов — отдельная задача.
           entry.pause?.respond(false);
@@ -451,7 +493,7 @@ export class TaskManager {
     try {
       // Ожидание ответа, как и прогресс, живёт только в этой сессии: после перезапуска его не продолжить.
       const { progress: _progress, approval: _approval, ...snapshot } = entry.info;
-      this.options.history.save(snapshot, entry.workdir);
+      this.options.history.save(snapshot, entry.workdir, entry.webUsed);
     } catch (error) {
       log(`история: задача ${entry.info.id} не записана: ${describe(error)}`);
     }

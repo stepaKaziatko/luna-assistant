@@ -222,3 +222,53 @@ test("второй запрос при висящем первом заменя�
   manager.approve(task.id, secondId, true);
   assert.deepEqual(second.answers, [true]);
 });
+
+// --- Веб: только чтение (LUNA-47)
+
+test("readOnly: задача с url в контексте получает его, без url — поля нет", async () => {
+  const { executor, manager } = setup();
+  manager.submit({ prompt: "сводка", context: { url: "https://github.com/o/r", title: "o/r" } });
+  manager.submit({ prompt: "заметка", context: { selection: "текст" } });
+  manager.submit({ prompt: "просто" });
+  await nextRun(executor, 2);
+  // Запуски стартуют в порядке готовности директорий, а не отправки: ищем по тексту запроса.
+  const requestOf = (prompt: string) => executor.runs.find((run) => run.request.prompt.includes(`<task>\n${prompt}\n</task>`))?.request;
+  assert.equal(requestOf("сводка")?.readOnly, true);
+  assert.equal("readOnly" in (requestOf("заметка") ?? {}), false);
+  assert.equal("readOnly" in (requestOf("просто") ?? {}), false);
+  assert.ok(requestOf("заметка") && requestOf("просто"));
+});
+
+test("после события web пауза отклоняется сразу: task.needs_approval не уходит, approval не появляется", async () => {
+  const { executor, events, manager } = setup();
+  const task = manager.submit({ prompt: "найди и запиши" });
+  const run = await nextRun(executor, 0);
+  run.push({ type: "web" });
+  const { event, answers } = pause();
+  run.push(event);
+  await until(() => answers.length > 0, "отказа исполнителю");
+  assert.deepEqual(answers, [false]);
+  assert.equal(manager.list().find((info) => info.id === task.id)?.approval, undefined);
+  run.push({ type: "done", result: "записать нельзя" });
+  await until(() => eventNames(events).includes("task.done"), "завершения задачи");
+  assert.equal(eventNames(events).includes("task.needs_approval"), false);
+  assert.throws(() => manager.approve(task.id, "x", true), ApprovalError);
+});
+
+test("событие web при висящем запросе закрывает его отказом и снимает approval", async () => {
+  const { executor, events, manager } = setup();
+  const task = manager.submit({ prompt: "x" });
+  const run = await nextRun(executor, 0);
+  const { event, answers } = pause();
+  run.push(event);
+  await until(() => eventNames(events).includes("task.needs_approval"), "запроса подтверждения");
+  const approvalId = events.at(-1)?.task.approval?.id ?? "";
+  run.push({ type: "web" });
+  await until(() => answers.length > 0, "отказа исполнителю");
+  assert.deepEqual(answers, [false]);
+  assert.equal(events.at(-1)?.event, "task.progress");
+  assert.equal(events.at(-1)?.task.approval, undefined);
+  assert.throws(() => manager.approve(task.id, approvalId, true), ApprovalError);
+  run.push({ type: "done", result: "ок" });
+  await until(() => eventNames(events).includes("task.done"), "завершения задачи");
+});

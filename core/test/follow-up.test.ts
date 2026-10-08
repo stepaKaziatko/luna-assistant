@@ -19,9 +19,9 @@ async function start(dir = mkdtempSync(join(tmpdir(), "luna-data-"))) {
   // Каждая запись в историю — снимком: видно, какие статусы задача проходила на диске.
   const saves: TaskInfo[] = [];
   const save = history.save.bind(history);
-  history.save = (task, workdir) => {
+  history.save = (task, workdir, webUsed) => {
     saves.push({ ...task });
-    save(task, workdir);
+    save(task, workdir, webUsed);
   };
   const executor = new ManualExecutor();
   const events: { event: TaskEventName; task: TaskInfo }[] = [];
@@ -238,7 +238,7 @@ test("history.db версии 1 переходит на текущую верс�
   core.history.close();
 
   const check = new DatabaseSync(join(dir, "history.db"));
-  assert.deepEqual({ ...(check.prepare("PRAGMA user_version").get() as object) }, { user_version: 3 });
+  assert.deepEqual({ ...(check.prepare("PRAGMA user_version").get() as object) }, { user_version: 4 });
   check.close();
 });
 
@@ -402,4 +402,85 @@ test("без повторной отправки: обычная задача с
   assert.equal(core.executor.runs.length, 3);
   assert.equal(core.find(plain.task.id)?.error?.kind, "session_not_found");
   assert.equal(core.find(followUp.task.id)?.error?.kind, "auth");
+});
+
+// --- Веб: только чтение переходит на уточнения и переживает перезапуск (LUNA-47)
+
+const pageContext = { url: "https://github.com/o/r", title: "o/r" };
+
+test("уточнение диалога с url у первой задачи и после события web — readOnly; чистый диалог — без него", async () => {
+  const core = await start();
+  const page = await core.finish({ prompt: "1", context: pageContext }, { sessionId: "s1" });
+  assert.equal(page.run.request.readOnly, true);
+  const { run: pageFollowUp } = await core.startRun({ prompt: "запиши всё-таки", followUpOf: page.task.id });
+  assert.equal(pageFollowUp.request.readOnly, true);
+  pageFollowUp.push({ type: "done", result: "нельзя" });
+
+  // Исполнитель сам сходил в веб в задаче без контекста страницы.
+  const { task: searched, run: searchRun } = await core.startRun({ prompt: "найди в вебе" });
+  assert.equal("readOnly" in searchRun.request, false);
+  searchRun.push({ type: "session", sessionId: "s2" });
+  searchRun.push({ type: "web" });
+  // Признак на диске сразу, до конца задачи.
+  await until(() => core.history.get(searched.id)?.webUsed === true, "записи признака");
+  assert.equal(core.find(searched.id)?.status, "running");
+  searchRun.push({ type: "done", result: "нашёл" });
+  await until(() => core.find(searched.id)?.status === "done", "завершения задачи");
+  const { run: searchFollowUp } = await core.startRun({ prompt: "ещё", followUpOf: searched.id });
+  assert.equal(searchFollowUp.request.readOnly, true);
+  searchFollowUp.push({ type: "done", result: "ок" });
+
+  const clean = await core.finish({ prompt: "чистый" }, { sessionId: "s3" });
+  const { run: cleanFollowUp } = await core.startRun({ prompt: "ещё", followUpOf: clean.task.id });
+  assert.equal("readOnly" in cleanFollowUp.request, false);
+  cleanFollowUp.push({ type: "done", result: "ок" });
+  // В протокол признак не выходит.
+  assert.equal(core.manager.list().some((task) => "webUsed" in task), false);
+});
+
+test("повторная отправка переписки в заражённом диалоге — тоже readOnly, в том числе если веб был в первом запуске", async () => {
+  const core = await start();
+  const page = await core.finish({ prompt: "1", context: pageContext }, { sessionId: "s1", result: "ответ 1" });
+  const { run } = await core.startRun({ prompt: "2", followUpOf: page.task.id });
+  run.push(lostSession);
+  const retry = await core.nextRun(core.executor.runs.indexOf(run) + 1);
+  assert.equal(retry.request.readOnly, true);
+  retry.push({ type: "done", result: "ответ 2" });
+
+  const clean = await core.finish({ prompt: "a" }, { sessionId: "s2", result: "ответ a" });
+  const { run: cleanRun } = await core.startRun({ prompt: "b", followUpOf: clean.task.id });
+  assert.equal("readOnly" in cleanRun.request, false);
+  cleanRun.push({ type: "web" });
+  cleanRun.push(lostSession);
+  const cleanRetry = await core.nextRun(core.executor.runs.indexOf(cleanRun) + 1);
+  assert.equal(cleanRetry.request.readOnly, true);
+  cleanRetry.push({ type: "done", result: "ответ b" });
+});
+
+test("после перезапуска ядра: диалог с url, диалог с вебом по ходу и диалог без первой задачи — уточнения readOnly", async () => {
+  const before = await start();
+  const page = await before.finish({ prompt: "1", context: pageContext }, { sessionId: "s1" });
+
+  const { task: searched, run } = await before.startRun({ prompt: "найди в вебе" });
+  run.push({ type: "session", sessionId: "s2" });
+  run.push({ type: "web" });
+  run.push({ type: "done", result: "нашёл" });
+  await until(() => before.find(searched.id)?.status === "done", "завершения задачи");
+
+  // Первая задача с url уйдёт из истории — признак уже лежит на втором шаге диалога.
+  const lostFirst = await before.finish({ prompt: "x", context: pageContext }, { sessionId: "s3" });
+  const second = await before.finish({ prompt: "y", followUpOf: lostFirst.task.id }, { sessionId: "s4" });
+  before.history.close();
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(join(before.dir, "history.db"));
+  db.prepare("DELETE FROM tasks WHERE id = ?").run(lostFirst.task.id);
+  db.close();
+
+  const after = await start(before.dir);
+  for (const [index, followUpOf] of [page.task.id, searched.id, second.task.id].entries()) {
+    const { run: followUp } = await after.startRun({ prompt: "ещё", followUpOf });
+    assert.equal(followUp.request.readOnly, true, `диалог №${index + 1}`);
+    followUp.push({ type: "done", result: "ок" });
+    await until(() => after.manager.list().every((task) => task.status !== "running"), "завершения уточнения");
+  }
 });

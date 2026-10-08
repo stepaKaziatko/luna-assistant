@@ -14,12 +14,20 @@ export interface StoredTask {
   task: TaskInfo;
   /** Рабочая директория, в которой запускался исполнитель. */
   workdir?: string;
+  /**
+   * К моменту этой задачи диалог касался веба (`tasks/web.ts`): дальше в нём только чтение. Есть
+   * только со значением true; у записей прежних версий нет.
+   */
+  webUsed?: true;
 }
 
 /** История задач на диске. Методы бросают исключения — их перехватывает вызывающий. */
 export interface TaskHistory {
-  /** Записывает снимок задачи (без `progress`) поверх прежнего. */
-  save(task: TaskInfo, workdir?: string): void;
+  /**
+   * Записывает снимок задачи (без `progress`) поверх прежнего. Признак `webUsed` не снимается:
+   * запись без него оставляет прежнее значение.
+   */
+  save(task: TaskInfo, workdir?: string, webUsed?: boolean): void;
   /** Последние задачи по времени создания, новые первыми. */
   recent(limit: number): StoredTask[];
   /** Задача по id — среди всей истории, а не только последних. */
@@ -50,8 +58,8 @@ export function foldCase(text: string): string {
   return text.toLowerCase();
 }
 
-/** Версия схемы `history.db`: 1 — LUNA-23, 2 — идентификатор диалога, 3 — модель. */
-const SCHEMA_VERSION = 3;
+/** Версия схемы `history.db`: 1 — LUNA-23, 2 — идентификатор диалога, 3 — модель, 4 — признак веба. */
+const SCHEMA_VERSION = 4;
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS tasks (
@@ -67,7 +75,8 @@ const SCHEMA = `
     finished_at INTEGER,
     workdir     TEXT,
     thread_id   TEXT,
-    model       TEXT
+    model       TEXT,
+    web_used    INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX IF NOT EXISTS tasks_created_at ON tasks (created_at);
 `;
@@ -80,6 +89,9 @@ const MIGRATE_V1 = `
 
 /** Версия 2 → 3: модель задачи; у прежних задач её нет (NULL). */
 const MIGRATE_V2 = "ALTER TABLE tasks ADD COLUMN model TEXT;";
+
+/** Версия 3 → 4: признак веба; прежние задачи им не помечены (по `context.url` диалог узнаётся и так). */
+const MIGRATE_V3 = "ALTER TABLE tasks ADD COLUMN web_used INTEGER NOT NULL DEFAULT 0;";
 
 /**
  * Открывает `history.db` в каталоге данных и приводит её в порядок: задачи, оставшиеся
@@ -153,14 +165,14 @@ class SqliteHistory implements TaskHistory {
     db.function("luna_fold", { deterministic: true }, (text) => (typeof text === "string" ? foldCase(text) : null));
     migrate(db);
     this.upsert = db.prepare(`
-      INSERT INTO tasks (id, prompt, context, status, executor, result, error, session_id, created_at, finished_at, workdir, thread_id, model)
-      VALUES ($id, $prompt, $context, $status, $executor, $result, $error, $sessionId, $createdAt, $finishedAt, $workdir, $threadId, $model)
+      INSERT INTO tasks (id, prompt, context, status, executor, result, error, session_id, created_at, finished_at, workdir, thread_id, model, web_used)
+      VALUES ($id, $prompt, $context, $status, $executor, $result, $error, $sessionId, $createdAt, $finishedAt, $workdir, $threadId, $model, $webUsed)
       ON CONFLICT (id) DO UPDATE SET
         prompt = excluded.prompt, context = excluded.context, status = excluded.status,
         executor = excluded.executor, result = excluded.result, error = excluded.error,
         session_id = excluded.session_id, created_at = excluded.created_at,
         finished_at = excluded.finished_at, workdir = COALESCE(excluded.workdir, tasks.workdir),
-        thread_id = excluded.thread_id, model = excluded.model
+        thread_id = excluded.thread_id, model = excluded.model, web_used = MAX(excluded.web_used, tasks.web_used)
     `);
     this.select = db.prepare("SELECT * FROM tasks ORDER BY created_at DESC, rowid DESC LIMIT ?");
     this.selectById = db.prepare("SELECT * FROM tasks WHERE id = ?");
@@ -183,7 +195,7 @@ class SqliteHistory implements TaskHistory {
     `).run(limit);
   }
 
-  save(task: TaskInfo, workdir?: string): void {
+  save(task: TaskInfo, workdir?: string, webUsed?: boolean): void {
     this.upsert.run({
       $id: task.id,
       $prompt: task.prompt,
@@ -198,6 +210,7 @@ class SqliteHistory implements TaskHistory {
       $workdir: workdir ?? null,
       $threadId: task.threadId,
       $model: task.model ?? null,
+      $webUsed: webUsed ? 1 : 0,
     });
   }
 
@@ -270,6 +283,7 @@ interface Row {
   workdir: string | null;
   thread_id: string | null;
   model: string | null;
+  web_used: number;
 }
 
 function toStored(row: Row): StoredTask {
@@ -287,7 +301,10 @@ function toStored(row: Row): StoredTask {
   if (row.error !== null) task.error = JSON.parse(row.error) as TaskInfo["error"];
   if (row.session_id !== null) task.sessionId = row.session_id;
   if (row.finished_at !== null) task.finishedAt = row.finished_at;
-  return row.workdir === null ? { task } : { task, workdir: row.workdir };
+  const stored: StoredTask = { task };
+  if (row.workdir !== null) stored.workdir = row.workdir;
+  if (row.web_used) stored.webUsed = true;
+  return stored;
 }
 
 /** Создаёт схему или доводит до текущей версии файл, записанный прежней версией Luna. */
@@ -302,6 +319,7 @@ function migrate(db: DatabaseSync): void {
     // Таблица прежней версии уже есть: CREATE TABLE IF NOT EXISTS её не тронет, колонки добавляют миграции.
     if (version === 1) db.exec(MIGRATE_V1);
     if (version === 1 || version === 2) db.exec(MIGRATE_V2);
+    if (version === 1 || version === 2 || version === 3) db.exec(MIGRATE_V3);
     db.exec(SCHEMA);
     db.exec(`CREATE INDEX IF NOT EXISTS tasks_thread_id ON tasks (thread_id, created_at); PRAGMA user_version = ${SCHEMA_VERSION};`);
     db.exec("COMMIT");

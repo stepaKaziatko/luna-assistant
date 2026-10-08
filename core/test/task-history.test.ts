@@ -296,3 +296,47 @@ test("прогресс исполнителя не пишется на диск"
   assert.deepEqual(history.saves.map((task) => task.status), ["queued", "running", "running", "done"]);
   assert.ok(history.saves.every((task) => task.progress === undefined));
 });
+
+test("история версии 3 переходит на 4: задачи читаются без признака веба; признак не снимается поздней записью", async () => {
+  const dir = dataDir();
+  const { DatabaseSync } = await import("node:sqlite");
+  const v3 = new DatabaseSync(join(dir, "history.db"));
+  // Схема LUNA-29.
+  v3.exec(`
+    CREATE TABLE tasks (
+      id TEXT PRIMARY KEY, prompt TEXT NOT NULL, context TEXT, status TEXT NOT NULL, executor TEXT NOT NULL,
+      result TEXT, error TEXT, session_id TEXT, created_at INTEGER NOT NULL, finished_at INTEGER, workdir TEXT,
+      thread_id TEXT, model TEXT
+    );
+    CREATE INDEX tasks_created_at ON tasks (created_at);
+    PRAGMA user_version = 3;
+    INSERT INTO tasks (id, prompt, context, status, executor, result, session_id, created_at, finished_at, workdir, thread_id, model)
+      VALUES ('a', 'сводка', '{"url":"https://example.com"}', 'done', 'claude-code', 'ответ', 'sa', 1, 2, '/tmp/luna/a', 'a', 'sonnet');
+  `);
+  v3.close();
+
+  const history = await openHistory(dir, { log: quiet });
+  assert.ok(history);
+  const stored = history.get("a");
+  assert.deepEqual(stored, {
+    task: {
+      id: "a", threadId: "a", prompt: "сводка", status: "done", executor: "claude-code", model: "sonnet",
+      context: { url: "https://example.com" }, result: "ответ", sessionId: "sa", createdAt: 1, finishedAt: 2,
+    },
+    workdir: "/tmp/luna/a",
+  });
+
+  const task: TaskInfo = { id: "b", threadId: "b", prompt: "b", status: "running", executor: "claude-code", createdAt: 3 };
+  history.save(task, undefined, true);
+  assert.equal(history.get("b")?.webUsed, true);
+  history.save({ ...task, status: "done", result: "ok" }, "/tmp/luna/b");
+  history.save({ ...task, status: "done", result: "ok" }, "/tmp/luna/b", false);
+  assert.equal(history.get("b")?.webUsed, true);
+  assert.equal(history.thread("b")[0]?.webUsed, true);
+  assert.equal(history.recent(10).find(({ task }) => task.id === "b")?.webUsed, true);
+  history.close();
+
+  const check = new DatabaseSync(join(dir, "history.db"));
+  assert.deepEqual({ ...(check.prepare("PRAGMA user_version").get() as object) }, { user_version: 4 });
+  check.close();
+});

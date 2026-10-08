@@ -62,10 +62,13 @@ test("описания инструментов", () => {
       JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", name, input }] } }),
     );
 
+  // Веб — ещё и событие `web` перед прогрессом.
   assert.deepEqual(describe("WebFetch", { url: "https://www.github.com/owner/repo" }), [
+    { type: "web" },
     { type: "progress", text: "открывает github.com" },
   ]);
   assert.deepEqual(describe("WebSearch", { query: "swift nspanel" }), [
+    { type: "web" },
     { type: "progress", text: "ищет в вебе: swift nspanel" },
   ]);
   assert.deepEqual(describe("Grep", { pattern: "TODO" }), [{ type: "progress", text: "ищет «TODO»" }]);
@@ -87,4 +90,32 @@ test("завершение с ошибкой без текста результ�
       error: { kind: "unknown", message: "Claude Code завершился с ошибкой (error_max_turns)" },
     },
   ]);
+});
+
+test("веб: событие web одно на поток — от WebFetch или WebSearch, в том числе у субагента; вызовы запоминаются по id", () => {
+  const line = (id: string, name: string, parent: string | null = null) =>
+    JSON.stringify({ type: "assistant", parent_tool_use_id: parent, message: { content: [{ type: "tool_use", id, name, input: {} }] } });
+
+  const sub = new ClaudeStreamParser();
+  assert.deepEqual(sub.push(line("t1", "Read")).filter((event) => event.type === "web"), []);
+  assert.equal(sub.webUsed, false);
+  // Субагент: прогресса нет, но веб засчитан.
+  assert.deepEqual(sub.push(line("t2", "WebSearch", "t-agent")), [{ type: "web" }]);
+  assert.equal(sub.webUsed, true);
+  assert.deepEqual(sub.push(line("t3", "WebFetch")).filter((event) => event.type === "web"), []);
+  assert.ok(sub.hasToolUse("t1") && sub.hasToolUse("t2") && sub.hasToolUse("t3"));
+  assert.equal(sub.hasToolUse("t4"), false);
+});
+
+test("живой поток web-then-write: событие web приходит на WebSearch, до строки с Write", () => {
+  const parser = new ClaudeStreamParser();
+  const lines = readFileSync(new URL("./fixtures/claude-code/web-then-write.jsonl", import.meta.url), "utf8").trimEnd().split("\n");
+  let webAt = -1;
+  let writeAt = -1;
+  lines.forEach((text, index) => {
+    if (parser.push(text).some((event) => event.type === "web")) webAt = index;
+    if (writeAt === -1 && text.includes('"name":"Write"')) writeAt = index;
+  });
+  assert.ok(webAt >= 0 && writeAt > webAt, `web ${webAt}, write ${writeAt}`);
+  assert.ok(parser.webUsed);
 });

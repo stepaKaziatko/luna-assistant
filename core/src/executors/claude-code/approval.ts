@@ -22,6 +22,12 @@ export type Decision =
 /** Пояснение, которое получает исполнитель, когда человек отклонил действие в карточке. */
 export const DENIED_MESSAGE = "Пользователь отклонил действие в Luna";
 
+/** Пояснение исполнителю, почему запрос отклонён без человека: в задаче уже было содержимое из сети. */
+export const WEB_DENIED_MESSAGE = "Luna: после обращения к вебу запись и команды в этой задаче запрещены";
+
+/** Отказ, который мост получает после похода исполнителя в веб; человек запроса не видит. */
+export const WEB_DENIED: Decision = { behavior: "deny", message: WEB_DENIED_MESSAGE };
+
 /** Описание запроса для карточки; относительный путь приводится к абсолютному от `cwd`. */
 export function describeApproval(call: ToolCall, cwd: string): PauseRequest {
   const { tool_name: tool, input } = call;

@@ -217,7 +217,7 @@ test("история: модель пишется и читается после
   reopened.close();
 });
 
-test("история: версии 1 и 2 мигрируют в 3, прежние задачи читаются без model, остальное цело", async () => {
+test("история: версии 1 и 2 мигрируют в текущую, прежние задачи читаются без model и без признака веба, остальное цело", async () => {
   const { DatabaseSync } = await import("node:sqlite");
   for (const version of [1, 2]) {
     const dir = mkdtempSync(join(tmpdir(), "luna-data-"));
@@ -243,16 +243,17 @@ test("история: версии 1 и 2 мигрируют в 3, прежни�
       result: "ответ", sessionId: "sa", createdAt: 1, finishedAt: 2,
     });
     assert.equal(task?.workdir, "/tmp/luna/a");
+    assert.equal(task?.webUsed, undefined);
     // Новая запись с моделью ложится в мигрированную таблицу.
     history.save({ ...(task?.task as TaskInfo), model: "sonnet" });
     assert.equal(history.get("a")?.task.model, "sonnet");
     history.close();
 
     const check = new DatabaseSync(join(dir, "history.db"));
-    assert.deepEqual({ ...(check.prepare("PRAGMA user_version").get() as object) }, { user_version: 3 });
+    assert.deepEqual({ ...(check.prepare("PRAGMA user_version").get() as object) }, { user_version: 4 });
     check.close();
 
-    // Версия 3 открывается прежним путём.
+    // Текущая версия открывается прежним путём.
     const again = await openHistory(dir, { log: () => {} });
     assert.equal(again?.get("a")?.task.model, "sonnet");
     again?.close();
