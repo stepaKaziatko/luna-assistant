@@ -62,13 +62,22 @@ interface Entry {
    * и в историю не выходит; `readOnly` его перебивает.
    */
   permission: PermissionLevel;
-  /** Пауза исполнителя, которая ждёт ответа: id запроса из `info.approval` и способ ответить. */
-  pause?: { approvalId: string; respond: (allow: boolean) => void };
+  /**
+   * Паузы исполнителя, которые ждут ответа, в порядке поступления. Человеку показывается голова
+   * (`info.approval`), следующая — после ответа на неё. Пусто — задача ничего не ждёт.
+   */
+  pauses: Pause[];
   /**
    * Диалог касался веба (`web.ts`): исполнитель получает `readOnly`, паузы отклоняются без человека.
    * Только растёт: ставится при отправке или по событию `web`, не снимается. В протокол не выходит.
    */
   webUsed: boolean;
+}
+
+/** Запрос исполнителя, ждущий ответа человека: что показать и как ответить. */
+interface Pause {
+  approval: ApprovalRequest;
+  respond: (allow: boolean) => void;
 }
 
 export class TaskManager {
@@ -99,7 +108,7 @@ export class TaskManager {
       executor: params.executor ?? this.options.defaultExecutor,
       createdAt: Date.now(),
     };
-    const entry: Entry = { info, abort: new AbortController(), webUsed: false, permission: params.permission ?? DEFAULT_PERMISSION };
+    const entry: Entry = { info, abort: new AbortController(), webUsed: false, permission: params.permission ?? DEFAULT_PERMISSION, pauses: [] };
 
     let inheritedModel: string | undefined;
     if (params.followUpOf !== undefined) {
@@ -197,9 +206,9 @@ export class TaskManager {
   }
 
   /**
-   * Выход из Luna: исполнители останавливаются, а незавершённые задачи записываются
-   * в историю ошибкой — после перезапуска видно, что они прерваны. Событий нет: оболочка
-   * уже завершается.
+   * Выход из Luna: ждущие запросы получают отказ, исполнители останавливаются, а незавершённые
+   * задачи записываются в историю ошибкой — после перезапуска видно, что они прерваны. Событий
+   * нет: оболочка уже завершается.
    */
   shutdown(): void {
     this.queue.length = 0;
@@ -211,8 +220,7 @@ export class TaskManager {
         finishedAt: Date.now(),
       } satisfies Partial<TaskInfo>);
       delete entry.info.progress;
-      delete entry.info.approval;
-      delete entry.pause;
+      rejectPauses(entry);
       this.save(entry);
       entry.abort.abort();
     }
@@ -220,19 +228,26 @@ export class TaskManager {
 
   /**
    * Ответ человека на паузу исполнителя. Бросает `ApprovalError`, если задача неизвестна или уже
-   * завершена, не ждёт ответа или `approvalId` не совпадает с текущим запросом (устарел). После ответа
-   * `approval` снимается и уходит `task.progress`: задача идёт дальше.
+   * завершена, не ждёт ответа или `approvalId` не совпадает с показанным запросом (устарел). После
+   * ответа показывается следующий запрос задачи (`task.needs_approval`), а если их нет — `approval`
+   * снимается и уходит `task.progress`: задача идёт дальше.
    */
   approve(taskId: string, approvalId: string, allow: boolean): void {
     const entry = this.entries.get(taskId);
     if (!entry || isFinal(entry.info)) throw new ApprovalError(`task not found or finished: ${taskId}`);
-    const pause = entry.pause;
+    const pause = entry.pauses[0];
     if (!pause) throw new ApprovalError("task is not waiting for approval");
-    if (pause.approvalId !== approvalId) throw new ApprovalError(`approval is outdated: ${approvalId}`);
-    delete entry.pause;
-    delete entry.info.approval;
+    if (pause.approval.id !== approvalId) throw new ApprovalError(`approval is outdated: ${approvalId}`);
+    entry.pauses.shift();
     pause.respond(allow);
-    this.emit("task.progress", entry.info);
+    const next = entry.pauses[0];
+    if (next) {
+      entry.info.approval = next.approval;
+      this.emit("task.needs_approval", entry.info);
+    } else {
+      delete entry.info.approval;
+      this.emit("task.progress", entry.info);
+    }
   }
 
   /**
@@ -413,9 +428,21 @@ export class TaskManager {
   /**
    * Ведёт задачу по потоку одного запуска исполнителя: сессия и прогресс — сразу, итог
    * (`done`/`failed`) возвращается вызывающему. Undefined — поток кончился без итога
-   * или задача уже завершена (отменена). Выход из цикла закрывает поток и процесс исполнителя.
+   * или задача уже завершена (отменена). Выход из цикла закрывает поток и процесс исполнителя,
+   * а запросы этого запуска, оставшиеся без ответа, получают отказ: отвечать на них уже некому.
    */
   private async follow(
+    entry: Entry,
+    events: AsyncIterable<ExecutorEvent>,
+  ): Promise<Extract<ExecutorEvent, { type: "done" | "failed" }> | undefined> {
+    try {
+      return await this.followEvents(entry, events);
+    } finally {
+      rejectPauses(entry);
+    }
+  }
+
+  private async followEvents(
     entry: Entry,
     events: AsyncIterable<ExecutorEvent>,
   ): Promise<Extract<ExecutorEvent, { type: "done" | "failed" }> | undefined> {
@@ -442,13 +469,8 @@ export class TaskManager {
           entry.webUsed = true;
           // Сразу на диск: падение ядра после похода в веб не должно снять недоверие с диалога.
           this.save(entry);
-          // Запрос, показанный до веба, больше не разрешить: закрывается отказом.
-          if (entry.pause) {
-            entry.pause.respond(false);
-            delete entry.pause;
-            delete info.approval;
-            this.emit("task.progress", info);
-          }
+          // Запросы, пришедшие до веба, больше не разрешить: показанный и очередь закрываются отказом.
+          if (rejectPauses(entry)) this.emit("task.progress", info);
           break;
         case "pause": {
           // После веба запись и команды запрещены: запрос не показывается человеку, отказ — сразу.
@@ -457,9 +479,6 @@ export class TaskManager {
             event.respond(false);
             break;
           }
-          // Новый запрос при висящем прежнем заменяет его: прежний закрывается отказом, чтобы исполнитель
-          // не ждал ответа, которого человек уже не увидит. Очередь запросов — отдельная задача.
-          entry.pause?.respond(false);
           const approval: ApprovalRequest = {
             id: randomUUID(),
             tool: event.request.tool,
@@ -469,7 +488,10 @@ export class TaskManager {
           };
           if (event.request.target !== undefined) approval.target = event.request.target;
           if (event.request.detail !== undefined) approval.detail = event.request.detail;
-          entry.pause = { approvalId: approval.id, respond: event.respond };
+          // Запросы одной задачи — очередь в порядке поступления: новый при висящем прежнем ждёт
+          // своей очереди и показывается после ответа на прежний (`approve`).
+          entry.pauses.push({ approval, respond: event.respond });
+          if (entry.pauses.length > 1) break;
           info.approval = approval;
           // Статус остаётся running: ждёт не Luna, а исполнитель — ответа человека.
           this.emit("task.needs_approval", info);
@@ -502,9 +524,9 @@ export class TaskManager {
   private finish(entry: Entry, event: TaskEventName, patch: Partial<TaskInfo>): void {
     Object.assign(entry.info, patch, { finishedAt: Date.now() });
     delete entry.info.progress;
-    // Ответа мосту не нужно: вместе с задачей останавливается и исполнитель.
-    delete entry.info.approval;
-    delete entry.pause;
+    // Отказ — явно и до остановки исполнителя: действие не выполняется, даже если исполнитель
+    // не закроет свои запросы сам.
+    rejectPauses(entry);
     this.save(entry);
     this.emit(event, entry.info);
   }
@@ -564,6 +586,17 @@ function log(message: string): void {
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Отвечает отказом на все ждущие запросы задачи — показанный и очередь — и снимает `approval`.
+ * Повторный вызов ничего не делает. True — было что снимать.
+ */
+function rejectPauses(entry: Entry): boolean {
+  const pauses = entry.pauses.splice(0);
+  delete entry.info.approval;
+  for (const pause of pauses) pause.respond(false);
+  return pauses.length > 0;
 }
 
 function isActive(info: TaskInfo): boolean {

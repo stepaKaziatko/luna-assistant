@@ -9,6 +9,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { BRIDGE_PATH } from "../src/executors/claude-code/adapter.ts";
 import type { BridgeRequest } from "../src/executors/claude-code/socket.ts";
+import { quietPeriod, until } from "./support/wait.ts";
 
 const fixture = (name: string) => readFileSync(fileURLToPath(new URL(`./fixtures/claude-code/${name}`, import.meta.url)), "utf8");
 
@@ -114,4 +115,88 @@ test("мост: незнакомый метод — ошибка Method not foun
   } finally {
     core.server.close();
   }
+});
+
+// --- Очередь вызовов и уход ядра (LUNA-49)
+
+/** Мост дочерним процессом с открытым stdin: тест пишет строки по ходу и закрывает его сам. */
+function liveBridge(socketPath: string) {
+  const child = spawn(process.execPath, [BRIDGE_PATH, socketPath, "run-1"], { stdio: ["pipe", "pipe", "pipe"] });
+  const replies: Reply[] = [];
+  createInterface({ input: child.stdout, crlfDelay: Infinity }).on("line", (line) => replies.push(JSON.parse(line) as Reply));
+  const exit = new Promise<number | null>((resolve) => child.once("close", resolve));
+  return { child, replies, exit };
+}
+
+const toolsCall = (id: number, file: string) =>
+  JSON.stringify({ jsonrpc: "2.0", id, method: "tools/call", params: { name: "approve", arguments: { tool_name: "Write", input: { file_path: file }, tool_use_id: `toolu_${id}` } } });
+
+test("мост: два tools/call подряд — второе соединение с ядром только после ответа на первое, ответы CLI в порядке вызовов", async () => {
+  // Ядро, которое отвечает, только когда скажет тест.
+  const waiting: { request: BridgeRequest; answer: (decision: unknown) => void }[] = [];
+  let connections = 0;
+  const path = join(mkdtempSync(join(tmpdir(), "luna-b-")), "core.sock");
+  const server = createServer((socket) => {
+    connections += 1;
+    socket.setEncoding("utf8");
+    createInterface({ input: socket }).once("line", (line) => {
+      waiting.push({ request: JSON.parse(line) as BridgeRequest, answer: (decision) => socket.end(`${JSON.stringify(decision)}\n`) });
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(path, resolve));
+  try {
+    const bridge = liveBridge(path);
+    // Обе строки — одной записью, без паузы между ними.
+    bridge.child.stdin.write(`${toolsCall(1, "/a.txt")}\n${toolsCall(2, "/b.txt")}\n`);
+    await until(() => waiting.length === 1, "первого вызова в ядре");
+    await quietPeriod();
+    assert.equal(connections, 1, "второй вызов ждёт ответа на первый");
+    assert.equal(bridge.replies.length, 0);
+
+    waiting[0]?.answer({ behavior: "deny", message: "первый" });
+    await until(() => waiting.length === 2, "второго вызова в ядре");
+    assert.equal(connections, 2);
+    assert.deepEqual(waiting.map(({ request }) => request.call.tool_use_id), ["toolu_1", "toolu_2"]);
+    waiting[1]?.answer({ behavior: "allow", updatedInput: { file_path: "/b.txt" } });
+
+    await until(() => bridge.replies.length === 2, "двух ответов CLI");
+    assert.deepEqual(bridge.replies.map((reply) => reply.id), [1, 2]);
+    assert.deepEqual(decisionOf(bridge.replies[0]), { behavior: "deny", message: "первый" });
+    assert.deepEqual(decisionOf(bridge.replies[1]), { behavior: "allow", updatedInput: { file_path: "/b.txt" } });
+    bridge.child.stdin.end();
+    assert.equal(await bridge.exit, 0);
+  } finally {
+    server.close();
+  }
+});
+
+test("мост: ядро закрыло сокет, пока мост ждёт, — CLI получает deny «Luna недоступна…»; после закрытия stdin мост выходит с кодом 0 быстрее 1 с", async () => {
+  const path = join(mkdtempSync(join(tmpdir(), "luna-b-")), "core.sock");
+  let received = false;
+  const server = createServer((socket) => {
+    createInterface({ input: socket }).once("line", () => {
+      received = true;
+      // Ядро уходит, не ответив: сервер закрыт, соединение оборвано, файла сокета нет.
+      server.close();
+      socket.destroy();
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(path, resolve));
+  const bridge = liveBridge(path);
+  bridge.child.stdin.write(`${toolsCall(1, "/a.txt")}\n`);
+  await until(() => bridge.replies.length === 1, "ответа CLI");
+  assert.ok(received);
+  const first = decisionOf(bridge.replies[0]);
+  assert.equal(first.behavior, "deny");
+  assert.match(String(first.message), /^Luna недоступна: /);
+
+  // Следующий вызов идёт в пустоту — тоже отказ, а не зависание.
+  bridge.child.stdin.write(`${toolsCall(2, "/b.txt")}\n`);
+  await until(() => bridge.replies.length === 2, "второго ответа CLI");
+  assert.equal(decisionOf(bridge.replies[1]).behavior, "deny");
+
+  const closedAt = Date.now();
+  bridge.child.stdin.end();
+  assert.equal(await bridge.exit, 0);
+  assert.ok(Date.now() - closedAt < 1000, `мост выходил ${Date.now() - closedAt} мс`);
 });

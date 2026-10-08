@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,6 +25,7 @@ import {
 } from "../src/executors/claude-code/approval.ts";
 import type { ExecutorEvent, ExecutorRequest } from "../src/executors/executor.ts";
 import { openTestApprovals } from "./support/approvals.ts";
+import { until } from "./support/wait.ts";
 
 const fixture = (name: string) => fileURLToPath(new URL(`./fixtures/claude-code/${name}`, import.meta.url));
 
@@ -592,4 +593,115 @@ test("порядок отказов моста: длинная команда п
   const { pause } = await collectWithApproval(new ClaudeCodeExecutor({ binary, approvals }), true);
   assert.equal(pause, undefined);
   assert.deepEqual(decisionOf(dir), { behavior: "deny", message: WEB_DENIED_MESSAGE });
+});
+
+// --- Конец запуска, пока мост ждёт ответа (LUNA-49)
+
+/**
+ * Подменный `claude`, у которого вызов моста живёт в отдельном процессе, как у настоящего CLI:
+ * мост держит соединение с ядром и пишет решение в файл `decision`, даже когда CLI уже нет. CLI
+ * выводит init и строку вызова, запускает мост и ждёт файла `paused` — его кладёт тест, получив
+ * паузу. Затем `exitOnPause` — CLI падает с кодом 1; иначе ждёт, пока его не убьют. Pid — в `pid`.
+ */
+function waitingClaude(exitOnPause: boolean): { binary: string; dir: string } {
+  const dir = mkdtempSync(join(tmpdir(), "luna-fake-claude-"));
+  const call = { tool_name: "Write", input: { file_path: "/abs/x.txt", content: "x" }, tool_use_id: "toolu_1" };
+  const bridge = join(dir, "bridge.mjs");
+  writeFileSync(
+    bridge,
+    `
+import { createConnection } from "node:net";
+import { writeFileSync } from "node:fs";
+import { createInterface } from "node:readline";
+const [socketPath, runId, out] = process.argv.slice(2);
+const socket = createConnection(socketPath);
+socket.setEncoding("utf8");
+createInterface({ input: socket }).once("line", (line) => {
+  writeFileSync(out, line + "\\n");
+  socket.end();
+});
+socket.write(JSON.stringify({ run: runId, call: ${JSON.stringify(call)} }) + "\\n");
+`,
+  );
+  const script = join(dir, "claude.mjs");
+  writeFileSync(
+    script,
+    `
+import { spawn } from "node:child_process";
+import { existsSync, writeFileSync } from "node:fs";
+writeFileSync(${JSON.stringify(join(dir, "pid"))}, String(process.pid));
+const argv = process.argv.slice(2);
+const config = JSON.parse(argv[argv.indexOf("--mcp-config") + 1]);
+const [, socketPath, runId] = config.mcpServers.luna.args;
+process.stdout.write(${JSON.stringify(fixtureLines("success.jsonl")[0] ?? "")} + "\\n");
+process.stdout.write(${JSON.stringify(assistantToolUse(call.tool_use_id, call.tool_name, call.input))} + "\\n");
+// Мост — без stdout CLI: иначе вывод не кончится, пока он жив.
+spawn(process.execPath, [${JSON.stringify(bridge)}, socketPath, runId, ${JSON.stringify(join(dir, "decision"))}], { stdio: "ignore" });
+const timer = setInterval(() => {
+  if (!existsSync(${JSON.stringify(join(dir, "paused"))})) return;
+  if (${exitOnPause ? "true" : "false"}) {
+    process.stderr.write("boom\\n");
+    process.exit(1);
+  }
+  clearInterval(timer);
+  setInterval(() => {}, 1000);
+}, 10);
+`,
+  );
+  const binary = join(dir, "claude");
+  writeFileSync(binary, `#!/bin/sh\nexec "${process.execPath}" "${script}" "$@"\n`);
+  chmodSync(binary, 0o755);
+  return { binary, dir };
+}
+
+/** Пауза и итог запуска — без сессии и прогресса. */
+const outcomeOf = (events: ExecutorEvent[]) => events.map((event) => event.type).filter((type) => type === "pause" || type === "done" || type === "failed");
+
+/** Жив ли процесс: сигнал 0 только проверяет. */
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+test("CLI упал, пока мост ждёт ответа: поток даёт failed, вызов моста получает deny", async () => {
+  const approvals = await openTestApprovals();
+  const { binary, dir } = waitingClaude(true);
+  const events: ExecutorEvent[] = [];
+  for await (const event of new ClaudeCodeExecutor({ binary, approvals }).run({
+    prompt: "x", formatRules: "RULES", cwd: tmpdir(), signal: new AbortController().signal, permission: "manual",
+  })) {
+    events.push(event);
+    // На паузу не отвечаем: CLI уходит, пока она висит.
+    if (event.type === "pause") writeFileSync(join(dir, "paused"), "");
+  }
+  assert.deepEqual(outcomeOf(events), ["pause", "failed"]);
+  const failed = events.at(-1);
+  assert.match(failed?.type === "failed" ? failed.error.message : "", /Claude Code завершился без результата: boom/);
+  await until(() => existsSync(join(dir, "decision")), "решения мосту");
+  assert.equal((decisionOf(dir) as { behavior: string }).behavior, "deny");
+});
+
+test("abort, пока мост ждёт ответа: процесс CLI убит, вызов моста получает deny, failed не приходит", async () => {
+  const approvals = await openTestApprovals();
+  const { binary, dir } = waitingClaude(false);
+  const abort = new AbortController();
+  const events: ExecutorEvent[] = [];
+  for await (const event of new ClaudeCodeExecutor({ binary, approvals }).run({
+    prompt: "x", formatRules: "RULES", cwd: tmpdir(), signal: abort.signal, permission: "manual",
+  })) {
+    events.push(event);
+    if (event.type === "pause") {
+      writeFileSync(join(dir, "paused"), "");
+      abort.abort();
+    }
+  }
+  assert.deepEqual(outcomeOf(events), ["pause"]);
+  await until(() => existsSync(join(dir, "decision")), "решения мосту");
+  assert.equal((decisionOf(dir) as { behavior: string }).behavior, "deny");
+  const pid = Number(readFileSync(join(dir, "pid"), "utf8"));
+  await until(() => !alive(pid), "остановки процесса CLI");
 });

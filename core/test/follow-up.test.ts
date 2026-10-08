@@ -484,3 +484,79 @@ test("после перезапуска ядра: диалог с url, диал�
     await until(() => after.manager.list().every((task) => task.status !== "running"), "завершения уточнения");
   }
 });
+
+// --- Подтверждение в уточнении и повторной отправке (LUNA-49)
+
+/** Пауза записи файла с подставным ответом. */
+function writePause(target: string) {
+  const answers: boolean[] = [];
+  const event = {
+    type: "pause" as const,
+    kind: "approval" as const,
+    request: { tool: "Write", kind: "write" as const, summary: "Записать файл", target },
+    respond: (allow: boolean) => answers.push(allow),
+  };
+  return { event, answers };
+}
+
+test("уточнение задачи, просившей подтверждение: без readOnly, с уровнем своего task.submit, пауза даёт task.needs_approval; повторная отправка — так же", async () => {
+  const core = await start();
+  const approvalsOf = (id: string) => core.eventsOf(id).filter(({ event }) => event === "task.needs_approval");
+
+  // Первая задача — на «правках без вопроса»; исполнитель всё равно спросил (запись вне рабочего каталога).
+  const { task: first, run: firstRun } = await core.startRun({ prompt: "создай файл", permission: "edit_automatically" });
+  assert.equal(firstRun.request.permission, "edit_automatically");
+  firstRun.push({ type: "session", sessionId: "s1" });
+  const firstPause = writePause("/work/a.txt");
+  firstRun.push(firstPause.event);
+  await until(() => approvalsOf(first.id).length === 1, "запроса первой задачи");
+  core.manager.approve(first.id, core.find(first.id)?.approval?.id ?? "", true);
+  assert.deepEqual(firstPause.answers, [true]);
+  firstRun.push({ type: "done", result: "создал" });
+  await until(() => core.find(first.id)?.status === "done", "завершения первой задачи");
+
+  // Уточнение — на текущем уровне (сменили в настройках), а не на уровне первой задачи.
+  const { task: followUp, run } = await core.startRun({ prompt: "допиши строку", followUpOf: first.id, permission: "manual" });
+  assert.equal(run.request.permission, "manual");
+  assert.equal("readOnly" in run.request, false, "с мостом и хуком");
+  assert.deepEqual(run.request.resume, { sessionId: "s1" });
+  const followPause = writePause("/work/a.txt");
+  run.push(followPause.event);
+  await until(() => approvalsOf(followUp.id).length === 1, "запроса уточнения");
+  assert.equal(core.find(followUp.id)?.approval?.target, "/work/a.txt");
+  core.manager.approve(followUp.id, core.find(followUp.id)?.approval?.id ?? "", true);
+  assert.deepEqual(followPause.answers, [true]);
+
+  // Сессия потерялась — переписка уходит заново тем же путём: тот же уровень, мост, пауза работает.
+  run.push(lostSession);
+  const retry = await core.nextRun(core.executor.runs.indexOf(run) + 1);
+  assert.equal(retry.request.permission, "manual");
+  assert.equal("readOnly" in retry.request, false);
+  assert.equal(retry.request.resume, undefined);
+  const retryPause = writePause("/work/a.txt");
+  retry.push(retryPause.event);
+  await until(() => approvalsOf(followUp.id).length === 2, "запроса повторной отправки");
+  assert.equal(core.find(followUp.id)?.status, "running");
+  core.manager.approve(followUp.id, core.find(followUp.id)?.approval?.id ?? "", false);
+  assert.deepEqual(retryPause.answers, [false]);
+  retry.push({ type: "done", result: "не дописал" });
+  await until(() => core.find(followUp.id)?.status === "done", "завершения уточнения");
+  assert.equal(core.find(followUp.id)?.approval, undefined);
+});
+
+test("сессия потерялась, пока висел запрос: он получает отказ, повторная отправка начинает без approval", async () => {
+  const core = await start();
+  const first = await core.finish({ prompt: "1" }, { sessionId: "s1", result: "ответ" });
+  const { task, run } = await core.startRun({ prompt: "2", followUpOf: first.task.id });
+  const stale = writePause("/work/a.txt");
+  run.push(stale.event);
+  await until(() => core.find(task.id)?.approval !== undefined, "запроса");
+  const staleId = core.find(task.id)?.approval?.id ?? "";
+  run.push(lostSession);
+  const retry = await core.nextRun(core.executor.runs.indexOf(run) + 1);
+  assert.deepEqual(stale.answers, [false]);
+  assert.equal(core.find(task.id)?.approval, undefined);
+  assert.throws(() => core.manager.approve(task.id, staleId, true), /outdated|not waiting/);
+  retry.push({ type: "done", result: "ок" });
+  await until(() => core.find(task.id)?.status === "done", "завершения уточнения");
+});

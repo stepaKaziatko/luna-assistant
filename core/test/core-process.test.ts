@@ -498,6 +498,69 @@ socket.write(JSON.stringify({ run: runId, call: { tool_name: "Write", input: { f
   assert.deepEqual(socketFiles(), [], "после выхода файла сокета нет");
 });
 
+test("выход оболочки, пока висит запрос подтверждения: ядро выходит с кодом 0, сокета нет, CLI остановлен; после перезапуска задача прервана и без approval", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "luna-data-"));
+  const socketFiles = () => readdirSync(dir).filter((name) => name.endsWith(".sock"));
+  // Подставной исполнитель пишет свой pid, спрашивает разрешение на Write и ждёт ответа без конца;
+  // ответ, если успеет прийти до остановки, записывает в файл.
+  const script = join(dir, "claude.mjs");
+  writeFileSync(
+    script,
+    `
+import { createConnection } from "node:net";
+import { writeFileSync } from "node:fs";
+import { createInterface } from "node:readline";
+writeFileSync(${JSON.stringify(join(dir, "executor.pid"))}, String(process.pid));
+const argv = process.argv.slice(2);
+const config = JSON.parse(argv[argv.indexOf("--mcp-config") + 1]);
+const [, socketPath, runId] = config.mcpServers.luna.args;
+process.stdin.resume();
+process.stdout.write(JSON.stringify({ type: "system", subtype: "init", session_id: "s-quit", model: "claude-fable-5" }) + "\\n");
+process.stdout.write(JSON.stringify({ type: "assistant", session_id: "s-quit", message: { content: [{ type: "tool_use", id: "t1", name: "Write", input: { file_path: "quit.txt", content: "hi" } }] } }) + "\\n");
+const socket = createConnection(socketPath);
+socket.setEncoding("utf8");
+createInterface({ input: socket }).once("line", (line) => writeFileSync(${JSON.stringify(join(dir, "decision"))}, line + "\\n"));
+socket.write(JSON.stringify({ run: runId, call: { tool_name: "Write", input: { file_path: "quit.txt", content: "hi" }, tool_use_id: "t1" } }) + "\\n");
+setInterval(() => {}, 1000);
+`,
+  );
+  const claude = join(dir, "claude");
+  writeFileSync(claude, `#!/bin/sh\nexec "${process.execPath}" "${script}" "$@"\n`);
+  chmodSync(claude, 0o755);
+  const env = { LUNA_DATA_DIR: dir, LUNA_CLAUDE_BIN: claude };
+
+  const first = startCore(env);
+  await first.request("core.hello");
+  const needsApproval = first.waitFor((message) => message.method === "task.needs_approval" || message.method === "task.failed");
+  const submitted = (await first.request("task.submit", { prompt: "создай файл" })).result?.task as TaskInfo;
+  const waiting = (await needsApproval).params?.task;
+  assert.ok(waiting?.approval, `задача не ждёт подтверждения: ${JSON.stringify(waiting?.error)}`);
+  const executorPid = Number(readFileSync(join(dir, "executor.pid"), "utf8").trim());
+  assert.ok(isAlive(executorPid), "до выхода исполнитель ждёт ответа");
+  assert.equal(socketFiles().length, 1);
+
+  // Выход Luna: оболочка закрыла stdin ядра.
+  assert.equal(await first.stop(), 0);
+  assert.deepEqual(socketFiles(), [], "файла сокета нет");
+  const killedBy = Date.now() + 5_000;
+  while (isAlive(executorPid) && Date.now() < killedBy) await new Promise((resolve) => setTimeout(resolve, 50));
+  const survived = isAlive(executorPid);
+  if (survived) process.kill(executorPid, "SIGKILL");
+  assert.ok(!survived, "исполнитель пережил выход ядра больше 5 с");
+  // Ответ, если исполнитель успел его получить, — только отказ: действие не выполнено.
+  if (existsSync(join(dir, "decision"))) assert.equal(JSON.parse(readFileSync(join(dir, "decision"), "utf8")).behavior, "deny");
+  assert.equal(existsSync(join(dir, "tasks", submitted.id, "quit.txt")), false);
+
+  const second = startCore(env);
+  await second.request("core.hello");
+  const listed = ((await second.request("task.list")).result?.tasks as TaskInfo[]).find((task) => task.id === submitted.id);
+  assert.equal(listed?.status, "failed");
+  assert.deepEqual(listed?.error, { kind: "unknown", message: INTERRUPTED_MESSAGE });
+  assert.equal(listed?.approval, undefined);
+  assert.equal(await second.stop(), 0);
+  assert.deepEqual(socketFiles(), []);
+});
+
 test("уровни разрешений: core.hello отдаёт permissionLevels и без CLI; task.submit — форма уровня, уровень в argv исполнителя", async () => {
   const dir = mkdtempSync(join(tmpdir(), "luna-data-"));
   // CLI нет: исполнитель недоступен, но набор уровней статичен и приходит.
