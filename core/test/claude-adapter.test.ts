@@ -10,6 +10,7 @@ import {
   BRIDGE_PATH,
   bridgeConfig,
   buildArgs,
+  hookSettings,
   ClaudeCodeExecutor,
   PERMISSION_TOOL,
   READ_ONLY_TOOLS,
@@ -99,7 +100,7 @@ function approvingClaude(call: { tool_name: string; input: Record<string, unknow
 
 async function collect(executor: ClaudeCodeExecutor, signal = new AbortController().signal): Promise<ExecutorEvent[]> {
   const events: ExecutorEvent[] = [];
-  for await (const event of executor.run({ prompt: "<task>\nпривет\n</task>", formatRules: "RULES", cwd: tmpdir(), signal })) {
+  for await (const event of executor.run({ prompt: "<task>\nпривет\n</task>", formatRules: "RULES", cwd: tmpdir(), signal, permission: "manual" })) {
     events.push(event);
   }
   return events;
@@ -111,7 +112,7 @@ async function collectWithApproval(
 ): Promise<{ events: ExecutorEvent[]; pause: Extract<ExecutorEvent, { type: "pause" }> | undefined }> {
   const events: ExecutorEvent[] = [];
   let pause: Extract<ExecutorEvent, { type: "pause" }> | undefined;
-  for await (const event of executor.run({ prompt: "x", formatRules: "RULES", cwd, signal: new AbortController().signal, ...extra })) {
+  for await (const event of executor.run({ prompt: "x", formatRules: "RULES", cwd, signal: new AbortController().signal, permission: "manual", ...extra })) {
     events.push(event);
     if (event.type === "pause") {
       pause = event;
@@ -144,6 +145,7 @@ test("запускает CLI с мостом подтверждений: зап�
     "--strict-mcp-config",
     "--mcp-config", mcpConfig,
     "--permission-prompt-tool", "mcp__luna__approve",
+    "--settings", hookSettings(approvals.path, config.mcpServers.luna?.args[2] ?? ""),
     "--permission-mode", "default",
     "--tools", "WebFetch,WebSearch,Read,Glob,Grep,Write,Edit,NotebookEdit,Bash",
     "--allowedTools", "WebFetch,WebSearch,Read,Glob,Grep",
@@ -155,8 +157,9 @@ test("запускает CLI с мостом подтверждений: зап�
 
 test("buildArgs: флаги уровня manual; --allowedTools без записи; с resume — те же флаги плюс --resume", () => {
   const mcpConfig = bridgeConfig("/tmp/luna.sock", "run-1");
-  const plain = buildArgs({ formatRules: "RULES", model: "sonnet", mcpConfig });
-  const resumed = buildArgs({ formatRules: "RULES", model: "sonnet", mcpConfig, resume: { sessionId: "6872ce2a-d1fa-476e-b60c-9c963deff778" } });
+  const settings = hookSettings("/tmp/luna.sock", "run-1");
+  const plain = buildArgs({ formatRules: "RULES", model: "sonnet", permission: "manual", mcpConfig, settings });
+  const resumed = buildArgs({ formatRules: "RULES", model: "sonnet", permission: "manual", mcpConfig, settings, resume: { sessionId: "6872ce2a-d1fa-476e-b60c-9c963deff778" } });
   assert.deepEqual(resumed, [...plain, "--resume", "6872ce2a-d1fa-476e-b60c-9c963deff778"]);
   assert.equal(plain.includes("--resume"), false);
   assert.equal(plain.includes("--safe-mode"), false);
@@ -185,6 +188,7 @@ test("уточнение: --resume с сессией диалога уходит
     formatRules: "RULES",
     cwd: tmpdir(),
     signal: new AbortController().signal,
+    permission: "manual",
     resume: { sessionId: "s-1" },
   })) {
     events.push(event);
@@ -305,6 +309,7 @@ test("отмена убивает процесс и не порождает ош
     formatRules: "RULES",
     cwd: tmpdir(),
     signal: abort.signal,
+    permission: "manual",
   })) {
     events.push(event);
     abort.abort();
@@ -359,7 +364,7 @@ test("запуск readOnly: без канала подтверждений до
   const { binary, dir } = fakeClaude(`cat "${fixture("success.jsonl")}"`);
   const events: ExecutorEvent[] = [];
   for await (const event of new ClaudeCodeExecutor({ binary }).run({
-    prompt: "x", formatRules: "RULES", cwd: tmpdir(), signal: new AbortController().signal, readOnly: true,
+    prompt: "x", formatRules: "RULES", cwd: tmpdir(), signal: new AbortController().signal, permission: "manual", readOnly: true,
   })) events.push(event);
   assert.equal(events.at(-1)?.type, "done");
   const argv = argvOf(dir);
@@ -374,7 +379,7 @@ test("запуск readOnly с открытым каналом: мост всё 
   const { binary, dir } = fakeClaude(`cat "${fixture("success.jsonl")}"`);
   const events: ExecutorEvent[] = [];
   for await (const event of new ClaudeCodeExecutor({ binary, approvals }).run({
-    prompt: "x", formatRules: "RULES", cwd: tmpdir(), signal: new AbortController().signal, readOnly: true, resume: { sessionId: "s-1" },
+    prompt: "x", formatRules: "RULES", cwd: tmpdir(), signal: new AbortController().signal, permission: "manual", readOnly: true, resume: { sessionId: "s-1" },
   })) events.push(event);
   assert.equal(events.at(-1)?.type, "done");
   const argv = argvOf(dir);

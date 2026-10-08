@@ -15,8 +15,18 @@
       "properties": {
         "id": { "$ref": "#/definitions/ExecutorId" },
         "available": { "type": "boolean" },
-        "path": { "type": "string" }
+        "path": { "type": "string" },
+        "permissionLevels": {
+          "type": "array",
+          "description": "уровни разрешений, которые исполнитель поддерживает; набор не зависит от того, установлен ли CLI",
+          "items": { "$ref": "#/definitions/PermissionLevel" }
+        }
       }
+    },
+    "PermissionLevel": {
+      "type": "string",
+      "description": "уровень разрешений исполнителя — настройка Luna: manual — спрашивать всё, что исполнитель не считает безопасным сам; edit_automatically — править файлы без вопросов, команды спрашивать. Что именно спрашивать на уровне, решает исполнитель. Задача, касавшаяся веба, идёт только на чтение на любом уровне. Набор расширяемый",
+      "enum": ["manual", "edit_automatically"]
     },
     "AppInfo": {
       "type": "object",
@@ -116,7 +126,8 @@
         "context": { "$ref": "#/definitions/TaskContext" },
         "executor": { "$ref": "#/definitions/ExecutorId" },
         "model": { "type": "string", "description": "модель для этой задачи; строка непрозрачна для протокола, её смысл знает исполнитель (для Claude Code — алиас opus/sonnet/haiku или полный идентификатор); не передана — модель по умолчанию исполнителя; с followUpOf — модель этого уточнения; без неё уточнение продолжается на модели продолжаемой задачи" },
-        "followUpOf": { "type": "string", "description": "id задачи диалога, которую продолжает уточнение; вместе с ним context и executor не передаются, model — можно (модель уточнения)" }
+        "followUpOf": { "type": "string", "description": "id задачи диалога, которую продолжает уточнение; вместе с ним context и executor не передаются, model и permission — можно (модель и уровень уточнения)" },
+        "permission": { "$ref": "#/definitions/PermissionLevel", "description": "уровень разрешений для этой задачи; не передан — manual; уровень, которого нет в permissionLevels исполнителя, — InvalidParams; с followUpOf — уровень этого уточнения" }
       }
     },
     "TaskSubmitResult": {

@@ -24,12 +24,12 @@ function parseFixture(name: string): ExecutorEvent[] {
 // --- Адаптер: --model из запроса и из options.model
 
 test("buildArgs: --model из значения; без модели флага нет; --model перед --resume", () => {
-  const withModel = buildArgs({ formatRules: "RULES", model: "opus", mcpConfig: "{}" });
+  const withModel = buildArgs({ formatRules: "RULES", model: "opus", permission: "manual", mcpConfig: "{}", settings: "{}" });
   assert.deepEqual(withModel.slice(-2), ["--model", "opus"]);
-  assert.equal(buildArgs({ formatRules: "RULES", mcpConfig: "{}" }).includes("--model"), false);
-  assert.equal(buildArgs({ formatRules: "RULES", resume: { sessionId: "s1" }, mcpConfig: "{}" }).includes("--model"), false);
+  assert.equal(buildArgs({ formatRules: "RULES", permission: "manual", mcpConfig: "{}", settings: "{}" }).includes("--model"), false);
+  assert.equal(buildArgs({ formatRules: "RULES", resume: { sessionId: "s1" }, permission: "manual", mcpConfig: "{}", settings: "{}" }).includes("--model"), false);
 
-  const resumed = buildArgs({ formatRules: "RULES", model: "opus", resume: { sessionId: "s1" }, mcpConfig: "{}" });
+  const resumed = buildArgs({ formatRules: "RULES", model: "opus", resume: { sessionId: "s1" }, permission: "manual", mcpConfig: "{}", settings: "{}" });
   assert.deepEqual(resumed.slice(-4), ["--model", "opus", "--resume", "s1"]);
 });
 
@@ -44,7 +44,7 @@ function fakeClaude(streamFixture: string): { binary: string; argv: () => string
 
 async function runExecutor(executor: ClaudeCodeExecutor, model?: string): Promise<ExecutorEvent[]> {
   const events: ExecutorEvent[] = [];
-  const request = { prompt: "<task>\nпривет\n</task>", formatRules: "RULES", cwd: tmpdir(), signal: new AbortController().signal };
+  const request = { prompt: "<task>\nпривет\n</task>", formatRules: "RULES", cwd: tmpdir(), signal: new AbortController().signal, permission: "manual" as const };
   for await (const event of executor.run(model === undefined ? request : { ...request, model })) events.push(event);
   return events;
 }

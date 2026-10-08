@@ -1,4 +1,4 @@
-import type { ApprovalKind, ExecutorId, ExecutorStatus, TaskError } from "../rpc/protocol.gen.ts";
+import type { ApprovalKind, ExecutorId, ExecutorStatus, PermissionLevel, TaskError } from "../rpc/protocol.gen.ts";
 
 /** Что исполнитель собирается сделать и ждёт ответа человека; ничего специфичного для конкретного CLI. */
 export interface PauseRequest {
@@ -46,8 +46,14 @@ export interface ExecutorRequest {
   /** Уточнение: продолжить сессию исполнителя, в которой выполнялась прежняя задача диалога. */
   resume?: { sessionId: string };
   /**
+   * Уровень разрешений, выбранный человеком в настройках Luna; всегда один из `permissionLevels`
+   * исполнителя. Что спрашивать на уровне, решает исполнитель (его CLI), но больше выбранного он
+   * не даёт. Ядро передаёт итоговое значение: не выбран — `manual`.
+   */
+  permission: PermissionLevel;
+  /**
    * Только чтение: исполнитель обязан не давать модели ни записи, ни команд — независимо от
-   * остальных полей запроса, в том числе будущего уровня разрешений. Не умеет — задача падает,
+   * остальных полей запроса, в том числе уровня разрешений. Не умеет — задача падает,
    * а не идёт с записью. Ставит ядро, когда диалог касался веба (см. `tasks/web.ts`).
    */
   readOnly?: boolean;
@@ -55,6 +61,12 @@ export interface ExecutorRequest {
 
 export interface Executor {
   readonly id: ExecutorId;
+  /**
+   * Уровни разрешений, которые исполнитель поддерживает; набор статичен и не зависит от установки
+   * CLI. Ядро сверяет с ним `task.submit` и отдаёт его в `status()`. Новый уровень — значение
+   * `PermissionLevel` и ветка в адаптере исполнителя.
+   */
+  readonly permissionLevels: readonly PermissionLevel[];
   status(): Promise<ExecutorStatus>;
   /** Поток завершается после done/failed либо молча — при отмене через signal. */
   run(request: ExecutorRequest): AsyncIterable<ExecutorEvent>;

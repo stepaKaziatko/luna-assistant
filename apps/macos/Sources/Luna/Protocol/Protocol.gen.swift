@@ -14,10 +14,25 @@ struct ExecutorStatus: Codable, Equatable, Sendable {
     let available: Bool
     let id: ExecutorId
     let path: String?
+    /// уровни разрешений, которые исполнитель поддерживает; набор не зависит от того, установлен
+    /// ли CLI
+    let permissionLevels: [PermissionLevel]?
 }
 
 enum ExecutorId: String, Codable, Equatable, Sendable {
     case claudeCode = "claude-code"
+}
+
+/// уровень разрешений исполнителя — настройка Luna: manual — спрашивать всё, что исполнитель
+/// не считает безопасным сам; edit_automatically — править файлы без вопросов, команды
+/// спрашивать. Что именно спрашивать на уровне, решает исполнитель. Задача, касавшаяся веба,
+/// идёт только на чтение на любом уровне. Набор расширяемый
+///
+/// уровень разрешений для этой задачи; не передан — manual; уровень, которого нет в
+/// permissionLevels исполнителя, — InvalidParams; с followUpOf — уровень этого уточнения
+enum PermissionLevel: String, Codable, Equatable, Sendable {
+    case editAutomatically = "edit_automatically"
+    case manual = "manual"
 }
 
 // MARK: - TaskSubmitParams
@@ -25,13 +40,16 @@ struct TaskSubmitParams: Codable, Equatable, Sendable {
     let context: TaskContext?
     let executor: ExecutorId?
     /// id задачи диалога, которую продолжает уточнение; вместе с ним context и executor не
-    /// передаются, model — можно (модель уточнения)
+    /// передаются, model и permission — можно (модель и уровень уточнения)
     let followUpOf: String?
     /// модель для этой задачи; строка непрозрачна для протокола, её смысл знает исполнитель (для
     /// Claude Code — алиас opus/sonnet/haiku или полный идентификатор); не передана — модель по
     /// умолчанию исполнителя; с followUpOf — модель этого уточнения; без неё уточнение
     /// продолжается на модели продолжаемой задачи
     let model: String?
+    /// уровень разрешений для этой задачи; не передан — manual; уровень, которого нет в
+    /// permissionLevels исполнителя, — InvalidParams; с followUpOf — уровень этого уточнения
+    let permission: PermissionLevel?
     let prompt: String
 }
 

@@ -10,16 +10,32 @@ export interface ExecutorStatus {
     available: boolean;
     id:        ExecutorId;
     path?:     string;
+    /**
+     * уровни разрешений, которые исполнитель поддерживает; набор не зависит от того, установлен
+     * ли CLI
+     */
+    permissionLevels?: PermissionLevel[];
 }
 
 export type ExecutorId = "claude-code";
+
+/**
+ * уровень разрешений исполнителя — настройка Luna: manual — спрашивать всё, что исполнитель
+ * не считает безопасным сам; edit_automatically — править файлы без вопросов, команды
+ * спрашивать. Что именно спрашивать на уровне, решает исполнитель. Задача, касавшаяся веба,
+ * идёт только на чтение на любом уровне. Набор расширяемый
+ *
+ * уровень разрешений для этой задачи; не передан — manual; уровень, которого нет в
+ * permissionLevels исполнителя, — InvalidParams; с followUpOf — уровень этого уточнения
+ */
+export type PermissionLevel = "manual" | "edit_automatically";
 
 export interface TaskSubmitParams {
     context?:  TaskContext;
     executor?: ExecutorId;
     /**
      * id задачи диалога, которую продолжает уточнение; вместе с ним context и executor не
-     * передаются, model — можно (модель уточнения)
+     * передаются, model и permission — можно (модель и уровень уточнения)
      */
     followUpOf?: string;
     /**
@@ -29,7 +45,12 @@ export interface TaskSubmitParams {
      * продолжается на модели продолжаемой задачи
      */
     model?: string;
-    prompt: string;
+    /**
+     * уровень разрешений для этой задачи; не передан — manual; уровень, которого нет в
+     * permissionLevels исполнителя, — InvalidParams; с followUpOf — уровень этого уточнения
+     */
+    permission?: PermissionLevel;
+    prompt:      string;
 }
 
 export interface TaskContext {

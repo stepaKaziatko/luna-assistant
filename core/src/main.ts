@@ -23,8 +23,9 @@ import type {
   TaskSubmitResult,
 } from "./rpc/protocol.gen.ts";
 import { openHistory } from "./tasks/history.ts";
-import { ActiveDialogError, ApprovalError, FollowUpError, TaskManager } from "./tasks/manager.ts";
+import { ActiveDialogError, ApprovalError, FollowUpError, PermissionError, TaskManager } from "./tasks/manager.ts";
 import { isValidModel } from "./tasks/model.ts";
+import { isPermissionLevel } from "./tasks/permission.ts";
 
 const VERSION = "0.7.0";
 
@@ -81,25 +82,33 @@ rpc.method("core.hello", async (): Promise<HelloResult> => ({
 }));
 
 rpc.method("task.submit", (params): TaskSubmitResult => {
-  const { prompt, executor, context: rawContext, followUpOf, model } = asObject(params) as Partial<TaskSubmitParams>;
+  const { prompt, executor, context: rawContext, followUpOf, model, permission } = asObject(params) as Partial<TaskSubmitParams>;
   if (typeof prompt !== "string" || prompt.trim() === "") {
     throw new RpcError(ErrorCode.InvalidParams, "prompt must be a non-empty string");
   }
   if (model !== undefined && !isValidModel(model)) {
     throw new RpcError(ErrorCode.InvalidParams, "invalid model");
   }
+  // Форма — здесь, поддержка исполнителем — в менеджере: у уточнения исполнитель известен только ему.
+  if (permission !== undefined && !isPermissionLevel(permission)) {
+    throw new RpcError(ErrorCode.InvalidParams, "invalid permission");
+  }
+  const submitTask = (submit: TaskSubmitParams) => {
+    try {
+      return { task: tasks.submit(submit) };
+    } catch (error) {
+      if (error instanceof FollowUpError || error instanceof PermissionError) throw new RpcError(ErrorCode.InvalidParams, error.message);
+      throw error;
+    }
+  };
   if (followUpOf !== undefined) {
     if (typeof followUpOf !== "string") throw new RpcError(ErrorCode.InvalidParams, "followUpOf must be a string");
     // Уточнение идёт тому же исполнителю и без нового контекста: диалог — о том, с чего начался.
     if (rawContext !== undefined) throw new RpcError(ErrorCode.InvalidParams, "context is not allowed with followUpOf");
     if (executor !== undefined) throw new RpcError(ErrorCode.InvalidParams, "executor is not allowed with followUpOf");
-    // Модель уточнения необязательна: без неё менеджер берёт модель продолжаемой задачи.
-    try {
-      return { task: tasks.submit({ prompt, followUpOf, ...(model !== undefined ? { model } : {}) }) };
-    } catch (error) {
-      if (error instanceof FollowUpError) throw new RpcError(ErrorCode.InvalidParams, error.message);
-      throw error;
-    }
+    // Модель уточнения необязательна: без неё менеджер берёт модель продолжаемой задачи. Уровень —
+    // свой у каждого уточнения: без него `manual`.
+    return submitTask({ prompt, followUpOf, ...(model !== undefined ? { model } : {}), ...(permission !== undefined ? { permission } : {}) });
   }
   if (executor !== undefined && !executors.some((candidate) => candidate.id === executor)) {
     throw new RpcError(ErrorCode.InvalidParams, `unknown executor: ${String(executor)}`);
@@ -107,9 +116,10 @@ rpc.method("task.submit", (params): TaskSubmitResult => {
   const submit: TaskSubmitParams = { prompt };
   if (executor !== undefined) submit.executor = executor;
   if (model !== undefined) submit.model = model;
+  if (permission !== undefined) submit.permission = permission;
   const context = normalizeContext(rawContext);
   if (context) submit.context = context;
-  return { task: tasks.submit(submit) };
+  return submitTask(submit);
 });
 
 rpc.method("task.cancel", (params) => {

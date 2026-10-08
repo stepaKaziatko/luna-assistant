@@ -4,7 +4,7 @@ import { join, resolve, sep } from "node:path";
 import { createTaskWorkdir } from "../context/workdir.ts";
 import type { Executor, ExecutorEvent } from "../executors/executor.ts";
 import { buildPrompt, FORMAT_RULES, type HistoryTurn } from "../prompt/build.ts";
-import type { ApprovalRequest, ExecutorId, TaskInfo, TaskSubmitParams } from "../rpc/protocol.gen.ts";
+import type { ApprovalRequest, ExecutorId, PermissionLevel, TaskInfo, TaskSubmitParams } from "../rpc/protocol.gen.ts";
 import { foldCase, INTERRUPTED_MESSAGE, type StoredTask, type TaskHistory } from "./history.ts";
 import { isValidModel } from "./model.ts";
 import { isWebContext } from "./web.ts";
@@ -37,6 +37,12 @@ export class ActiveDialogError extends Error {}
 /** Ответ на подтверждение принять нельзя: задачи нет, она не ждёт или запрос устарел; `main.ts` отвечает `InvalidParams`. */
 export class ApprovalError extends Error {}
 
+/** Исполнитель задачи не поддерживает запрошенный уровень разрешений; `main.ts` отвечает `InvalidParams`. */
+export class PermissionError extends Error {}
+
+/** Уровень, когда `task.submit` его не назвал. */
+export const DEFAULT_PERMISSION: PermissionLevel = "manual";
+
 interface Entry {
   info: TaskInfo;
   abort: AbortController;
@@ -50,6 +56,12 @@ interface Entry {
    * получить именно выбор.
    */
   model?: string;
+  /**
+   * Уровень разрешений из `task.submit` (не передан — `manual`); у уточнения — свой, не уровень
+   * исходной задачи. Для ядра — непрозрачное значение: что он значит, знает исполнитель. В протокол
+   * и в историю не выходит; `readOnly` его перебивает.
+   */
+  permission: PermissionLevel;
   /** Пауза исполнителя, которая ждёт ответа: id запроса из `info.approval` и способ ответить. */
   pause?: { approvalId: string; respond: (allow: boolean) => void };
   /**
@@ -73,7 +85,10 @@ export class TaskManager {
     this.maxConcurrent = options.maxConcurrent ?? 3;
   }
 
-  /** Бросает `FollowUpError`, если `followUpOf` указывает не на точку продолжения диалога. */
+  /**
+   * Бросает `FollowUpError`, если `followUpOf` указывает не на точку продолжения диалога, и
+   * `PermissionError`, если исполнитель задачи не объявил запрошенный уровень.
+   */
   submit(params: TaskSubmitParams): TaskInfo {
     const id = randomUUID();
     const info: TaskInfo = {
@@ -84,7 +99,7 @@ export class TaskManager {
       executor: params.executor ?? this.options.defaultExecutor,
       createdAt: Date.now(),
     };
-    const entry: Entry = { info, abort: new AbortController(), webUsed: false };
+    const entry: Entry = { info, abort: new AbortController(), webUsed: false, permission: params.permission ?? DEFAULT_PERMISSION };
 
     let inheritedModel: string | undefined;
     if (params.followUpOf !== undefined) {
@@ -100,6 +115,12 @@ export class TaskManager {
     } else if (params.context) {
       info.context = params.context;
       entry.webUsed = isWebContext(params.context);
+    }
+    // Исполнитель не получает больше выбранного, и уровень не подменяется: неподдержанный — отказ.
+    // У уточнения исполнитель — тот, что у продолжаемой задачи.
+    const executor = this.executors.get(info.executor);
+    if (executor && !executor.permissionLevels.includes(entry.permission)) {
+      throw new PermissionError(`permission not supported by ${info.executor}: ${entry.permission}`);
     }
     // Уточнение без `model` остаётся на модели точки продолжения. Она пришла из вывода CLI или
     // истории и попадёт в argv, поэтому проходит ту же проверку шаблона, что и значение из протокола;
@@ -349,6 +370,7 @@ export class TaskManager {
         formatRules: FORMAT_RULES,
         cwd,
         signal: abort.signal,
+        permission: entry.permission,
         ...(entry.model !== undefined ? { model: entry.model } : {}),
         ...(entry.resume ? { resume: entry.resume } : {}),
         ...(entry.webUsed ? { readOnly: true } : {}),
@@ -370,6 +392,7 @@ export class TaskManager {
           formatRules: FORMAT_RULES,
           cwd,
           signal: abort.signal,
+          permission: entry.permission,
           ...(entry.model !== undefined ? { model: entry.model } : {}),
           // Признак мог появиться в первом запуске: повторный идёт уже на чтение.
           ...(entry.webUsed ? { readOnly: true } : {}),

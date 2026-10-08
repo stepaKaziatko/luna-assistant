@@ -1,24 +1,57 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { homedir } from "node:os";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import type { ExecutorStatus } from "../../rpc/protocol.gen.ts";
+import type { ExecutorStatus, PermissionLevel } from "../../rpc/protocol.gen.ts";
 import type { Executor, ExecutorEvent, ExecutorRequest } from "../executor.ts";
 import { resolveBinary } from "../resolve-binary.ts";
-import { COMMAND_TOO_LONG, decide, describeApproval, tooLongToShow, WEB_DENIED, type Decision, type ToolCall } from "./approval.ts";
+import {
+  COMMAND_TOO_LONG,
+  decide,
+  describeApproval,
+  HOOK_DEFER,
+  tooLongToShow,
+  WEB_DENIED,
+  type Decision,
+  type HookDecision,
+  type ToolCall,
+} from "./approval.ts";
 import type { ApprovalSocket } from "./socket.ts";
 import { ClaudeStreamParser } from "./stream.ts";
 
 // Чтение разрешено без вопроса. Запись файлов и команды (`Bash`) доступны, но не разрешены заранее:
 // всё, что CLI не пропускает сам, идёт через мост (`--permission-prompt-tool`) и ждёт ответа человека
-// в Luna. Какие команды спрашивать, решает CLI в своём режиме (`ls` в рабочем каталоге он не спрашивает),
-// Luna списков команд не ведёт. Запуск только на чтение (`readOnly`) получает перечень чтения целиком и
-// ничего сверх него: новые инструменты попадают в него, только если их сюда допишут.
+// в Luna. Что пропускать без вопроса, решает CLI в режиме, который задаёт уровень разрешений
+// (`PERMISSION_MODES`): `ls` в рабочем каталоге он не спрашивает, на `acceptEdits` не спрашивает и
+// правки файлов. Luna списков команд и путей не ведёт. Запуск только на чтение (`readOnly`) получает
+// перечень чтения целиком и ничего сверх него: новые инструменты попадают в него, только если их сюда допишут.
 export const READ_ONLY_TOOLS = "WebFetch,WebSearch,Read,Glob,Grep";
 const WRITE_TOOLS = "Write,Edit,NotebookEdit";
 const SHELL_TOOLS = "Bash";
 export const AVAILABLE_TOOLS = `${READ_ONLY_TOOLS},${WRITE_TOOLS},${SHELL_TOOLS}`;
 export const ALLOWED_TOOLS = READ_ONLY_TOOLS;
+
+/**
+ * Уровень разрешений Luna → режим Claude Code (`--permission-mode`). Набор уровней исполнителя —
+ * ключи этой таблицы; новый уровень — значение `PermissionLevel` и строка здесь.
+ * `manual` — спрашивается всё, что CLI не считает безопасным сам. `edit_automatically` — правки файлов
+ * в рабочем каталоге и в `--add-dir` без вопроса; команды и защищённые пути CLI (`.git`, `.claude`, …)
+ * спрашиваются.
+ */
+export const PERMISSION_MODES: Readonly<Record<PermissionLevel, string>> = {
+  manual: "default",
+  edit_automatically: "acceptEdits",
+};
+
+/** Инструменты записи и команд: перед каждым их вызовом CLI зовёт хук `PreToolUse` (веб-запрет). */
+export const HOOK_MATCHER = `${WRITE_TOOLS},${SHELL_TOOLS}`.split(",").join("|");
+
+/**
+ * Срок хука в `--settings`, секунды. Хук ждёт ядро меньше (`HOOK_WAIT_MS` в bridge.ts) и по своему
+ * сроку отказывает: истёкший таймаут команды CLI считает неблокирующей ошибкой и пропустил бы вызов.
+ */
+export const HOOK_TIMEOUT_S = 30;
 
 /** Имя MCP-сервера моста и его инструмента: так CLI называет permission prompt. */
 export const MCP_SERVER = "luna";
@@ -32,14 +65,16 @@ export const PERMISSION_TOOL = `mcp__${MCP_SERVER}__approve`;
 export const TOOL_USE_WAIT_MS = 5000;
 
 /** Отказ на вызов, который пришёл или остался без ответа к концу запуска. */
-const FINISHED: Decision = { behavior: "deny", message: "Luna: задача завершена" };
+const FINISHED = { behavior: "deny", message: "Luna: задача завершена" } as const satisfies Decision & HookDecision;
 
 /** Отказ, когда строки с вызовом в выводе CLI так и не появилось. */
-const UNMATCHED: Decision = { behavior: "deny", message: "Luna: запрос не сверен с выводом исполнителя, действие не выполнено" };
+const UNMATCHED = { behavior: "deny", message: "Luna: запрос не сверен с выводом исполнителя, действие не выполнено" } as const satisfies Decision & HookDecision;
 
 // Маркеры родительской сессии Claude Code. Если ядро запущено из неё (разработка),
-// дочерний `claude -p` не должен считать себя её частью.
+// дочерний `claude -p` не должен считать себя её частью. И `CLAUDE.md` каталогов `--add-dir`:
+// инструкции из домашнего каталога не должны попадать в промпт исполнителя.
 const PARENT_SESSION_ENV = [
+  "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD",
   "CLAUDECODE",
   "CLAUDE_PID",
   "CLAUDE_CODE_ENTRYPOINT",
@@ -66,9 +101,17 @@ export type ClaudeArgs = {
   model?: string;
   resume?: { sessionId: string };
 } & (
-  /** Содержимое `--mcp-config`: только наш мост, см. `bridgeConfig`. */
-  | { readOnly?: false; mcpConfig: string }
-  /** Только чтение: ни инструментов записи, ни моста — спрашивать человека не о чем. */
+  | {
+      readOnly?: false;
+      permission: PermissionLevel;
+      /** Содержимое `--mcp-config`: только наш мост, см. `bridgeConfig`. */
+      mcpConfig: string;
+      /** Содержимое `--settings`: хук веб-запрета, см. `hookSettings`. */
+      settings: string;
+      /** Каталог `--add-dir` уровня `edit_automatically`; по умолчанию домашний. */
+      addDir?: string;
+    }
+  /** Только чтение: ни инструментов записи, ни моста, ни хука — спрашивать человека не о чем. */
   | { readOnly: true }
 );
 
@@ -83,8 +126,26 @@ export function bridgeConfig(socketPath: string, runId: string, node = process.e
 }
 
 /**
+ * `--settings` с одним хуком `PreToolUse` на запись и команды: тот же файл, что мост, в режиме `hook`.
+ * CLI выполняет команду хука через оболочку, поэтому части команды экранированы.
+ */
+export function hookSettings(socketPath: string, runId: string, node = process.execPath): string {
+  const command = [node, BRIDGE_PATH, "hook", socketPath, runId].map(shellQuote).join(" ");
+  return JSON.stringify({
+    hooks: { PreToolUse: [{ matcher: HOOK_MATCHER, hooks: [{ type: "command", command, timeout: HOOK_TIMEOUT_S }] }] },
+  });
+}
+
+/** Строка в одинарных кавычках для `sh`. */
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", `'\\''`)}'`;
+}
+
+/**
  * Аргументы `claude -p`; с `resume` — те же флаги плюс `--resume <sessionId>`. `readOnly` проверяется
- * первым и перебивает всё остальное: перечень инструментов — только чтение, моста нет.
+ * первым и перебивает всё остальное, в том числе уровень: перечень инструментов — только чтение,
+ * моста и хука нет, режим `default`. Иначе уровень задаёт режим CLI; хук веб-запрета стоит на любом
+ * уровне и срабатывает раньше режима.
  */
 export function buildArgs(options: ClaudeArgs): string[] {
   const access = options.readOnly
@@ -92,8 +153,10 @@ export function buildArgs(options: ClaudeArgs): string[] {
     : [
         "--mcp-config", options.mcpConfig,
         "--permission-prompt-tool", PERMISSION_TOOL,
-        // Уровень `manual`: всё, что CLI не разрешил сам, идёт человеку через мост.
-        "--permission-mode", "default",
+        "--settings", options.settings,
+        "--permission-mode", PERMISSION_MODES[options.permission],
+        // Правки без вопроса — только в рабочем каталоге и здесь; вне их CLI спрашивает.
+        ...(options.permission === "edit_automatically" ? ["--add-dir", options.addDir ?? homedir()] : []),
         "--tools", AVAILABLE_TOOLS,
       ];
   const args = [
@@ -116,8 +179,16 @@ export function buildArgs(options: ClaudeArgs): string[] {
   return args;
 }
 
+/** Окружение дочернего `claude`: без маркеров родительской сессии и `CLAUDE.md` из `--add-dir`. */
+export function childEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const env = { ...base };
+  for (const name of PARENT_SESSION_ENV) delete env[name];
+  return env;
+}
+
 export class ClaudeCodeExecutor implements Executor {
   readonly id = "claude-code";
+  readonly permissionLevels = Object.keys(PERMISSION_MODES) as PermissionLevel[];
   private readonly options: ClaudeCodeOptions;
 
   constructor(options: ClaudeCodeOptions = {}) {
@@ -126,7 +197,8 @@ export class ClaudeCodeExecutor implements Executor {
 
   async status(): Promise<ExecutorStatus> {
     const path = await resolveBinary("claude", this.options.binary);
-    return path ? { id: this.id, available: true, path } : { id: this.id, available: false };
+    const permissionLevels = [...this.permissionLevels];
+    return path ? { id: this.id, available: true, path, permissionLevels } : { id: this.id, available: false, permissionLevels };
   }
 
   async *run(request: ExecutorRequest): AsyncGenerator<ExecutorEvent> {
@@ -147,15 +219,21 @@ export class ClaudeCodeExecutor implements Executor {
       };
       return;
     }
+    // Уровень, которого исполнитель не объявил, — ошибка, а не подмена: больше выбранного не даём.
+    if (!request.readOnly && !this.permissionLevels.includes(request.permission)) {
+      yield { type: "failed", error: { kind: "unknown", message: `Claude Code не поддерживает уровень разрешений ${String(request.permission)}` } };
+      return;
+    }
     if (request.signal.aborted) return;
 
-    const env = { ...process.env };
-    for (const name of PARENT_SESSION_ENV) delete env[name];
+    const env = childEnv();
 
     const runId = randomUUID();
     const args = buildArgs({
       formatRules: request.formatRules,
-      ...(request.readOnly || !approvals ? { readOnly: true as const } : { mcpConfig: bridgeConfig(approvals.path, runId) }),
+      ...(request.readOnly || !approvals
+        ? { readOnly: true as const }
+        : { permission: request.permission, mcpConfig: bridgeConfig(approvals.path, runId), settings: hookSettings(approvals.path, runId) }),
       ...(request.model ?? this.options.model ? { model: request.model ?? this.options.model } : {}),
       ...(request.resume ? { resume: request.resume } : {}),
     });
@@ -200,14 +278,24 @@ export class ClaudeCodeExecutor implements Executor {
     });
     const unregister = request.readOnly || !approvals
       ? () => {}
-      : approvals.register(runId, async (call) => {
-          // Мост и stdout — разные потоки: решение принимается, когда разобран весь вывод до этого вызова.
-          if (!(await stdout.reached(call.tool_use_id))) return UNMATCHED;
-          // После веба запись и команды запрещены: человеку такой запрос не показывается.
-          if (parser.webUsed) return WEB_DENIED;
-          // Команду, которую человек не прочтёт целиком, не показываем: граница показа, а не политика.
-          if (tooLongToShow(call)) return COMMAND_TOO_LONG;
-          return ask(call);
+      : approvals.register(runId, {
+          approve: async (call) => {
+            // Мост и stdout — разные потоки: решение принимается, когда разобран весь вывод до этого вызова.
+            if (!(await stdout.reached(call.tool_use_id))) return UNMATCHED;
+            // После веба запись и команды запрещены: человеку такой запрос не показывается.
+            if (parser.webUsed) return WEB_DENIED;
+            // Команду, которую человек не прочтёт целиком, не показываем: граница показа, а не политика.
+            if (tooLongToShow(call)) return COMMAND_TOO_LONG;
+            return ask(call);
+          },
+          // Хук зовётся перед каждой записью и командой раньше режима CLI: на `acceptEdits` правка идёт
+          // без моста, поэтому веб-запрет держит он. Своей политики сверх веба у хука нет.
+          hook: async (call): Promise<HookDecision> => {
+            if (over) return FINISHED;
+            if (!(await stdout.reached(call.tool_use_id))) return UNMATCHED;
+            if (parser.webUsed) return WEB_DENIED;
+            return HOOK_DEFER;
+          },
         });
 
     void (async () => {

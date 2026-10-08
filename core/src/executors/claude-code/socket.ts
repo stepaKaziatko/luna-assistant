@@ -3,35 +3,49 @@ import { chmodSync, readdirSync, unlinkSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import type { Decision, ToolCall } from "./approval.ts";
+import type { Decision, HookDecision, ToolCall } from "./approval.ts";
 
 // Канал от моста (bridge.ts) к ядру: unix-сокет в каталоге данных, один на запуск ядра.
-// Мост подключается на каждый permission prompt, шлёт одну строку JSON `{ run, call }` и ждёт
-// одну строку с решением (`Decision`). TCP-порта нет: сокет доступен только владельцу (0600).
+// Мост подключается на каждый вызов, шлёт одну строку JSON `{ run, call, kind? }` и ждёт одну
+// строку с решением: на permission prompt — `Decision`, на хук `PreToolUse` (`kind: "hook"`) —
+// `HookDecision`. TCP-порта нет: сокет доступен только владельцу (0600).
 
 /** Имя файла сокета: случайное на каждый запуск; остатки прежних запусков чистятся при старте. */
 const SOCKET_NAME = /^approvals-[0-9a-f]+\.sock$/;
+
+/**
+ * Вид запроса: `approve` — permission prompt, решение может спросить человека; `hook` — хук
+ * `PreToolUse`, решение без человека. Без поля — `approve` (так шлёт MCP-режим моста).
+ */
+export type BridgeRequestKind = "approve" | "hook";
 
 /** Что присылает мост. */
 export interface BridgeRequest {
   /** Запуск исполнителя, которому адресован вызов: мосту его передают аргументом. */
   run: string;
   call: ToolCall;
+  kind?: BridgeRequestKind;
 }
 
-export type ApprovalHandler = (call: ToolCall) => Promise<Decision>;
+/** Обработчики вызовов одного запуска исполнителя. */
+export interface ApprovalHandlers {
+  /** Permission prompt: разрешить или отклонить, при необходимости спросив человека. */
+  approve: (call: ToolCall) => Promise<Decision>;
+  /** Хук `PreToolUse`: отказ либо «нет решения» — дальше решают режим CLI и permission prompt. */
+  hook: (call: ToolCall) => Promise<HookDecision>;
+}
 
 export interface ApprovalSocketOptions {
   log?: (message: string) => void;
 }
 
-/** Ответ мосту, когда запуск уже завершился или не известен ядру. */
-const UNKNOWN_RUN: Decision = { behavior: "deny", message: "Luna: задача уже завершена" };
+/** Ответ мосту и хуку, когда запуск уже завершился или не известен ядру. */
+const UNKNOWN_RUN = { behavior: "deny", message: "Luna: задача уже завершена" } as const satisfies Decision & HookDecision;
 
 export class ApprovalSocket {
   readonly path: string;
   private readonly server: Server;
-  private readonly handlers = new Map<string, ApprovalHandler>();
+  private readonly handlers = new Map<string, ApprovalHandlers>();
   private readonly log: (message: string) => void;
   private closed = false;
 
@@ -69,8 +83,8 @@ export class ApprovalSocket {
     return new ApprovalSocket(path, server, log);
   }
 
-  /** Подписывает запуск исполнителя на вызовы моста; возвращает отписку. */
-  register(run: string, handler: ApprovalHandler): () => void {
+  /** Подписывает запуск исполнителя на вызовы моста и хука; возвращает отписку. */
+  register(run: string, handler: ApprovalHandlers): () => void {
     this.handlers.set(run, handler);
     return () => {
       if (this.handlers.get(run) === handler) this.handlers.delete(run);
@@ -92,7 +106,7 @@ export class ApprovalSocket {
   private serve(socket: Socket): void {
     socket.setEncoding("utf8");
     let answered = false;
-    const answer = (decision: Decision) => {
+    const answer = (decision: Decision | HookDecision) => {
       if (answered) return;
       answered = true;
       socket.end(`${JSON.stringify(decision)}\n`);
@@ -113,7 +127,8 @@ export class ApprovalSocket {
         answer(UNKNOWN_RUN);
         return;
       }
-      handler(request.call).then(answer, (error) => {
+      const decision: Promise<Decision | HookDecision> = request.kind === "hook" ? handler.hook(request.call) : handler.approve(request.call);
+      decision.then(answer, (error) => {
         this.log(`сокет подтверждений: ${describe(error)}`);
         answer({ behavior: "deny", message: `Luna: ${describe(error)}` });
       });
@@ -129,10 +144,12 @@ function parseRequest(line: string): BridgeRequest | undefined {
     return undefined;
   }
   if (data === null || typeof data !== "object") return undefined;
-  const { run, call } = data as Partial<BridgeRequest>;
+  const { run, call, kind } = data as Partial<BridgeRequest>;
   if (typeof run !== "string" || call === null || typeof call !== "object") return undefined;
   if (typeof call.tool_name !== "string" || call.input === null || typeof call.input !== "object") return undefined;
+  if (kind !== undefined && kind !== "approve" && kind !== "hook") return undefined;
   const result: BridgeRequest = { run, call: { tool_name: call.tool_name, input: call.input } };
+  if (kind !== undefined) result.kind = kind;
   if (typeof call.tool_use_id === "string") result.call.tool_use_id = call.tool_use_id;
   return result;
 }

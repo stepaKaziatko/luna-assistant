@@ -22,11 +22,22 @@ export type Decision =
 /** Пояснение, которое получает исполнитель, когда человек отклонил действие в карточке. */
 export const DENIED_MESSAGE = "Пользователь отклонил действие в Luna";
 
+/**
+ * Ответ хуку `PreToolUse`: отказ с причиной либо «нет решения» (`defer`) — вызов идёт дальше по
+ * режиму CLI и, если тот спросит, через permission prompt. Разрешения хук не даёт никогда.
+ */
+export type HookDecision =
+  | { behavior: "deny"; message: string }
+  | { behavior: "defer" };
+
+/** «Нет решения»: хук не вмешивается. */
+export const HOOK_DEFER: HookDecision = { behavior: "defer" };
+
 /** Пояснение исполнителю, почему запрос отклонён без человека: в задаче уже было содержимое из сети. */
 export const WEB_DENIED_MESSAGE = "Luna: после обращения к вебу запись и команды в этой задаче запрещены";
 
 /** Отказ, который мост получает после похода исполнителя в веб; человек запроса не видит. */
-export const WEB_DENIED: Decision = { behavior: "deny", message: WEB_DENIED_MESSAGE };
+export const WEB_DENIED = { behavior: "deny", message: WEB_DENIED_MESSAGE } as const satisfies Decision & HookDecision;
 
 /**
  * Самая длинная команда, которую человек проверяет в подтверждении, в символах Unicode. Это граница

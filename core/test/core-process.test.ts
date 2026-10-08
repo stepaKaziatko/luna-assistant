@@ -497,3 +497,53 @@ socket.write(JSON.stringify({ run: runId, call: { tool_name: "Write", input: { f
   assert.equal(await core.stop(), 0);
   assert.deepEqual(socketFiles(), [], "после выхода файла сокета нет");
 });
+
+test("уровни разрешений: core.hello отдаёт permissionLevels и без CLI; task.submit — форма уровня, уровень в argv исполнителя", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "luna-data-"));
+  // CLI нет: исполнитель недоступен, но набор уровней статичен и приходит.
+  const missing = startCore({ LUNA_DATA_DIR: dir, LUNA_CLAUDE_BIN: join(dir, "no-such-claude") });
+  const hello = (await missing.request("core.hello")).result as { executors: { id: string; available: boolean; permissionLevels?: string[] }[] };
+  assert.deepEqual(hello.executors, [{ id: "claude-code", available: false, permissionLevels: ["manual", "edit_automatically"] }]);
+  assert.equal(await missing.stop(), 0);
+
+  const success = fileURLToPath(new URL("./fixtures/claude-code/success.jsonl", import.meta.url));
+  const claude = join(dir, "claude");
+  writeFileSync(claude, `#!/bin/sh\nprintf '%s\\n' "$@" >> "${dir}/argv"\necho "---" >> "${dir}/argv"\ncat > /dev/null\ncat "${success}"\n`);
+  chmodSync(claude, 0o755);
+  const core = startCore({ LUNA_DATA_DIR: dir, LUNA_CLAUDE_BIN: claude });
+  await core.request("core.hello");
+
+  const invalid = async (params: object) => {
+    const response = (await core.request("task.submit", params)) as Message & { error?: { code: number; message: string } };
+    assert.equal(response.error?.code, -32602, JSON.stringify(params));
+    return response.error?.message;
+  };
+  for (const permission of ["bogus", "full_access", "", 42, null, ["manual"], "MANUAL"]) {
+    assert.equal(await invalid({ prompt: "привет", permission }), "invalid permission", JSON.stringify(permission));
+    assert.equal(await invalid({ prompt: "ещё", permission, followUpOf: "missing" }), "invalid permission", JSON.stringify(permission));
+  }
+
+  const submit = async (params: object) => {
+    const finished = core.waitFor((message) => message.method === "task.done" || message.method === "task.failed");
+    const response = (await core.request("task.submit", params)) as Message & { result?: { task: TaskInfo }; error?: unknown };
+    assert.equal(response.error, undefined, JSON.stringify(params));
+    const task = (await finished).params?.task as TaskInfo;
+    assert.equal(task.status, "done", JSON.stringify(task.error));
+    assert.equal("permission" in task, false, "уровень в TaskInfo не выходит");
+    return task;
+  };
+  const base = await submit({ prompt: "основа", permission: "edit_automatically" });
+  await submit({ prompt: "уточнение", followUpOf: base.id });
+  await submit({ prompt: "без уровня" });
+
+  const runs = readFileSync(join(dir, "argv"), "utf8").split("---\n").filter((entry) => entry !== "").map((run) => run.trimEnd().split("\n"));
+  assert.equal(runs.length, 3);
+  const modeOf = (argv: string[] | undefined) => argv?.[argv.indexOf("--permission-mode") + 1];
+  assert.equal(modeOf(runs[0]), "acceptEdits");
+  assert.ok(runs[0]?.includes("--add-dir"));
+  // Уточнение без уровня — manual, а не уровень основы.
+  assert.equal(modeOf(runs[1]), "default");
+  assert.equal(runs[1]?.includes("--add-dir"), false);
+  assert.equal(modeOf(runs[2]), "default");
+  assert.equal(await core.stop(), 0);
+});
