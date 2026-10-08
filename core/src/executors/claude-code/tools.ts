@@ -43,7 +43,8 @@ export function toolStep(name: string, input: Record<string, unknown>): ToolStep
       return step("write", path && basename(path), (file) => `пишет ${file}`, "пишет файл");
     }
     case "Bash": {
-      // Агент сам подписывает команду — подпись понятнее её текста.
+      // Агент сам подписывает команду — для строки прогресса подпись понятнее её текста. Подтверждение
+      // подписи не доверяет и показывает команду целиком (`approval.ts`).
       const command = text("description") ?? text("command");
       return step("shell", command && oneLine(command, COMMAND_LIMIT), (line) => `выполняет: ${line}`, "выполняет команду");
     }

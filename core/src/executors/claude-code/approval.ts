@@ -28,6 +28,24 @@ export const WEB_DENIED_MESSAGE = "Luna: после обращения к веб
 /** Отказ, который мост получает после похода исполнителя в веб; человек запроса не видит. */
 export const WEB_DENIED: Decision = { behavior: "deny", message: WEB_DENIED_MESSAGE };
 
+/**
+ * Самая длинная команда, которую человек проверяет в подтверждении, в символах Unicode. Это граница
+ * показа, а не политика: команду длиннее человек целиком не прочтёт, поэтому она отклоняется без показа.
+ */
+export const COMMAND_LIMIT = 20_000;
+
+/** Пояснение исполнителю, почему команда отклонена без человека. */
+export const COMMAND_TOO_LONG_MESSAGE = "Luna: команда длиннее 20 000 знаков, проверить её в подтверждении нельзя; действие не выполнено";
+
+/** Отказ мосту на команду длиннее `COMMAND_LIMIT`; человек запроса не видит. */
+export const COMMAND_TOO_LONG: Decision = { behavior: "deny", message: COMMAND_TOO_LONG_MESSAGE };
+
+/** Вызов — команда, которую нельзя показать человеку целиком: длиннее `COMMAND_LIMIT` символов. */
+export function tooLongToShow(call: ToolCall): boolean {
+  const command = call.input.command;
+  return call.tool_name === "Bash" && typeof command === "string" && [...command].length > COMMAND_LIMIT;
+}
+
 /** Описание запроса для карточки; относительный путь приводится к абсолютному от `cwd`. */
 export function describeApproval(call: ToolCall, cwd: string): PauseRequest {
   const { tool_name: tool, input } = call;
@@ -57,9 +75,41 @@ export function describeApproval(call: ToolCall, cwd: string): PauseRequest {
         { tool, kind: "edit", summary: "Изменить блокнот", detail: clip(text("new_source") ?? "") },
         path("notebook_path"),
       );
+    case "Bash": {
+      const command = text("command");
+      return command ? describeCommand(tool, command, cwd, text("description")) : other(tool, input);
+    }
     default:
-      return { tool, kind: "other", summary: `Использовать инструмент ${tool}`, detail: clip(compactJson(input)) };
+      return other(tool, input);
   }
+}
+
+/**
+ * Команда показывается целиком и как есть: человек разрешает именно её, а не подпись агента. Подпись —
+ * отдельной строкой и в одну строку, чтобы текст агента не нарисовал в блоке поддельные «Размер…» или
+ * «Каталог…». Каталог — тот, где запущен исполнитель: CLI в запросе каталог не присылает, а сессия может
+ * помнить `cd` прошлой команды, поэтому подпись — «Каталог задачи», а не «выполнится в».
+ */
+function describeCommand(tool: string, command: string, cwd: string, description: string | undefined): PauseRequest {
+  const lines = command.split("\n").length;
+  const chars = [...command].length;
+  const detail = [
+    `Размер: ${lines} ${plural(lines, "строка", "строки", "строк")}, ${chars} ${plural(chars, "знак", "знака", "знаков")}`,
+    `Каталог задачи: ${cwd}`,
+  ];
+  const signature = description === undefined ? "" : oneLine(description);
+  if (signature) detail.push(`Подпись агента: ${clip(signature)}`);
+  return { tool, kind: "shell", summary: "Выполнить команду", target: command, detail: detail.join("\n") };
+}
+
+/** Незнакомый вызов: имя инструмента и его вход как JSON. */
+function other(tool: string, input: Record<string, unknown>): PauseRequest {
+  return { tool, kind: "other", summary: `Использовать инструмент ${tool}`, detail: clip(compactJson(input)) };
+}
+
+/** Текст в одну строку: любые переводы строк — пробел, края без пробелов. */
+function oneLine(value: string): string {
+  return value.replace(/\s*[\r\n\v\f\u0085\u2028\u2029]+\s*/g, " ").trim();
 }
 
 /** Решение человека в терминах CLI: разрешение возвращает вход без изменений. */

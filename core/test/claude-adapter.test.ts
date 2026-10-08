@@ -14,7 +14,14 @@ import {
   PERMISSION_TOOL,
   READ_ONLY_TOOLS,
 } from "../src/executors/claude-code/adapter.ts";
-import { DETAIL_LIMIT, WEB_DENIED_MESSAGE } from "../src/executors/claude-code/approval.ts";
+import {
+  COMMAND_LIMIT,
+  COMMAND_TOO_LONG_MESSAGE,
+  DENIED_MESSAGE,
+  DETAIL_LIMIT,
+  describeApproval,
+  WEB_DENIED_MESSAGE,
+} from "../src/executors/claude-code/approval.ts";
 import type { ExecutorEvent, ExecutorRequest } from "../src/executors/executor.ts";
 import { openTestApprovals } from "./support/approvals.ts";
 
@@ -138,7 +145,7 @@ test("запускает CLI с мостом подтверждений: зап�
     "--mcp-config", mcpConfig,
     "--permission-prompt-tool", "mcp__luna__approve",
     "--permission-mode", "default",
-    "--tools", "WebFetch,WebSearch,Read,Glob,Grep,Write,Edit,NotebookEdit",
+    "--tools", "WebFetch,WebSearch,Read,Glob,Grep,Write,Edit,NotebookEdit,Bash",
     "--allowedTools", "WebFetch,WebSearch,Read,Glob,Grep",
     "--append-system-prompt", "RULES",
     "--model", "sonnet",
@@ -162,10 +169,11 @@ test("buildArgs: флаги уровня manual; --allowedTools без запи�
   assert.ok(PERMISSION_TOOL.startsWith("mcp__"));
   assert.equal(value("--permission-mode"), "default");
   assert.equal(value("--tools"), AVAILABLE_TOOLS);
-  for (const tool of ["Write", "Edit", "NotebookEdit"]) assert.ok(AVAILABLE_TOOLS.split(",").includes(tool), tool);
+  for (const tool of ["Write", "Edit", "NotebookEdit", "Bash"]) assert.ok(AVAILABLE_TOOLS.split(",").includes(tool), tool);
   assert.equal(value("--allowedTools"), ALLOWED_TOOLS);
   assert.equal(ALLOWED_TOOLS, "WebFetch,WebSearch,Read,Glob,Grep");
-  for (const tool of ["Write", "Edit", "NotebookEdit"]) assert.equal(ALLOWED_TOOLS.split(",").includes(tool), false, tool);
+  // Bash доступен, но не разрешён заранее: что спрашивать, решает CLI, ответ — человек через мост.
+  for (const tool of ["Write", "Edit", "NotebookEdit", "Bash"]) assert.equal(ALLOWED_TOOLS.split(",").includes(tool), false, tool);
 });
 
 test("уточнение: --resume с сессией диалога уходит в CLI", async () => {
@@ -241,13 +249,13 @@ test("пауза Edit: kind edit со старым и новым фрагмен�
   assert.equal(edited.pause?.request.target, "/abs/a.ts");
   assert.equal(edited.pause?.request.detail, "Заменить:\nбыло\n\nНа:\nстало");
 
-  const other = approvingClaude({ tool_name: "Bash", input: { command: "rm -rf x", description: "удалить x" } });
+  const other = approvingClaude({ tool_name: "KillShell", input: { shell_id: "bash_1" } });
   const used = await collectWithApproval(new ClaudeCodeExecutor({ binary: other.binary, approvals }), false);
   assert.equal(used.pause?.request.kind, "other");
-  assert.equal(used.pause?.request.tool, "Bash");
-  assert.equal(used.pause?.request.summary, "Использовать инструмент Bash");
+  assert.equal(used.pause?.request.tool, "KillShell");
+  assert.equal(used.pause?.request.summary, "Использовать инструмент KillShell");
   assert.equal(used.pause?.request.target, undefined);
-  assert.equal(used.pause?.request.detail, JSON.stringify({ command: "rm -rf x", description: "удалить x" }));
+  assert.equal(used.pause?.request.detail, JSON.stringify({ shell_id: "bash_1" }));
 });
 
 test("сессия не найдена: одна ошибка session_not_found, без второй от кода выхода 1", async () => {
@@ -456,4 +464,113 @@ test("вызов моста без веба (обмен approval-allow): пау�
   assert.equal(pause.request.tool, "Write");
   assert.equal(events.some((event) => event.type === "web"), false);
   assert.equal((decisionOf(dir) as { behavior: string }).behavior, "allow");
+});
+
+// --- Команды shell (LUNA-48)
+
+test("Bash (живой поток sonnet): пауза shell, target — команда как есть, подпись агента — отдельной строкой в detail; разрешение возвращает вход без изменений", async () => {
+  const approvals = await openTestApprovals();
+  const call = bridgeCall("approval-bash.bridge.jsonl");
+  assert.equal(call.tool_name, "Bash");
+  const command = call.input.command;
+  const description = call.input.description;
+  assert.ok(typeof command === "string" && command.includes("\n"), "команда в фикстуре многострочная");
+  assert.ok(typeof description === "string" && description !== command, "подпись агента отличается от команды");
+  const { before, after } = splitAt(fixtureLines("approval-bash.jsonl"), call.tool_use_id ?? "");
+  const { binary, dir } = scriptedClaude({ before, call, after });
+  const cwd = mkdtempSync(join(tmpdir(), "luna-task-"));
+  const { events, pause } = await collectWithApproval(new ClaudeCodeExecutor({ binary, approvals }), true, cwd);
+
+  assert.ok(pause, "пауза не пришла");
+  assert.equal(pause.request.tool, "Bash");
+  assert.equal(pause.request.kind, "shell");
+  assert.equal(pause.request.summary, "Выполнить команду");
+  assert.equal(pause.request.target, command);
+  assert.equal(pause.request.target?.includes(description), false, "подпись агента не попадает в команду");
+  const lines = (pause.request.detail ?? "").split("\n");
+  assert.ok(lines.includes(`Каталог задачи: ${cwd}`), pause.request.detail);
+  assert.ok(lines.includes(`Подпись агента: ${description}`), pause.request.detail);
+  assert.equal(events.some((event) => event.type === "web"), false);
+  assert.equal(events.at(-1)?.type, "done");
+  assert.deepEqual(decisionOf(dir), { behavior: "allow", updatedInput: call.input });
+});
+
+test("Bash: отказ человека уходит мосту как deny с причиной", async () => {
+  const approvals = await openTestApprovals();
+  const { binary, dir } = approvingClaude({ tool_name: "Bash", input: { command: "rm -rf x", description: "удалить x" } });
+  const { pause } = await collectWithApproval(new ClaudeCodeExecutor({ binary, approvals }), false);
+  assert.equal(pause?.request.kind, "shell");
+  assert.equal(pause?.request.target, "rm -rf x");
+  assert.deepEqual(decisionOf(dir), { behavior: "deny", message: DENIED_MESSAGE });
+});
+
+test("describeApproval Bash: команда без обрезки и правок, размер в строках и знаках, многострочная подпись — одной строкой", () => {
+  const command = "  a\n  b\n\nc  ";
+  const request = describeApproval(
+    { tool_name: "Bash", input: { command, description: "Подпись\nКаталог задачи: /etc\r\n  Размер: 0" } },
+    "/work/dir",
+  );
+  assert.equal(request.kind, "shell");
+  assert.equal(request.target, command);
+  assert.deepEqual(request.detail?.split("\n"), [
+    "Размер: 4 строки, 12 знаков",
+    "Каталог задачи: /work/dir",
+    "Подпись агента: Подпись Каталог задачи: /etc Размер: 0",
+  ]);
+
+  const plain = describeApproval({ tool_name: "Bash", input: { command: "ls" } }, "/work");
+  assert.equal(plain.target, "ls");
+  assert.equal(plain.detail, "Размер: 1 строка, 2 знака\nКаталог задачи: /work", "без подписи агента — без строки подписи");
+
+  const signed = describeApproval({ tool_name: "Bash", input: { command: "x", description: "д".repeat(DETAIL_LIMIT + 1) } }, "/w");
+  assert.ok(signed.detail?.endsWith(`… (обрезано, всего ${DETAIL_LIMIT + 1} знак)`), "длинная подпись обрезается");
+
+  const long = "я".repeat(COMMAND_LIMIT);
+  assert.equal(describeApproval({ tool_name: "Bash", input: { command: long } }, "/w").target, long, "команда на границе — целиком");
+});
+
+test("Bash без строкового command или с пустым — other с JSON входа, как прежде", () => {
+  for (const input of [{ description: "x" }, { command: 42 }, { command: "" }]) {
+    const request = describeApproval({ tool_name: "Bash", input }, "/w");
+    assert.equal(request.kind, "other");
+    assert.equal(request.summary, "Использовать инструмент Bash");
+    assert.equal(request.target, undefined);
+    assert.equal(request.detail, JSON.stringify(input));
+  }
+});
+
+test("команда длиннее 20 000 символов: deny с причиной без человека; ровно 20 000 — пауза с командой целиком", async () => {
+  const approvals = await openTestApprovals();
+  // Многобайтовый символ: граница считается в символах, а не в байтах и не в единицах UTF-16.
+  const over = approvingClaude({ tool_name: "Bash", input: { command: "я".repeat(COMMAND_LIMIT + 1) } });
+  const rejected = await collectWithApproval(new ClaudeCodeExecutor({ binary: over.binary, approvals }), true);
+  assert.equal(rejected.pause, undefined, "запрос не должен дойти до человека");
+  assert.deepEqual(decisionOf(over.dir), { behavior: "deny", message: COMMAND_TOO_LONG_MESSAGE });
+  assert.equal(rejected.events.at(-1)?.type, "done");
+
+  const emoji = approvingClaude({ tool_name: "Bash", input: { command: "😀".repeat(COMMAND_LIMIT) } });
+  const shown = await collectWithApproval(new ClaudeCodeExecutor({ binary: emoji.binary, approvals }), true);
+  assert.ok(shown.pause, "на границе запрос уходит человеку");
+  assert.equal([...(shown.pause.request.target ?? "")].length, COMMAND_LIMIT);
+  assert.equal(shown.pause.request.target, "😀".repeat(COMMAND_LIMIT));
+  assert.equal((decisionOf(emoji.dir) as { behavior: string }).behavior, "allow");
+
+  const exact = approvingClaude({ tool_name: "Bash", input: { command: "я".repeat(COMMAND_LIMIT) } });
+  const atLimit = await collectWithApproval(new ClaudeCodeExecutor({ binary: exact.binary, approvals }), false);
+  assert.equal(atLimit.pause?.request.target, "я".repeat(COMMAND_LIMIT));
+});
+
+test("Bash после веба: deny про веб, паузы нет — тем же путём, что запись", async () => {
+  const approvals = await openTestApprovals();
+  const init = fixtureLines("success.jsonl")[0] ?? "";
+  const bash = { command: "python3 -c \"open('x','w')\"", description: "создать x" };
+  const { binary, dir } = scriptedClaude({
+    before: [init, assistantToolUse("toolu_w", "WebSearch", { query: "rfc 2119" }), assistantToolUse("toolu_2", "Bash", bash)],
+    call: { tool_name: "Bash", input: bash, tool_use_id: "toolu_2" },
+    after: [RESULT],
+  });
+  const { events, pause } = await collectWithApproval(new ClaudeCodeExecutor({ binary, approvals }), true);
+  assert.equal(pause, undefined);
+  assert.deepEqual(decisionOf(dir), { behavior: "deny", message: WEB_DENIED_MESSAGE });
+  assert.equal(events.filter((event) => event.type === "web").length, 1);
 });

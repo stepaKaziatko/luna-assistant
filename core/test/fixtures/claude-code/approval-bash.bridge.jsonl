@@ -1,0 +1,4 @@
+{"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{"roots":{},"elicitation":{}},"clientInfo":{"name":"claude-code","title":"Claude Code","version":"2.1.181","description":"Anthropic's agentic coding tool","websiteUrl":"https://claude.com/claude-code"}},"jsonrpc":"2.0","id":0}
+{"method":"notifications/initialized","jsonrpc":"2.0"}
+{"method":"tools/list","jsonrpc":"2.0","id":1}
+{"method":"tools/call","params":{"name":"approve","arguments":{"tool_name":"Bash","input":{"command":"python3 << 'EOF'\noutput = \"ok\"\nwith open(\"/tmp/luna-task/out.txt\", \"w\") as f:\n    f.write(output)\nEOF","description":"Run multi-line Python script via heredoc to create out.txt"},"tool_use_id":"toolu_01J44wHc6at8XFzuxaGMzopg"},"_meta":{"claudecode/toolUseId":"toolu_01J44wHc6at8XFzuxaGMzopg","progressToken":2}},"jsonrpc":"2.0","id":2}

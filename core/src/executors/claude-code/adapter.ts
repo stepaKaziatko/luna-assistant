@@ -5,17 +5,19 @@ import { fileURLToPath } from "node:url";
 import type { ExecutorStatus } from "../../rpc/protocol.gen.ts";
 import type { Executor, ExecutorEvent, ExecutorRequest } from "../executor.ts";
 import { resolveBinary } from "../resolve-binary.ts";
-import { decide, describeApproval, WEB_DENIED, type Decision, type ToolCall } from "./approval.ts";
+import { COMMAND_TOO_LONG, decide, describeApproval, tooLongToShow, WEB_DENIED, type Decision, type ToolCall } from "./approval.ts";
 import type { ApprovalSocket } from "./socket.ts";
 import { ClaudeStreamParser } from "./stream.ts";
 
-// Чтение разрешено без вопроса. Запись файлов доступна, но каждый вызов проходит через мост
-// (`--permission-prompt-tool`) и ждёт ответа человека в Luna; Bash появится вместе с показом команды.
-// Запуск только на чтение (`readOnly`) получает перечень чтения целиком и ничего сверх него: новые
-// инструменты попадают в него, только если их сюда допишут.
+// Чтение разрешено без вопроса. Запись файлов и команды (`Bash`) доступны, но не разрешены заранее:
+// всё, что CLI не пропускает сам, идёт через мост (`--permission-prompt-tool`) и ждёт ответа человека
+// в Luna. Какие команды спрашивать, решает CLI в своём режиме (`ls` в рабочем каталоге он не спрашивает),
+// Luna списков команд не ведёт. Запуск только на чтение (`readOnly`) получает перечень чтения целиком и
+// ничего сверх него: новые инструменты попадают в него, только если их сюда допишут.
 export const READ_ONLY_TOOLS = "WebFetch,WebSearch,Read,Glob,Grep";
 const WRITE_TOOLS = "Write,Edit,NotebookEdit";
-export const AVAILABLE_TOOLS = `${READ_ONLY_TOOLS},${WRITE_TOOLS}`;
+const SHELL_TOOLS = "Bash";
+export const AVAILABLE_TOOLS = `${READ_ONLY_TOOLS},${WRITE_TOOLS},${SHELL_TOOLS}`;
 export const ALLOWED_TOOLS = READ_ONLY_TOOLS;
 
 /** Имя MCP-сервера моста и его инструмента: так CLI называет permission prompt. */
@@ -203,6 +205,8 @@ export class ClaudeCodeExecutor implements Executor {
           if (!(await stdout.reached(call.tool_use_id))) return UNMATCHED;
           // После веба запись и команды запрещены: человеку такой запрос не показывается.
           if (parser.webUsed) return WEB_DENIED;
+          // Команду, которую человек не прочтёт целиком, не показываем: граница показа, а не политика.
+          if (tooLongToShow(call)) return COMMAND_TOO_LONG;
           return ask(call);
         });
 
