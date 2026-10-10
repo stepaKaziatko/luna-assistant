@@ -19,7 +19,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windows = DialogWindows(state: state)
         let sounds = SoundPlayer(settings: state.settings)
         let settingsWindow = SettingsWindow(
-            settings: state.settings, permissions: state.permissions, sounds: sounds, quit: { NSApp.terminate(nil) }
+            settings: state.settings, permissions: state.permissions, agentHook: state.agentHook, sounds: sounds,
+            quit: { NSApp.terminate(nil) }
         )
         self.settingsWindow = settingsWindow
         state.playSound = { sounds.play($0) }

@@ -10,6 +10,11 @@ struct AgentsSummary: Equatable {
 
     init(sessions: [AgentSession], finished unseen: Set<String>) {
         for session in sessions {
+            // Сессия с запросом подтверждения зовёт человека, даже пока реестр агента не показал `waiting`.
+            if session.approval != nil {
+                waiting.append(session)
+                continue
+            }
             switch session.state {
             case .waiting: waiting.append(session)
             case .working: working.append(session)
@@ -41,10 +46,11 @@ struct AgentsSummary: Equatable {
 extension AgentSession {
     /// Строка состояния: что агент делает или чего ждёт.
     var statusLine: String {
+        if approval != nil { return "ждёт подтверждения" }
         switch state {
-        case .working: activity ?? "работает…"
-        case .waiting: waitingFor.map { "ждёт вас: \(Self.waitingReason($0))" } ?? "ждёт вас"
-        case .idle: "ход завершён"
+        case .working: return activity ?? "работает…"
+        case .waiting: return waitingFor.map { "ждёт вас: \(Self.waitingReason($0))" } ?? "ждёт вас"
+        case .idle: return "ход завершён"
         }
     }
 
@@ -67,6 +73,7 @@ extension AgentSession {
     /// Подпись плитки — пара слов вместо фразы: над чем агент работает или чего ждёт.
     /// У свободной сессии плитка показывает время, а не подпись.
     var tileCaption: String {
+        if approval != nil { return "ждёт подтверждения" }
         switch state {
         case .working:
             guard let last = trail?.last else { return activity ?? "работает" }

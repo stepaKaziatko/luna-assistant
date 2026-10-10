@@ -10,6 +10,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
 
     private let settings: LunaSettings
     private let permissions: ExecutorPermissions
+    private let agentHook: AgentHookSetup
     private let sounds: SoundPlayer
     private let navigation = SettingsNavigation()
     private var window: NSWindow?
@@ -19,9 +20,10 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     /// Что делает ⌘Q и кнопка «Выйти из Luna».
     private let quit: () -> Void
 
-    init(settings: LunaSettings, permissions: ExecutorPermissions, sounds: SoundPlayer, quit: @escaping () -> Void) {
+    init(settings: LunaSettings, permissions: ExecutorPermissions, agentHook: AgentHookSetup, sounds: SoundPlayer, quit: @escaping () -> Void) {
         self.settings = settings
         self.permissions = permissions
+        self.agentHook = agentHook
         self.sounds = sounds
         self.quit = quit
     }
@@ -47,6 +49,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
                 .environmentObject(settings)
                 .environmentObject(navigation)
                 .environmentObject(permissions)
+                .environmentObject(agentHook)
         )
         window.center()
         return window

@@ -72,7 +72,8 @@ struct AgentStatusLine: View {
     let isFinished: Bool
 
     var body: some View {
-        switch session.state {
+        // Запрос подтверждения зовёт человека, даже пока реестр агента ещё не показал `waiting`.
+        switch session.approval != nil ? AgentState.waiting : session.state {
         case .working:
             ShimmerText(text: session.statusLine)
         case .waiting:

@@ -15,6 +15,9 @@ enum Layout {
     static let agentGridMaxHeight: CGFloat = 312
     /// Высота карточки сессии: слева — кто это, справа — лента шагов.
     static let agentCardHeight: CGFloat = 232
+    /// Блок подтверждения над лентой сессии: выше — прокрутка внутри блока. Карточка с блоком — полоса сессии
+    /// плюс блок, и всё помещается в `tallestCard`.
+    static let agentApprovalMaxHeight: CGFloat = 220
     /// Блок под курсором не уже шапки со счётчиками и кнопками.
     static let peekMinWidth: CGFloat = 340
     static let peekDialogWidth: CGFloat = 166

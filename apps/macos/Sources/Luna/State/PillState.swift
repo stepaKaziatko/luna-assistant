@@ -6,13 +6,15 @@ enum PillState: Equatable {
     case running(Int)
     case done(Int)
     case error(Int)
-    /// Исполнитель ждёт ответа человека: задач с `approval`.
+    /// Ждут ответа человека: задачи Luna с `approval` и сессии агентов с запросом подтверждения.
     case needsApproval(Int)
 
     /// Приоритет отображения: needsApproval > error > done > running. Завершённые задачи учитываются,
     /// пока пользователь не открыл их результат (`unseen`); ожидание ответа — пока исполнитель стоит.
-    static func aggregate(tasks: [TaskInfo], unseen: Set<String>, hasProblem: Bool) -> PillState {
-        let waiting = tasks.count { $0.isAwaitingApproval }
+    /// `agentApprovals` — сколько сессий агентов ждут ответа через хук; ждущая сессия без запроса сюда не входит:
+    /// она остаётся в счётчике «ждут вас» (`StatusChip.Kind.attention`).
+    static func aggregate(tasks: [TaskInfo], unseen: Set<String>, hasProblem: Bool, agentApprovals: Int = 0) -> PillState {
+        let waiting = tasks.count { $0.isAwaitingApproval } + agentApprovals
         if waiting > 0 { return .needsApproval(waiting) }
 
         let failed = tasks.count { $0.status == .failed && unseen.contains($0.id) }
@@ -52,10 +54,12 @@ enum AvatarMood: Equatable {
 
 extension AgentSession {
     func mood(finished: Bool) -> AvatarMood {
+        // Запрос подтверждения зовёт человека, даже пока реестр агента ещё не показал `waiting`.
+        if approval != nil { return .waiting }
         switch state {
-        case .working: .working
-        case .waiting: .waiting
-        case .idle: finished ? .happy : .sleeping
+        case .working: return .working
+        case .waiting: return .waiting
+        case .idle: return finished ? .happy : .sleeping
         }
     }
 }

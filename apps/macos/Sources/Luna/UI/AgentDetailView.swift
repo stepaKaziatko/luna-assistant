@@ -10,19 +10,29 @@ struct AgentDetailView: View {
     var body: some View {
         Group {
             if let session = state.agent(id: sessionId) {
-                HStack(alignment: .top, spacing: 14) {
-                    summary(session).frame(width: 224, alignment: .leading)
-                    feed(session)
+                // Запрос подтверждения — над полосой сессии: карточка вырастает на высоту блока (до
+                // `agentApprovalMaxHeight`), фигуру острова по-прежнему рисует RootView.
+                VStack(alignment: .leading, spacing: 12) {
+                    if let approval = session.approval {
+                        SessionApprovalBlock(sessionId: session.id, approval: approval)
+                    }
+                    HStack(alignment: .top, spacing: 14) {
+                        summary(session).frame(width: 224, alignment: .leading)
+                        feed(session)
+                    }
+                    .frame(height: Layout.agentCardHeight - 2 * Self.inset)
                 }
             } else {
                 Text("Сессия завершилась")
                     .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: Layout.agentCardHeight - 2 * Self.inset)
             }
         }
-        .padding(16)
-        .frame(width: Layout.cardWidth, height: Layout.agentCardHeight, alignment: .topLeading)
+        .padding(Self.inset)
+        .frame(width: Layout.cardWidth, alignment: .topLeading)
     }
+
+    private static let inset: CGFloat = 16
 
     private func summary(_ session: AgentSession) -> some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -169,5 +179,21 @@ struct StepRow: View {
             .font(.system(size: 12, weight: step.kind == .prompt ? .medium : .regular))
             .lineLimit(step.kind == .tool ? 1 : 3)
         }
+    }
+}
+
+/// Блок подтверждения сессии агента — в карточке и в окне сессии, над лентой. Не выше
+/// `Layout.agentApprovalMaxHeight`: длинное содержимое прокручивается внутри, кнопки блока остаются наверху.
+struct SessionApprovalBlock: View {
+    let sessionId: String
+    let approval: ApprovalRequest
+
+    var body: some View {
+        ScrollView(.vertical) {
+            ApprovalBlock(subject: .session(id: sessionId), approval: approval)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(maxHeight: Layout.agentApprovalMaxHeight)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }

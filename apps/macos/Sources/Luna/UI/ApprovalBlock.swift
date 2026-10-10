@@ -1,13 +1,26 @@
 import SwiftUI
 
-/// Блок подтверждения внутри задачи диалога: что исполнитель собирается сделать и две кнопки — «Разрешить»
-/// и «Отклонить». Рисуется из `TaskInfo.approval` и ничего не знает об инструментах: `summary`, `target`
+/// Чей запрос показывает блок: задача Luna (карточка диалога) или сессия агента, запущенная не Luna (плитка,
+/// карточка и окно сессии). Внешний вид один; различается только то, куда уходит ответ.
+enum ApprovalSubject: Hashable {
+    case task(id: String)
+    case session(id: String)
+}
+
+/// Ждущий ответа человека: кто и какой запрос.
+struct PendingApproval: Equatable {
+    let subject: ApprovalSubject
+    let approval: ApprovalRequest
+}
+
+/// Блок подтверждения: что исполнитель или агент собирается сделать и две кнопки — «Разрешить»
+/// и «Отклонить». Рисуется из `ApprovalRequest` (`TaskInfo.approval`, `AgentSession.approval`) и ничего не знает об инструментах: `summary`, `target`
 /// и `detail` — строки от ядра, показываются как текст, не Markdown и не ссылками. Кнопки — над подробностями,
 /// чтобы быть видными без прокрутки; разрешение даётся только кликом: клавиш-сокращений у кнопок нет.
 /// Фон — как у поля продолжения, своей чёрной фигуры у блока нет. Команда shell показывается целиком
 /// отдельной прокручиваемой областью под кнопками: человек разрешает именно её, а не подпись агента.
 struct ApprovalBlock: View {
-    let task: TaskInfo
+    let subject: ApprovalSubject
     let approval: ApprovalRequest
 
     @EnvironmentObject private var state: AppState
@@ -33,10 +46,10 @@ struct ApprovalBlock: View {
                         .help(target)
                 }
                 Spacer(minLength: 8)
-                Button("Отклонить") { state.approve(taskId: task.id, allow: false) }
+                Button("Отклонить") { state.answerApproval(subject, allow: false) }
                     .controlSize(.small)
                     .disabled(isPending)
-                Button("Разрешить") { state.approve(taskId: task.id, allow: true) }
+                Button("Разрешить") { state.answerApproval(subject, allow: true) }
                     .controlSize(.small)
                     .disabled(isPending)
             }
@@ -50,9 +63,9 @@ struct ApprovalBlock: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            // Другие задачи тоже ждут ответа: строка ведёт к самой ранней из них. Сама карточка не переключается.
-            if let others = ApprovalPresentation.othersLine(state.otherApprovals(than: task.id).count) {
-                Button(others) { state.openNextApproval(after: task.id) }
+            // Другие задачи и сессии тоже ждут ответа: строка ведёт к самой ранней из них. Сама карточка не переключается.
+            if let others = ApprovalPresentation.othersLine(state.otherPendingApprovals(than: subject).count) {
+                Button(others) { state.openNextApproval(after: subject) }
                     .buttonStyle(.plain)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -82,7 +95,7 @@ struct ApprovalPresentation: Equatable {
     /// Подробности под действием; пустые не показываются.
     let detail: String?
 
-    /// Строка «ещё N ждут подтверждения» о других ждущих задачах; nil — других нет.
+    /// Строка «ещё N ждут подтверждения» о других ждущих задачах и сессиях; nil — других нет.
     static func othersLine(_ count: Int) -> String? {
         guard count > 0 else { return nil }
         let verb = count % 10 == 1 && count % 100 != 11 ? "ждёт" : "ждут"

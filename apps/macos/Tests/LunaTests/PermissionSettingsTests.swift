@@ -22,7 +22,7 @@ final class PermissionSettingsTests: XCTestCase {
     }
 
     private func hello(_ levels: [PermissionLevel]?, available: Bool = true) -> HelloResult {
-        HelloResult(executors: [ExecutorStatus(available: available, id: .claudeCode, path: nil, permissionLevels: levels)], version: "0")
+        HelloResult(agentHookPath: nil, executors: [ExecutorStatus(available: available, id: .claudeCode, path: nil, permissionLevels: levels)], version: "0")
     }
 
     private func sentPermission(_ core: FakeCore, _ index: Int) throws -> String? {

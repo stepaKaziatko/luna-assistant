@@ -14,7 +14,7 @@ final class IslandFullscreenTests: XCTestCase {
 
     private func waiting(_ id: String) -> AgentSession {
         AgentSession(
-            activity: nil, agent: "claude-code", cwd: "/work/shop",
+            activity: nil, agent: "claude-code", approval: nil, cwd: "/work/shop",
             host: AgentHost(appPath: nil, kind: .unknown, name: nil, tty: nil, workspace: nil), id: id, model: nil, openUrl: nil,
             pid: 1, project: "shop", startedAt: 0, state: .waiting, title: "сессия \(id)", trail: nil, updatedAt: 0, waitingFor: nil
         )

@@ -192,7 +192,7 @@ struct AgentTile: View {
 
     @ViewBuilder
     private var caption: some View {
-        switch session.state {
+        switch session.approval != nil ? AgentState.waiting : session.state {
         case .working:
             ShimmerText(text: session.tileCaption)
         case .waiting:
@@ -206,7 +206,7 @@ struct AgentTile: View {
     /// Рамка говорит то же, что значок аватара: оранжевая зовёт человека, зелёная — ход завершён.
     @ViewBuilder
     private var border: some View {
-        if session.state == .waiting {
+        if session.state == .waiting || session.approval != nil {
             Pulse(high: 0.95) { shape.strokeBorder(.orange, lineWidth: 1) }
         } else if isFinished {
             shape.strokeBorder(.green.opacity(0.45), lineWidth: 1)

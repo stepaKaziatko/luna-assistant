@@ -9,7 +9,7 @@ final class AgentsTests: XCTestCase {
         openUrl: String? = nil, model: String? = nil, activity: String? = nil, trail: [AgentStep]? = nil, waitingFor: String? = nil
     ) -> AgentSession {
         AgentSession(
-            activity: activity, agent: "claude-code", cwd: "/work/\(project)", host: host, id: id, model: model, openUrl: openUrl,
+            activity: activity, agent: "claude-code", approval: nil, cwd: "/work/\(project)", host: host, id: id, model: model, openUrl: openUrl,
             pid: 1, project: project, startedAt: 0, state: state, title: "сессия \(id)", trail: trail, updatedAt: updatedAt, waitingFor: waitingFor
         )
     }

@@ -44,7 +44,7 @@ struct DialogTaskView: View {
                     .controlSize(.small)
             }
             if let approval {
-                ApprovalBlock(task: task, approval: approval)
+                ApprovalBlock(subject: .task(id: task.id), approval: approval)
             }
         case .done:
             Markdown(task.result ?? "")

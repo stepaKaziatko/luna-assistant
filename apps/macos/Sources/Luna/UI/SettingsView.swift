@@ -32,6 +32,7 @@ struct SettingsView: View {
     @EnvironmentObject private var settings: LunaSettings
     @EnvironmentObject private var navigation: SettingsNavigation
     @EnvironmentObject private var permissions: ExecutorPermissions
+    @EnvironmentObject private var agentHook: AgentHookSetup
     let sounds: SoundPlayer
     /// Завершает Luna: у приложения без Dock и главного меню выйти должно быть откуда-то ещё, кроме значка.
     let quit: () -> Void
@@ -92,6 +93,7 @@ struct SettingsView: View {
             }
             modelsSection
             permissionsSection
+            agentHookSection
             Section("Сочетания клавиш") {
                 KeyboardShortcuts.Recorder("Спросить", name: .toggleInput)
                 KeyboardShortcuts.Recorder("Последний результат", name: .openLastResult)
@@ -190,6 +192,51 @@ struct SettingsView: View {
             Text("Задачи по веб-страницам всегда идут только на чтение. Новый уровень действует со следующей задачи.")
         }
         .id("permissions")
+    }
+
+    /// Подтверждение в сессиях агентов: Luna не пишет в настройки Claude Code сама — показывает фрагмент,
+    /// копирует его и читает `settings.json`, чтобы сказать, найден ли хук.
+    private var agentHookSection: some View {
+        Section {
+            Text("Сессия Claude Code в VS Code или терминале спросит разрешение у Luna: запрос появится в карточке и окне сессии. Диалог в терминале остаётся — отвечать можно и там, и в Luna, побеждает первый ответ. Luna закрыта — сессия спрашивает только в терминале.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if let snippet = agentHook.snippet {
+                Text("Добавьте в ~/.claude/settings.json:")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(verbatim: snippet)
+                    .font(.system(size: 11, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .background(.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 6))
+                HStack {
+                    Button("Скопировать") { agentHook.copySnippet() }
+                    Button("Проверить") { agentHook.check() }
+                    Spacer()
+                    switch agentHook.status {
+                    case .found:
+                        Label("хук найден", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                    case .notFound:
+                        Label("хук не найден", systemImage: "circle.dashed").foregroundStyle(.secondary)
+                    case .unknown:
+                        EmptyView()
+                    }
+                }
+                .font(.caption)
+            } else {
+                Text("Ядро не запущено — фрагмент появится, когда оно ответит.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Подтверждение в сессиях агентов")
+        } footer: {
+            Text("Хук слушает только запись файлов и команды (Write, Edit, NotebookEdit, Bash). Остальные вопросы агента остаются в терминале.")
+        }
+        .id("agentHook")
+        .onAppear { agentHook.check() }
     }
 
     private var permission: Binding<PermissionLevel> {

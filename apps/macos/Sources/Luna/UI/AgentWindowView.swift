@@ -13,6 +13,12 @@ struct AgentWindowView: View {
         VStack(alignment: .leading, spacing: 0) {
             if let session = state.agent(id: sessionId) ?? state.agentWindowSessions[sessionId] {
                 header(session, isLive: state.agent(id: sessionId) != nil)
+                // Запрос подтверждения — между заголовком и лентой; у завершённой сессии его нет.
+                if let approval = state.agent(id: sessionId)?.approval {
+                    SessionApprovalBlock(sessionId: sessionId, approval: approval)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 12)
+                }
                 Divider().opacity(0.4)
                 transcript(session)
             }

@@ -32,6 +32,12 @@ import AppKit
 /// - `agentsSet:<json>` — подменить список сессий (массив AgentSession; поле `model` — подпись модели в карточке и окне),
 ///   `agentSteps:<json>` — шаги
 ///   открытой карточки (массив AgentStep): интерфейс агентов проверяется без живых сессий;
+/// - `agentApprove:<true|false>[:<id>]` — клик по «Разрешить»/«Отклонить» у сессии с `approval` (без id — у сессии
+///   открытой карточки); запрос идёт ядру как `agents.approve`. `agentsSet:` с `approval` в сессии подставляет запрос
+///   как от хука: плитка, карточка и окно показывают блок; в `dump` — `agentApprovals` (id сессии → id запроса),
+///   `pendingApprovals` (все ждущие, задачи и сессии, в порядке показа) и `agentHook` (путь обёртки и признак
+///   «хук найден»); `agentHookSettings:<путь>|off` подменяет файл настроек Claude Code, который читает признак,
+///   `agentHookCheck` — кнопка «Проверить» в настройках;
 /// - `agentWindow[:<id>]` — окно сессии открытой карточки (или указанной), `agentWindowClose[:<id>]` — закрыть
 ///   его (без id — последнее), `agentTranscript:<json>` — подменить подробную ленту последнего окна
 ///   (массив AgentStep), `agentWindowSnapshot:<путь>` — PNG последнего окна сессии;
@@ -135,6 +141,15 @@ enum DebugCommands {
             if let sessions = try? JSONDecoder().decode([AgentSession].self, from: Data(argument.utf8)) {
                 state.applyAgents(sessions)
             }
+        case "agentApprove":
+            let fields = argument.split(separator: ":", maxSplits: 1).map(String.init)
+            guard let allow = fields.first.map({ $0 == "true" }) else { return }
+            let sessionId = fields.count > 1 ? fields[1] : state.shownAgentId
+            if let sessionId { state.approveAgent(sessionId: sessionId, allow: allow) }
+        case "agentHookSettings":
+            state.agentHook.debugSettingsPath = argument == "off" ? nil : argument
+        case "agentHookCheck":
+            state.agentHook.check()
         case "agentSteps":
             if let steps = try? JSONDecoder().decode([AgentStep].self, from: Data(argument.utf8)) {
                 state.debugSetAgentSteps(steps)
@@ -383,6 +398,12 @@ enum DebugCommands {
         /// Размер видимой части острова — тело фигуры без плеч.
         let island: String
         let agents: [AgentSession]
+        /// Запросы подтверждения чужих сессий: id сессии → id запроса.
+        let agentApprovals: [String: String]
+        /// Все ждущие ответа человека — `task:<id>` и `session:<id>` — в порядке показа pill и строки «ещё N».
+        let pendingApprovals: [String]
+        /// Хук подтверждений в настройках: путь обёртки от ядра (пусто — нет) и признак `unknown|found|notFound`.
+        let agentHook: [String: String]
         let finishedAgents: [String]
         let selectedAgentId: String?
         let agentSteps: Int
@@ -450,6 +471,14 @@ enum DebugCommands {
             chips = state.statusChips.map { "\($0.kind.rawValue):\($0.count)" }
             island = NSStringFromSize(state.islandSize)
             agents = state.agents
+            agentApprovals = Dictionary(state.agents.compactMap { session in session.approval.map { (session.id, $0.id) } }, uniquingKeysWith: { first, _ in first })
+            pendingApprovals = state.pendingApprovals.map { pending in
+                switch pending.subject {
+                case .task(let id): "task:\(id)"
+                case .session(let id): "session:\(id)"
+                }
+            }
+            agentHook = ["path": state.agentHook.wrapperPath ?? "", "status": String(describing: state.agentHook.status)]
             finishedAgents = state.finishedAgents.sorted()
             selectedAgentId = state.selectedAgentId
             agentSteps = state.agentSteps.count

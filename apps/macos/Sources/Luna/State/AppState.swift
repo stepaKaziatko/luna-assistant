@@ -117,6 +117,8 @@ final class AppState: ObservableObject {
     let settings: LunaSettings
     /// Уровни разрешений, объявленные исполнителями в `core.hello`; их показывают настройки.
     let permissions = ExecutorPermissions()
+    /// Установка хука подтверждений чужих сессий: путь обёртки от ядра и признак «хук найден».
+    let agentHook = AgentHookSetup()
     var core: CoreRequesting?
     #if DEBUG
     /// Последний отправленный `task.submit` — для `dump` debug-сборки.
@@ -203,7 +205,7 @@ final class AppState: ObservableObject {
     }
 
     var pillState: PillState {
-        PillState.aggregate(tasks: tasks, unseen: unseen, hasProblem: problem != nil)
+        PillState.aggregate(tasks: tasks, unseen: unseen, hasProblem: problem != nil, agentApprovals: agents.count { $0.approval != nil })
     }
 
     var agentsSummary: AgentsSummary {
@@ -369,9 +371,9 @@ final class AppState: ObservableObject {
     /// Клик по pill ведёт к тому, что требует внимания: к единственному диалогу или агенту,
     /// к списку или к вводу. Порядок тот же, что у pill: сначала то, что ждёт человека.
     func pillClicked() {
-        // Исполнитель стоит и ждёт ответа — сразу карточка самой старой ждущей задачи, минуя список.
-        if let waiting = approvalQueue.first {
-            show(threadId: waiting.threadId)
+        // Исполнитель или чужая сессия агента стоит и ждёт ответа — сразу карточка самого раннего запроса, минуя список.
+        if let waiting = pendingApprovals.first {
+            open(waiting)
             return
         }
         var attention: [String] = []
@@ -503,7 +505,16 @@ final class AppState: ObservableObject {
         }
         agentsLoaded = true
         if let cue { notify(cue) }
-        if previous != Dictionary(sessions.map { ($0.id, $0.state) }, uniquingKeysWith: { first, _ in first }) { enliven() }
+        // Запрос подтверждения сессии не меняет её состояние: оживляем шторку и на него. Ответ дошёл — снимок без
+        // прежнего запроса (или с новым) снимает ожидание кнопок и прошлую ошибку.
+        let approvalsBefore = Dictionary(agents.compactMap { session in session.approval.map { (session.id, $0.id) } }, uniquingKeysWith: { first, _ in first })
+        let approvalsNow = Dictionary(sessions.compactMap { session in session.approval.map { (session.id, $0.id) } }, uniquingKeysWith: { first, _ in first })
+        for (sessionId, approvalId) in approvalsBefore where approvalsNow[sessionId] != approvalId {
+            approvalPending.remove(approvalId)
+            approvalError = nil
+        }
+        let newApproval = approvalsNow.contains { approvalsBefore[$0.key] != $0.value }
+        if newApproval || previous != Dictionary(sessions.map { ($0.id, $0.state) }, uniquingKeysWith: { first, _ in first }) { enliven() }
         let live = Set(sessions.map(\.id))
         finishedAgents.formIntersection(live)
         let changed = shownAgentId.flatMap { id in sessions.first { $0.id == id } } != shownAgentId.flatMap(agent(id:))
@@ -825,6 +836,75 @@ final class AppState: ObservableObject {
         show(threadId: next.threadId)
     }
 
+    // MARK: - Подтверждение действий чужих сессий агентов
+
+    /// «Разрешить» или «Отклонить» в блоке подтверждения сессии агента. Как у задач: ответ уходит с id текущего
+    /// запроса, пока снимок без него не пришёл — запрос в `approvalPending`; ошибка ядра (запрос устарел, сессия
+    /// завершилась) — строкой под блоком. Диалог в терминале сессии остаётся тем, кто решает вместе с Luna.
+    func approveAgent(sessionId: String, allow: Bool) {
+        guard let session = agent(id: sessionId), let approval = session.approval,
+              !approvalPending.contains(approval.id) else { return }
+        guard let core else {
+            approvalError = CoreClientError.notRunning.localizedDescription
+            return
+        }
+        approvalPending.insert(approval.id)
+        approvalError = nil
+        _Concurrency.Task {
+            do {
+                let params = AgentApproveParams(allow: allow, approvalId: approval.id, sessionId: sessionId)
+                let _: EmptyResult = try await core.request("agents.approve", params)
+            } catch {
+                approvalPending.remove(approval.id)
+                if self.agent(id: sessionId)?.approval?.id == approval.id { approvalError = error.localizedDescription }
+            }
+        }
+    }
+
+    /// Ответ из блока подтверждения: задаче или сессии, как показал блок.
+    func answerApproval(_ subject: ApprovalSubject, allow: Bool) {
+        switch subject {
+        case .task(let id): approve(taskId: id, allow: allow)
+        case .session(let id): approveAgent(sessionId: id, allow: allow)
+        }
+    }
+
+    /// Все ждущие ответа человека — задачи и сессии агентов — в порядке поступления запросов (`approval.createdAt`).
+    /// Этим порядком пользуются клик по pill и строка «ещё N» в блоке.
+    var pendingApprovals: [PendingApproval] { Self.pendingOrder(tasks: tasks, sessions: agents) }
+
+    nonisolated static func pendingOrder(tasks: [TaskInfo], sessions: [AgentSession]) -> [PendingApproval] {
+        var items: [(key: (Int, Int, Int), item: PendingApproval)] = []
+        for (offset, task) in tasks.enumerated() where task.isAwaitingApproval {
+            guard let approval = task.approval else { continue }
+            items.append(((approval.createdAt, task.createdAt, offset), PendingApproval(subject: .task(id: task.id), approval: approval)))
+        }
+        for (offset, session) in sessions.enumerated() {
+            guard let approval = session.approval else { continue }
+            items.append(((approval.createdAt, session.startedAt, tasks.count + offset), PendingApproval(subject: .session(id: session.id), approval: approval)))
+        }
+        return items.sorted { $0.key < $1.key }.map(\.item)
+    }
+
+    /// Другие ждущие ответа, кроме `subject`, — в том же порядке: для строки «ещё N» в блоке.
+    func otherPendingApprovals(than subject: ApprovalSubject) -> [PendingApproval] {
+        pendingApprovals.filter { $0.subject != subject }
+    }
+
+    /// Клик по строке «ещё N»: карточка самого раннего из других ждущих. Сама карточка не переключается.
+    func openNextApproval(after subject: ApprovalSubject) {
+        if let next = otherPendingApprovals(than: subject).first { open(next) }
+    }
+
+    private func open(_ pending: PendingApproval) {
+        switch pending.subject {
+        case .task(let id):
+            if let task = task(id: id) { show(threadId: task.threadId) }
+        case .session(let id):
+            openAgent(id: id)
+        }
+    }
+
     // MARK: - Поиск, удаление и очистка
 
     /// Запрос к ядру — в фоне; пока ответа нет, в списке прежние строки.
@@ -966,6 +1046,7 @@ final class AppState: ObservableObject {
 
     func apply(_ hello: HelloResult) {
         permissions.apply(hello)
+        agentHook.apply(hello)
         let missing = hello.executors.filter { !$0.available }
         problem = missing.isEmpty ? nil : "Claude Code не найден — установите CLI и выполните вход."
     }
@@ -973,6 +1054,7 @@ final class AppState: ObservableObject {
     func coreStopped(status: Int32) {
         core = nil
         permissions.reset()
+        agentHook.reset()
         problem = "Ядро остановилось (код \(status)). Перезапустите Luna."
     }
 

@@ -48,7 +48,7 @@ final class PillApprovalTests: XCTestCase {
 
     private func session(_ id: String, _ state: AgentState) -> AgentSession {
         AgentSession(
-            activity: nil, agent: "claude-code", cwd: "/work/shop",
+            activity: nil, agent: "claude-code", approval: nil, cwd: "/work/shop",
             host: AgentHost(appPath: nil, kind: .unknown, name: nil, tty: nil, workspace: nil), id: id, model: nil, openUrl: nil,
             pid: 1, project: "shop", startedAt: 0, state: state, title: "сессия \(id)", trail: nil, updatedAt: 0, waitingFor: nil
         )
