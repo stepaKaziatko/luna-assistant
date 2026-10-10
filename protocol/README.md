@@ -23,6 +23,7 @@ npm run generate   # → core/src/rpc/protocol.gen.ts, apps/macos/Sources/Luna/P
 | `task.clear` | `{}` | `TaskClearResult` |
 | `agents.list` | — | `AgentListResult` |
 | `agents.steps` | `AgentStepsParams` | `AgentStepsResult` |
+| `agents.approve` | `AgentApproveParams` | `{}` |
 
 `TaskSubmitParams.context` — то, что shell снял в момент вызова панели (`TaskContext`: приложение, URL, заголовок, выделение). Core его нормализует: оставляет известные поля, делает однострочными `app`, `url` и `title`, ограничивает длину.
 
@@ -57,6 +58,10 @@ npm run generate   # → core/src/rpc/protocol.gen.ts, apps/macos/Sources/Luna/P
 `AgentSession.trail` — несколько последних шагов сессии: по ним shell рисует превью работы на плитке, не запрашивая ленту. У шага `tool` есть род инструмента (`AgentStep.tool`: `read`, `edit`, `shell`, `mcp`…) и цель (`target`: имя файла, подпись команды); род — строка, незнакомый shell показывает общим значком.
 
 `agents.steps` — последние шаги сессии, старые первыми: запросы человека, вызовы инструментов, текст агента. С `detail: true` — подробная лента для окна сессии: шагов больше, текст длиннее и с переносами строк. Неизвестная сессия — пустой список.
+
+`AgentSession.approval` (`ApprovalRequest`, тот же тип, что у `TaskInfo.approval`) — действие, которое чужая сессия ждёт от человека. Источник — не файлы сессии, а хук Claude Code `PermissionRequest`, который поставил сам пользователь (`core.hello`: `agentHookPath` — путь к обёртке хука в каталоге данных; нет — ядру не удалось её создать). Без хука поля нет. Показан самый ранний из ждущих запросов сессии; следующий появляется после ответа. Диалог в терминале сессии остаётся, отвечать можно и там: ответ в терминале снимает запрос (поле исчезает из `agents.changed`). Отдельного уведомления нет — запрос приходит обычным `agents.changed`.
+
+`agents.approve` — ответ человека на `AgentSession.approval`: `sessionId`, `approvalId` этого запроса и `allow`. Результат `{}`; после него приходит `agents.changed` со снимком без `approval`. Неизвестная сессия, сессия без запроса или устаревший `approvalId` (в том числе ответ, который в терминале дали раньше) — `InvalidParams`.
 
 ## Уведомления (core → shell)
 
