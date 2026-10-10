@@ -1,5 +1,6 @@
-import { appendFileSync } from "node:fs";
+import { appendFileSync, readdirSync, statSync } from "node:fs";
 import { createConnection } from "node:net";
+import { join } from "node:path";
 import { createInterface } from "node:readline";
 
 // Мост между Claude Code и ядром. Решения по вызовам инструментов мост получает от ядра по
@@ -24,6 +25,18 @@ import { createInterface } from "node:readline";
 // отменил бы вопросы режима). Свою беду хук считает отказом: ядро недоступно, ответ непонятен или не
 // пришёл вовремя — `deny`; вход не разобран — код 2 (CLI блокирует вызов).
 //
+//   node bridge.js agent-hook <каталог данных Luna>
+//
+// Хук `PermissionRequest` чужой сессии Claude Code (VS Code, терминал): пользователь сам прописывает его
+// в ~/.claude/settings.json по инструкции из настроек Luna, обычно через обёртку `bin/luna-agent-hook` в
+// каталоге данных. CLI зовёт его, когда показывает диалог разрешения; в stdin — `session_id`, `cwd`,
+// `tool_name`, `tool_input` (`tool_use_id` в этом событии нет). Мост ищет сокет ядра `approvals-*.sock` в
+// каталоге данных и ждёт решения человека без срока: ограничивает его `timeout` хука, после которого CLI
+// убивает процесс, а ядро видит обрыв соединения. Выход — `allow` либо `deny` с причиной; «нет решения» —
+// пустой stdout и код 0, и тогда диалог остаётся в терминале. Любая беда (нет сокета, обрыв, непонятный
+// ответ, вход не разобран, не `PermissionRequest`) — тоже «нет решения» с кодом 0: код 2 для этого события
+// не учитывается, а `deny` по беде запретил бы то, что человек разрешил бы в терминале.
+//
 // stdout занят протоколом MCP и ответом хука — диагностика только в stderr. LUNA_BRIDGE_TRACE=<файл> —
 // дописывать туда входящие строки CLI (у хука — его stdin одной строкой): так снимаются фикстуры для
 // core/test/bridge.test.ts.
@@ -39,12 +52,22 @@ const DEFAULT_PROTOCOL_VERSION = "2024-11-05";
  */
 const HOOK_WAIT_MS = 20_000;
 
+/** Самый большой stdin хука `agent-hook`, байт: больше человек в Luna не проверит — диалог остаётся в терминале. */
+const AGENT_HOOK_INPUT_LIMIT = 1024 * 1024;
+/** Пояснение агенту, когда человек отклонил действие в Luna и ядро причины не прислало. */
+const AGENT_DENIED_MESSAGE = "Отклонено в Luna";
+/** Имя файла сокета ядра в каталоге данных (socket.ts `SOCKET_NAME`). */
+const SOCKET_NAME = /^approvals-[0-9a-f]+\.sock$/;
+
 const args = process.argv.slice(2);
-const hookMode = args[0] === "hook";
-const [socketPath, runId] = hookMode ? args.slice(1) : args;
-if (!socketPath || !runId) {
-  process.stderr.write("[luna-bridge] нужны аргументы: [hook] <сокет> <id запуска>\n");
-  process.exit(2);
+const mode = args[0] === "hook" ? "hook" : args[0] === "agent-hook" ? "agent-hook" : "mcp";
+const hookMode = mode === "hook";
+const [socketPath, runId] = hookMode ? args.slice(1) : mode === "mcp" ? args : [];
+const dataDir = mode === "agent-hook" ? args[1] : undefined;
+if (mode === "agent-hook" ? !dataDir : !socketPath || !runId) {
+  process.stderr.write("[luna-bridge] нужны аргументы: [hook] <сокет> <id запуска> | agent-hook <каталог данных>\n");
+  // Для хука чужой сессии даже неверные аргументы — «нет решения»: терминал спросит сам.
+  process.exit(mode === "agent-hook" ? 0 : 2);
 }
 const trace = process.env.LUNA_BRIDGE_TRACE;
 
@@ -225,7 +248,115 @@ async function runHook(): Promise<void> {
   hookDeny(typeof decision.message === "string" && decision.message !== "" ? decision.message : "Luna: действие не выполнено");
 }
 
-if (hookMode) {
+/** Сокеты ядра в каталоге данных, свежие первыми: остатки прежних запусков ядро чистит при старте. */
+function coreSockets(dir: string): string[] {
+  let names: string[];
+  try {
+    names = readdirSync(dir).filter((name) => SOCKET_NAME.test(name));
+  } catch {
+    return [];
+  }
+  const mtime = (path: string) => {
+    try {
+      return statSync(path).mtimeMs;
+    } catch {
+      return 0;
+    }
+  };
+  return names.map((name) => join(dir, name)).sort((a, b) => mtime(b) - mtime(a));
+}
+
+/**
+ * Один запрос ядру по сокету: строка запроса, строка ответа, без срока. Результат `undefined` — ответа
+ * не будет: соединиться не удалось, ядро закрыло соединение без ответа или ответ непонятен.
+ */
+function askAgentCore(path: string, payload: string): Promise<{ behavior: string; message?: unknown } | undefined> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: { behavior: string; message?: unknown } | undefined) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    const socket = createConnection(path);
+    socket.setEncoding("utf8");
+    socket.on("error", () => finish(undefined));
+    socket.on("close", () => finish(undefined));
+    const lines = createInterface({ input: socket, crlfDelay: Infinity });
+    lines.on("error", () => {});
+    lines.once("line", (line) => {
+      try {
+        const answer = JSON.parse(line) as { behavior?: unknown; message?: unknown } | null;
+        finish(answer && typeof answer === "object" && typeof answer.behavior === "string" ? { behavior: answer.behavior, message: answer.message } : undefined);
+      } catch {
+        finish(undefined);
+      }
+      socket.end();
+    });
+    socket.write(`${payload}\n`);
+  });
+}
+
+async function readLimited(limit: number): Promise<string | undefined> {
+  let raw = "";
+  process.stdin.setEncoding("utf8");
+  for await (const chunk of process.stdin) {
+    raw += chunk as string;
+    if (raw.length > limit) return undefined;
+  }
+  return raw;
+}
+
+/** Хук `PermissionRequest` чужой сессии; всё, кроме решения человека, — молчание и код 0. */
+async function runAgentHook(dir: string): Promise<void> {
+  const raw = await readLimited(AGENT_HOOK_INPUT_LIMIT);
+  if (raw === undefined) {
+    log("вход хука больше предела, решения нет");
+    return;
+  }
+  traceLine(raw.trim());
+  let input: Record<string, unknown>;
+  try {
+    const data = JSON.parse(raw) as unknown;
+    if (data === null || typeof data !== "object" || Array.isArray(data)) throw new Error("вход хука — не объект");
+    input = data as Record<string, unknown>;
+  } catch (error) {
+    log(`вход хука не разобран (${error instanceof Error ? error.message : String(error)}), решения нет`);
+    return;
+  }
+  // Другое событие этим мостом не обслуживается: формат ответа у него иной.
+  if (input.hook_event_name !== undefined && input.hook_event_name !== "PermissionRequest") return;
+  if (typeof input.session_id !== "string" || input.session_id === "" || typeof input.tool_name !== "string") return;
+  const payload = JSON.stringify({
+    kind: "agent-hook",
+    session: input.session_id,
+    ...(typeof input.cwd === "string" ? { cwd: input.cwd } : {}),
+    call: {
+      tool_name: input.tool_name,
+      input: input.tool_input !== null && typeof input.tool_input === "object" ? input.tool_input : {},
+    },
+  });
+  for (const path of coreSockets(dir)) {
+    const answer = await askAgentCore(path, payload);
+    if (!answer) continue;
+    if (answer.behavior === "allow") {
+      write({ hookSpecificOutput: { hookEventName: "PermissionRequest", decision: { behavior: "allow" } } });
+    } else if (answer.behavior === "deny") {
+      const message = typeof answer.message === "string" && answer.message !== "" ? answer.message : AGENT_DENIED_MESSAGE;
+      write({ hookSpecificOutput: { hookEventName: "PermissionRequest", decision: { behavior: "deny", message } } });
+    }
+    // Любой другой ответ, включая `none`, — решения нет.
+    return;
+  }
+}
+
+if (mode === "agent-hook") {
+  try {
+    await runAgentHook(dataDir as string);
+  } catch (error) {
+    log(`хук не сработал (${error instanceof Error ? error.message : String(error)}), решения нет`);
+  }
+} else if (hookMode) {
   try {
     await runHook();
   } catch (error) {

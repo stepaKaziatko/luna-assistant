@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -609,4 +609,66 @@ test("уровни разрешений: core.hello отдаёт permissionLevel
   assert.equal(runs[1]?.includes("--add-dir"), false);
   assert.equal(modeOf(runs[2]), "default");
   assert.equal(await core.stop(), 0);
+});
+
+test("agents.approve через процесс ядра: хук чужой сессии из обёртки, запрос в agents.changed, ответ человека доходит хуку", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "luna-data-"));
+  // Реестр Claude Code с одной ждущей сессией; её «процесс» — этот же, он жив.
+  const home = mkdtempSync(join(tmpdir(), "luna-claude-"));
+  mkdirSync(join(home, "sessions"));
+  const sessionId = "11111111-1111-4111-8111-111111111111";
+  writeFileSync(
+    join(home, "sessions", `${process.pid}.json`),
+    JSON.stringify({
+      pid: process.pid, sessionId, cwd: "/work/shop", startedAt: 1000, kind: "interactive", entrypoint: "cli",
+      status: "waiting", waitingFor: "permission prompt", updatedAt: 5000,
+    }),
+  );
+  const core = startCore({ LUNA_DATA_DIR: dir, LUNA_CLAUDE_HOME: home, LUNA_CLAUDE_BIN: join(dir, "no-such-claude") });
+
+  const hello = (await core.request("core.hello")).result as { agentHookPath?: string };
+  assert.equal(hello.agentHookPath, join(dir, "bin", "luna-agent-hook"));
+  assert.equal(statSync(hello.agentHookPath as string).mode & 0o777, 0o755);
+
+  const code = async (method: string, params: unknown) =>
+    ((await core.request(method, params)) as Message & { error?: { code: number } }).error?.code;
+  for (const params of [undefined, {}, { sessionId: 1, approvalId: "a", allow: true }, { sessionId, approvalId: 2, allow: true }, { sessionId, approvalId: "a", allow: "yes" }]) {
+    assert.equal(await code("agents.approve", params ?? null), -32602, JSON.stringify(params));
+  }
+  // Запроса нет — ответить нечему.
+  assert.equal(await code("agents.approve", { sessionId, approvalId: "нет-такого", allow: true }), -32602);
+
+  const listed = (await core.request("agents.list")).result?.sessions as { id: string; approval?: unknown }[];
+  assert.deepEqual(listed.map((session) => [session.id, session.approval]), [[sessionId, undefined]]);
+
+  // Хук, как его запускает Claude Code: обёртка из настроек, stdin — вход события.
+  const input = readFileSync(fileURLToPath(new URL("./fixtures/claude-code/agent-permission-request.hook.jsonl", import.meta.url)), "utf8").split("\n")[0] as string;
+  const hook = spawn(hello.agentHookPath as string, [], { stdio: ["pipe", "pipe", "pipe"] });
+  let stdout = "";
+  hook.stdout.setEncoding("utf8").on("data", (chunk: string) => (stdout += chunk));
+  hook.stdin.end(input);
+  const exited = new Promise<number | null>((resolve) => hook.once("close", resolve));
+
+  const changed = await core.waitFor((message) => {
+    const sessions = (message as unknown as { method?: string; params?: { sessions?: { approval?: unknown }[] } });
+    return sessions.method === "agents.changed" && sessions.params?.sessions?.[0]?.approval !== undefined;
+  }, "agents.changed с запросом");
+  const approval = (changed as unknown as { params: { sessions: { approval: { id: string; summary: string; target: string } }[] } }).params.sessions[0]?.approval;
+  assert.equal(approval?.summary, "Записать файл");
+  assert.equal(approval?.target, "/work/shop/p1.txt");
+
+  const cleared = core.waitFor((message) => {
+    const event = message as unknown as { method?: string; params?: { sessions?: { approval?: unknown }[] } };
+    return event.method === "agents.changed" && event.params?.sessions?.[0]?.approval === undefined;
+  }, "agents.changed без запроса");
+  assert.deepEqual((await core.request("agents.approve", { sessionId, approvalId: approval?.id, allow: false })).result, {});
+  await cleared;
+  assert.equal(await exited, 0);
+  assert.deepEqual(JSON.parse(stdout), {
+    hookSpecificOutput: { hookEventName: "PermissionRequest", decision: { behavior: "deny", message: "Отклонено в Luna" } },
+  });
+  // Повторный ответ тому же запросу — устарел.
+  assert.equal(await code("agents.approve", { sessionId, approvalId: approval?.id, allow: true }), -32602);
+  assert.equal(await core.stop(), 0);
+  for (const line of core.lines) assert.equal((JSON.parse(line) as { jsonrpc?: string }).jsonrpc, "2.0");
 });

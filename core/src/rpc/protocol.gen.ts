@@ -2,8 +2,13 @@
 // Обновить: npm run generate
 
 export interface HelloResult {
-    executors: ExecutorStatus[];
-    version:   string;
+    /**
+     * путь к исполняемой обёртке хука PermissionRequest для чужих сессий агентов; её
+     * прописывает в настройки Claude Code сам пользователь. Нет, если ядру не удалось её создать
+     */
+    agentHookPath?: string;
+    executors:      ExecutorStatus[];
+    version:        string;
 }
 
 export interface ExecutorStatus {
@@ -110,6 +115,10 @@ export interface TaskInfo {
  *
  * действие, которого исполнитель ждёт от человека; есть только у задачи running, пока ответ
  * не дан
+ *
+ * действие, которое сессия ждёт от человека через хук PermissionRequest, установленный
+ * пользователем; нет без хука и пока сессия ничего не ждёт. Показан самый ранний из ждущих
+ * запросов сессии; ответ — agents.approve
  */
 export interface ApprovalRequest {
     /**
@@ -223,8 +232,14 @@ export interface AgentSession {
      * агентов
      */
     agent: string;
-    cwd:   string;
-    host:  AgentHost;
+    /**
+     * действие, которое сессия ждёт от человека через хук PermissionRequest, установленный
+     * пользователем; нет без хука и пока сессия ничего не ждёт. Показан самый ранний из ждущих
+     * запросов сессии; ответ — agents.approve
+     */
+    approval?: ApprovalRequest;
+    cwd:       string;
+    host:      AgentHost;
     /**
      * id сессии агента
      */
@@ -335,6 +350,21 @@ export interface AgentStepsResult {
      * последние шаги сессии, старые первыми
      */
     steps: AgentStep[];
+}
+
+export interface AgentApproveParams {
+    /**
+     * true — разрешить действие, false — отклонить
+     */
+    allow: boolean;
+    /**
+     * id запроса из AgentSession.approval; устаревший — InvalidParams
+     */
+    approvalId: string;
+    /**
+     * id сессии агента из AgentSession.id
+     */
+    sessionId: string;
 }
 
 export interface AgentsEventParams {

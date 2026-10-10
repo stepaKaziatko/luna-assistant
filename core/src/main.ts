@@ -1,13 +1,17 @@
 import { join } from "node:path";
+import { AgentApprovalError, AgentApprovals } from "./agents/approvals.ts";
+import { writeHookWrapper } from "./agents/claude-code/hook-wrapper.ts";
+import { permissionHook } from "./agents/claude-code/permission-hook.ts";
 import { ClaudeCodeSessions } from "./agents/claude-code/sessions.ts";
 import { AgentMonitor } from "./agents/monitor.ts";
 import { normalizeContext } from "./context/normalize.ts";
 import { cleanupWorkdirs, defaultDataDir } from "./context/workdir.ts";
-import { ClaudeCodeExecutor, type ClaudeCodeOptions } from "./executors/claude-code/adapter.ts";
+import { BRIDGE_PATH, ClaudeCodeExecutor, type ClaudeCodeOptions } from "./executors/claude-code/adapter.ts";
 import { ApprovalSocket } from "./executors/claude-code/socket.ts";
 import type { Executor } from "./executors/executor.ts";
 import { ErrorCode, RpcError, RpcServer } from "./rpc/jsonrpc.ts";
 import type {
+  AgentApproveParams,
   AgentListResult,
   AgentStepsParams,
   AgentStepsResult,
@@ -70,15 +74,29 @@ const tasks = new TaskManager({
 });
 
 // Сессии агентов, запущенные не Luna. Собственные задачи Luna в этот список не попадают.
+// Запросы подтверждения им приносит хук, который поставил пользователь, — не файлы сессий.
+const agentApprovals = new AgentApprovals();
 const agents = new AgentMonitor({
   sources: [new ClaudeCodeSessions({ excludeCwd: [tasksDir] })],
   emit: (sessions) => rpc.notify("agents.changed", { sessions }),
+  approvals: agentApprovals,
   log,
 });
+// Обёртка хука — стабильный путь для настроек Claude Code; без сокета подтверждений она не нужна.
+let agentHookPath: string | undefined;
+if (approvals) {
+  approvals.setAgentHook(permissionHook({ approvals: agentApprovals, find: (id) => agents.find(id), excludeCwd: [tasksDir] }));
+  try {
+    agentHookPath = await writeHookWrapper(dataDir, process.execPath, BRIDGE_PATH);
+  } catch (error) {
+    log(`обёртка хука чужих сессий не создана: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
 
 rpc.method("core.hello", async (): Promise<HelloResult> => ({
   version: VERSION,
   executors: await Promise.all(executors.map((executor) => executor.status())),
+  ...(agentHookPath ? { agentHookPath } : {}),
 }));
 
 rpc.method("task.submit", (params): TaskSubmitResult => {
@@ -176,6 +194,20 @@ rpc.method("agents.steps", async (params): Promise<AgentStepsResult> => {
   return { steps: await agents.steps(sessionId, detail === true) };
 });
 
+rpc.method("agents.approve", (params) => {
+  const { sessionId, approvalId, allow } = asObject(params) as Partial<AgentApproveParams>;
+  if (typeof sessionId !== "string") throw new RpcError(ErrorCode.InvalidParams, "sessionId must be a string");
+  if (typeof approvalId !== "string") throw new RpcError(ErrorCode.InvalidParams, "approvalId must be a string");
+  if (typeof allow !== "boolean") throw new RpcError(ErrorCode.InvalidParams, "allow must be a boolean");
+  try {
+    agentApprovals.approve(sessionId, approvalId, allow);
+  } catch (error) {
+    if (error instanceof AgentApprovalError) throw new RpcError(ErrorCode.InvalidParams, error.message);
+    throw error;
+  }
+  return {};
+});
+
 agents.start();
 void cleanupWorkdirs(tasksDir).catch((error) => log(`workdir cleanup failed: ${String(error)}`));
 log(`started v${VERSION}, data dir: ${dataDir}`);
@@ -184,6 +216,8 @@ log(`started v${VERSION}, data dir: ${dataDir}`);
 // Незавершённые задачи записываются в историю прерванными — запись синхронная, до выхода.
 await rpc.listen();
 agents.stop();
+// Хуки чужих сессий получают «нет решения»: диалоги остаются в терминалах.
+agentApprovals.shutdown();
 tasks.shutdown();
 // Файл сокета снимается до выхода: следующему запуску нечего подчищать.
 approvals?.close();

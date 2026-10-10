@@ -5,6 +5,9 @@ import Foundation
 
 // MARK: - HelloResult
 struct HelloResult: Codable, Equatable, Sendable {
+    /// путь к исполняемой обёртке хука PermissionRequest для чужих сессий агентов; её
+    /// прописывает в настройки Claude Code сам пользователь. Нет, если ядру не удалось её создать
+    let agentHookPath: String?
     let executors: [ExecutorStatus]
     let version: String
 }
@@ -99,6 +102,10 @@ struct TaskInfo: Codable, Equatable, Sendable {
 ///
 /// действие, которого исполнитель ждёт от человека; есть только у задачи running, пока ответ
 /// не дан
+///
+/// действие, которое сессия ждёт от человека через хук PermissionRequest, установленный
+/// пользователем; нет без хука и пока сессия ничего не ждёт. Показан самый ранний из ждущих
+/// запросов сессии; ответ — agents.approve
 // MARK: - ApprovalRequest
 struct ApprovalRequest: Codable, Equatable, Sendable {
     /// Unix time, ms
@@ -210,6 +217,10 @@ struct AgentSession: Codable, Equatable, Sendable {
     /// чей это агент: «claude-code». Строка, а не перечисление: оболочка показывает и незнакомых
     /// агентов
     let agent: String
+    /// действие, которое сессия ждёт от человека через хук PermissionRequest, установленный
+    /// пользователем; нет без хука и пока сессия ничего не ждёт. Показан самый ранний из ждущих
+    /// запросов сессии; ответ — agents.approve
+    let approval: ApprovalRequest?
     let cwd: String
     let host: AgentHost
     /// id сессии агента
@@ -296,6 +307,16 @@ struct AgentStepsParams: Codable, Equatable, Sendable {
 struct AgentStepsResult: Codable, Equatable, Sendable {
     /// последние шаги сессии, старые первыми
     let steps: [AgentStep]
+}
+
+// MARK: - AgentApproveParams
+struct AgentApproveParams: Codable, Equatable, Sendable {
+    /// true — разрешить действие, false — отклонить
+    let allow: Bool
+    /// id запроса из AgentSession.approval; устаревший — InvalidParams
+    let approvalId: String
+    /// id сессии агента из AgentSession.id
+    let sessionId: String
 }
 
 // MARK: - AgentsEventParams

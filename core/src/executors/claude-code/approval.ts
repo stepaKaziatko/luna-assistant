@@ -57,8 +57,30 @@ export function tooLongToShow(call: ToolCall): boolean {
   return call.tool_name === "Bash" && typeof command === "string" && [...command].length > COMMAND_LIMIT;
 }
 
+/**
+ * Ответ мосту хука `PermissionRequest` чужой сессии (режим `agent-hook`): `allow` и `deny` — решение
+ * человека в Luna, `none` — «нет решения», диалог остаётся в терминале сессии. Хук не обязан ждать
+ * ядро: нет сокета, нет запроса, сессия неизвестна — тоже `none`.
+ */
+export type AgentHookAnswer =
+  | { behavior: "allow" }
+  | { behavior: "deny"; message: string }
+  | { behavior: "none" };
+
+/** Пояснение агенту чужой сессии, когда человек отклонил действие в Luna. */
+export const AGENT_DENIED_MESSAGE = "Отклонено в Luna";
+
+/** «Нет решения»: хук ничего не печатает, и CLI решает сам (диалог в терминале). */
+export const AGENT_HOOK_NONE: AgentHookAnswer = { behavior: "none" };
+
+/**
+ * Чьё действие описывается: задача Luna (`task`) или чужая сессия агента (`session`). От этого зависит
+ * подпись каталога в подробностях команды.
+ */
+export type ApprovalSubject = "task" | "session";
+
 /** Описание запроса для карточки; относительный путь приводится к абсолютному от `cwd`. */
-export function describeApproval(call: ToolCall, cwd: string): PauseRequest {
+export function describeApproval(call: ToolCall, cwd: string, subject: ApprovalSubject = "task"): PauseRequest {
   const { tool_name: tool, input } = call;
   const text = (key: string): string | undefined => {
     const value = input[key];
@@ -88,7 +110,7 @@ export function describeApproval(call: ToolCall, cwd: string): PauseRequest {
       );
     case "Bash": {
       const command = text("command");
-      return command ? describeCommand(tool, command, cwd, text("description")) : other(tool, input);
+      return command ? describeCommand(tool, command, cwd, text("description"), subject) : other(tool, input);
     }
     default:
       return other(tool, input);
@@ -99,14 +121,15 @@ export function describeApproval(call: ToolCall, cwd: string): PauseRequest {
  * Команда показывается целиком и как есть: человек разрешает именно её, а не подпись агента. Подпись —
  * отдельной строкой и в одну строку, чтобы текст агента не нарисовал в блоке поддельные «Размер…» или
  * «Каталог…». Каталог — тот, где запущен исполнитель: CLI в запросе каталог не присылает, а сессия может
- * помнить `cd` прошлой команды, поэтому подпись — «Каталог задачи», а не «выполнится в».
+ * помнить `cd` прошлой команды, поэтому подпись — «Каталог задачи», а не «выполнится в». У чужой сессии
+ * каталог приходит в самом запросе хука, подпись — «Каталог сессии».
  */
-function describeCommand(tool: string, command: string, cwd: string, description: string | undefined): PauseRequest {
+function describeCommand(tool: string, command: string, cwd: string, description: string | undefined, subject: ApprovalSubject): PauseRequest {
   const lines = command.split("\n").length;
   const chars = [...command].length;
   const detail = [
     `Размер: ${lines} ${plural(lines, "строка", "строки", "строк")}, ${chars} ${plural(chars, "знак", "знака", "знаков")}`,
-    `Каталог задачи: ${cwd}`,
+    `${subject === "session" ? "Каталог сессии" : "Каталог задачи"}: ${cwd}`,
   ];
   const signature = description === undefined ? "" : oneLine(description);
   if (signature) detail.push(`Подпись агента: ${clip(signature)}`);

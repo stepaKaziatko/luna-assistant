@@ -111,6 +111,7 @@
       "required": ["version", "executors"],
       "properties": {
         "version": { "type": "string" },
+        "agentHookPath": { "type": "string", "description": "путь к исполняемой обёртке хука PermissionRequest для чужих сессий агентов; её прописывает в настройки Claude Code сам пользователь. Нет, если ядру не удалось её создать" },
         "executors": {
           "type": "array",
           "items": { "$ref": "#/definitions/ExecutorStatus" }
@@ -258,6 +259,7 @@
         "host": { "$ref": "#/definitions/AgentHost" },
         "model": { "type": "string", "description": "модель последнего ответа агента в журнале сессии, как её записал агент («claude-opus-5-5»); нет, пока агент не отвечал или журнал не прочитан" },
         "openUrl": { "type": "string", "description": "ссылка, по которой приложение-хозяин открывает именно эту сессию; есть не у всех хозяев" },
+        "approval": { "$ref": "#/definitions/ApprovalRequest", "description": "действие, которое сессия ждёт от человека через хук PermissionRequest, установленный пользователем; нет без хука и пока сессия ничего не ждёт. Показан самый ранний из ждущих запросов сессии; ответ — agents.approve" },
         "startedAt": { "type": "integer", "description": "Unix time, ms" },
         "updatedAt": { "type": "integer", "description": "Unix time, ms: последняя смена состояния или запись в журнале сессии" }
       }
@@ -309,6 +311,16 @@
           "description": "последние шаги сессии, старые первыми",
           "items": { "$ref": "#/definitions/AgentStep" }
         }
+      }
+    },
+    "AgentApproveParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sessionId", "approvalId", "allow"],
+      "properties": {
+        "sessionId": { "type": "string", "description": "id сессии агента из AgentSession.id" },
+        "approvalId": { "type": "string", "description": "id запроса из AgentSession.approval; устаревший — InvalidParams" },
+        "allow": { "type": "boolean", "description": "true — разрешить действие, false — отклонить" }
       }
     },
     "AgentsEventParams": {
