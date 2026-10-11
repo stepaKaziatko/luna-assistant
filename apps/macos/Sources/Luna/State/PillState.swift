@@ -67,9 +67,12 @@ extension AgentSession {
 /// Счётчик шторки: значок и число вместо фразы.
 struct StatusChip: Equatable, Identifiable {
     enum Kind: String {
+        /// Ждут «Разрешить» или «Отклонить»: задачи Luna и сессии агентов с запросом подтверждения.
+        /// Число совпадает с `PillState.needsApproval`.
+        case approval
         /// Задачи Luna с ошибкой или неполадка ядра.
         case failure
-        /// Сессии агентов и задачи Luna, которые ждут человека.
+        /// Сессии агентов, которые ждут человека без запроса подтверждения.
         case attention
         /// Готовые ответы Luna и сессии, закончившие ход, — то, что ещё не смотрели.
         case success
@@ -82,15 +85,19 @@ struct StatusChip: Equatable, Identifiable {
 
     var id: Kind { kind }
 
-    /// В порядке важности; нулевые счётчики не показываются.
+    /// В порядке важности (как у `PillState.aggregate`): подтверждение, ошибка, ждут вас, готово, в работе;
+    /// нулевые счётчики не показываются.
     static func make(tasks: [TaskInfo], unseen: Set<String>, hasProblem: Bool, agents: AgentsSummary) -> [StatusChip] {
         let failed = tasks.count { $0.status == .failed && unseen.contains($0.id) }
         let done = tasks.count { $0.status == .done && unseen.contains($0.id) }
         let active = tasks.count { $0.isActive }
-        let waiting = tasks.count { $0.isAwaitingApproval }
+        let approvals = tasks.count { $0.isAwaitingApproval } + agents.waiting.count { $0.approval != nil }
+        // Сессия с запросом лежит в `agents.waiting` тоже: во второй раз её считать не нужно.
+        let calling = agents.waiting.count { $0.approval == nil }
         return [
+            StatusChip(kind: .approval, count: approvals),
             StatusChip(kind: .failure, count: max(failed, hasProblem ? 1 : 0)),
-            StatusChip(kind: .attention, count: waiting + agents.waiting.count),
+            StatusChip(kind: .attention, count: calling),
             StatusChip(kind: .success, count: done + agents.finished.count),
             StatusChip(kind: .working, count: active + agents.working.count),
         ].filter { $0.count > 0 }

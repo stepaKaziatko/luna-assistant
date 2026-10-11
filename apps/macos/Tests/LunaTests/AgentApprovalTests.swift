@@ -187,10 +187,12 @@ final class AgentApprovalTests: XCTestCase {
         XCTAssertEqual(state.pillState, .idle)
         state.applyAgents([session("waiting-only"), session("asked", approval: request())])
         XCTAssertEqual(state.pillState, .needsApproval(1), "ждущая сессия без запроса в needsApproval не входит")
-        XCTAssertEqual(state.statusChips.first { $0.kind == .attention }?.count, 2, "обе зовут человека")
+        XCTAssertEqual(state.statusChips.first { $0.kind == .approval }?.count, 1, "число чипа совпадает с needsApproval")
+        XCTAssertEqual(state.statusChips.first { $0.kind == .attention }?.count, 1, "без запроса ждёт одна сессия")
 
         state.apply(task("t", approval: request("req-task", createdAt: 20)))
         XCTAssertEqual(state.pillState, .needsApproval(2))
+        XCTAssertEqual(state.statusChips.first { $0.kind == .approval }?.count, 2)
         XCTAssertEqual(state.shownPillPresentation?.text ?? state.pillPresentation?.text, "Нужно подтверждений: 2")
 
         XCTAssertEqual(PillState.aggregate(tasks: [], unseen: [], hasProblem: true, agentApprovals: 1), .needsApproval(1), "запрос главнее ошибки")

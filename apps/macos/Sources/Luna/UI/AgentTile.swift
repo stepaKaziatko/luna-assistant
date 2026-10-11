@@ -30,6 +30,7 @@ struct StatusChips: View {
     @ViewBuilder
     private func glyph(_ kind: StatusChip.Kind) -> some View {
         switch kind {
+        case .approval: Image(systemName: "checkmark.shield.fill")
         case .failure: Image(systemName: "exclamationmark.triangle.fill")
         case .attention: Image(systemName: "hand.raised.fill")
         case .success: Image(systemName: "checkmark.circle.fill")
@@ -42,6 +43,7 @@ extension StatusChip {
     /// Что значит счётчик — для подсказки и VoiceOver.
     var title: String {
         switch kind {
+        case .approval: "Ждут подтверждения: \(count)"
         case .failure: "Ошибок: \(count)"
         case .attention: "Ждут вас: \(count)"
         case .success: "Готово: \(count)"
@@ -53,6 +55,7 @@ extension StatusChip {
 extension StatusChip.Kind {
     var color: Color {
         switch self {
+        case .approval: .orange
         case .failure: .red
         case .attention: .orange
         case .success: .green

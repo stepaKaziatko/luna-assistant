@@ -46,9 +46,9 @@ final class PillApprovalTests: XCTestCase {
         )
     }
 
-    private func session(_ id: String, _ state: AgentState) -> AgentSession {
+    private func session(_ id: String, _ state: AgentState, approval: ApprovalRequest? = nil) -> AgentSession {
         AgentSession(
-            activity: nil, agent: "claude-code", approval: nil, cwd: "/work/shop",
+            activity: nil, agent: "claude-code", approval: approval, cwd: "/work/shop",
             host: AgentHost(appPath: nil, kind: .unknown, name: nil, tty: nil, workspace: nil), id: id, model: nil, openUrl: nil,
             pid: 1, project: "shop", startedAt: 0, state: state, title: "сессия \(id)", trail: nil, updatedAt: 0, waitingFor: nil
         )
@@ -77,12 +77,44 @@ final class PillApprovalTests: XCTestCase {
         XCTAssertEqual(PillPresentation.make(tasks: .running(1), taskProgress: nil, agents: agents)?.text, "shop ждёт вас")
     }
 
-    func testAttentionChipCountsWaitingTasks() {
-        let agents = AgentsSummary(sessions: [session("s", .waiting)], finished: [])
+    private func request(_ id: String) -> ApprovalRequest {
+        ApprovalRequest(createdAt: 1, detail: "hi", id: id, kind: .write, summary: "Записать файл", target: "/work/hello.txt", tool: "Write")
+    }
+
+    func testApprovalChipStandsAboveFailureAndCountsTasksWithApproval() {
+        let tasks = [
+            task("wait", .running, approval: true), task("fail", .failed), task("ok", .done), task("run", .running),
+        ]
+        let chips = StatusChip.make(
+            tasks: tasks, unseen: ["fail", "ok"], hasProblem: false, agents: AgentsSummary(sessions: [], finished: [])
+        )
+        XCTAssertEqual(chips.map(\.kind), [.approval, .failure, .success, .working], "в порядке needsApproval > error > done > running")
+        XCTAssertEqual(chips.first?.count, 1)
+        XCTAssertEqual(chips.first { $0.kind == .working }?.count, 2, "ждущая задача по-прежнему в работе")
+        XCTAssertNil(chips.first { $0.kind == .attention }, "задача с запросом в «ждут вас» не входит")
+        XCTAssertEqual(
+            PillState.aggregate(tasks: tasks, unseen: ["fail", "ok"], hasProblem: false), .needsApproval(1),
+            "одна ждёт, одна упала — показано ожидание"
+        )
+        XCTAssertEqual(chips.first?.title, "Ждут подтверждения: 1")
+    }
+
+    func testAttentionChipLeavesSessionsWithApprovalToApprovalChip() {
+        let sessions = [session("calls", .waiting), session("asked", .working, approval: request("r1"))]
+        let agents = AgentsSummary(sessions: sessions, finished: [])
         let chips = StatusChip.make(tasks: [task("a", .running, approval: true)], unseen: [], hasProblem: false, agents: agents)
-        XCTAssertEqual(chips.first { $0.kind == .attention }?.count, 2)
+        XCTAssertEqual(chips.first { $0.kind == .approval }?.count, 2, "задача и сессия с запросом")
+        XCTAssertEqual(chips.first { $0.kind == .attention }?.count, 1, "ждёт только сессия без запроса")
         XCTAssertEqual(chips.first { $0.kind == .working }?.count, 1, "ждущая задача по-прежнему в работе")
+        let aggregate = PillState.aggregate(
+            tasks: [task("a", .running, approval: true)], unseen: [], hasProblem: false,
+            agentApprovals: sessions.count { $0.approval != nil }
+        )
+        XCTAssertEqual(aggregate, .needsApproval(2))
+        XCTAssertEqual(chips.first { $0.kind == .approval }?.count, 2, "число чипа совпадает с needsApproval(n)")
+
         let plain = StatusChip.make(tasks: [task("a", .running)], unseen: [], hasProblem: false, agents: AgentsSummary(sessions: [], finished: []))
+        XCTAssertNil(plain.first { $0.kind == .approval })
         XCTAssertNil(plain.first { $0.kind == .attention })
     }
 }
