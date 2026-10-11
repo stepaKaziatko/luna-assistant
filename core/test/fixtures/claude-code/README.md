@@ -1,6 +1,6 @@
 # Фикстуры вывода Claude Code
 
-Вывод `claude -p --output-format stream-json --verbose`, Claude Code 2.1.181.
+Вывод `claude -p --output-format stream-json --verbose`, Claude Code 2.1.181. Исключение — `agent-permission-request.hook.jsonl`: он снят на Claude Code 2.1.296 (версия названа и в его строке).
 
 | Файл | Происхождение |
 |---|---|
