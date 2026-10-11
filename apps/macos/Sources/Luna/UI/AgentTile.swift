@@ -30,7 +30,7 @@ struct StatusChips: View {
     @ViewBuilder
     private func glyph(_ kind: StatusChip.Kind) -> some View {
         switch kind {
-        case .approval: Image(systemName: "checkmark.shield.fill")
+        case .approval: Image(systemName: StatusChip.Kind.approvalSymbol)
         case .failure: Image(systemName: "exclamationmark.triangle.fill")
         case .attention: Image(systemName: "hand.raised.fill")
         case .success: Image(systemName: "checkmark.circle.fill")
@@ -53,6 +53,9 @@ extension StatusChip {
 }
 
 extension StatusChip.Kind {
+    /// Значок ожидания подтверждения: один у счётчика и у значка диалога.
+    static let approvalSymbol = "checkmark.shield.fill"
+
     var color: Color {
         switch self {
         case .approval: .orange

@@ -77,6 +77,20 @@ final class PillApprovalTests: XCTestCase {
         XCTAssertEqual(PillPresentation.make(tasks: .running(1), taskProgress: nil, agents: agents)?.text, "shop ждёт вас")
     }
 
+    func testStatusLineAndIndicatorForWaitingTask() {
+        XCTAssertEqual(task("a", .running, approval: true).statusLine, "ждёт подтверждения")
+        XCTAssertEqual(task("a", .running).statusLine, "Думаю…")
+        XCTAssertEqual(task("a", .failed).statusLine, "Ошибка")
+        XCTAssertEqual(task("a", .queued).statusLine, "В очереди")
+        // approval у завершённой задачи — остаток: строка прежняя.
+        XCTAssertEqual(task("a", .done, approval: true).statusLine, "Готово")
+
+        XCTAssertEqual(DialogIndicator.glyph(for: task("a", .running, approval: true), isUnseen: false), .awaitingApproval)
+        XCTAssertEqual(DialogIndicator.glyph(for: task("a", .running), isUnseen: false), .working)
+        XCTAssertEqual(DialogIndicator.glyph(for: task("a", .done, approval: true), isUnseen: true), .doneUnseen)
+        XCTAssertEqual(DialogIndicator.glyph(for: task("a", .failed), isUnseen: true), .failed)
+    }
+
     private func request(_ id: String) -> ApprovalRequest {
         ApprovalRequest(createdAt: 1, detail: "hi", id: id, kind: .write, summary: "Записать файл", target: "/work/hello.txt", tool: "Write")
     }

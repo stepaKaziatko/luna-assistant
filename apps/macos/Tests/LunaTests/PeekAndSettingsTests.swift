@@ -11,9 +11,12 @@ final class PeekAndSettingsTests: XCTestCase {
         )
     }
 
-    private func task(_ id: String, _ status: TaskStatus, createdAt: Int = 0) -> TaskInfo {
-        TaskInfo(
-            approval: nil, context: nil, createdAt: createdAt, error: nil, executor: .claudeCode, finishedAt: nil, id: id,
+    private func task(_ id: String, _ status: TaskStatus, createdAt: Int = 0, approval: Bool = false) -> TaskInfo {
+        let request = ApprovalRequest(
+            createdAt: createdAt, detail: "hi", id: "req-\(id)", kind: .write, summary: "Записать файл", target: "/work/hello.txt", tool: "Write"
+        )
+        return TaskInfo(
+            approval: approval ? request : nil, context: nil, createdAt: createdAt, error: nil, executor: .claudeCode, finishedAt: nil, id: id,
             model: nil, progress: nil, prompt: "запрос \(id)", result: nil, sessionId: nil, status: status, threadId: id
         )
     }
@@ -146,6 +149,21 @@ final class PeekAndSettingsTests: XCTestCase {
         let (state, _) = makeState()
         state.applyHistory((1...6).map { task("t\($0)", .done, createdAt: $0) })
         XCTAssertEqual(state.peekDialogs.map(\.threadId), ["t6", "t5", "t4", "t3"])
+    }
+
+    func testPeekPutsDialogsWaitingForApprovalFirst() {
+        let (state, _) = makeState()
+        var tasks = (2...6).map { task("t\($0)", .done, createdAt: $0) }
+        tasks.append(task("t1", .running, createdAt: 1, approval: true))
+        state.applyHistory(tasks)
+        let peek = state.peekDialogs
+        XCTAssertEqual(peek.map(\.threadId), ["t1", "t6", "t5", "t4"], "ждущий — первым, хотя он самый старый; всего не больше предела")
+        XCTAssertEqual(peek.count, AppState.peekDialogLimit)
+        XCTAssertEqual(state.listedDialogs.map(\.threadId), ["t6", "t5", "t4", "t3", "t2", "t1"], "порядок полного списка не меняется")
+
+        let (quiet, _) = makeState()
+        quiet.applyHistory((1...6).map { task("t\($0)", .done, createdAt: $0) })
+        XCTAssertEqual(quiet.peekDialogs.map(\.threadId), ["t6", "t5", "t4", "t3"], "без ждущих порядок прежний")
     }
 
     func testOpenSettingsCollapsesIsland() {

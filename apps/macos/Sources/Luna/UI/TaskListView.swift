@@ -91,7 +91,7 @@ private struct DialogRow: View {
 
     @EnvironmentObject private var state: AppState
 
-    private var task: TaskInfo { dialog.last }
+    private var task: TaskInfo { dialog.shownTask }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -114,7 +114,7 @@ private struct DialogRow: View {
                 }
                 Text(task.statusLine)
                     .font(.system(size: 11))
-                    .foregroundStyle(task.status == .failed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                    .foregroundStyle(task.statusLineStyle)
                     .lineLimit(1)
             }
             Spacer(minLength: 12)
@@ -148,18 +148,42 @@ struct DialogIndicator: View {
     let task: TaskInfo
     let isUnseen: Bool
 
-    var body: some View {
+    /// Что нарисовать. Отдельное значение — чтобы выбор проверялся без окна.
+    enum Glyph: Equatable {
+        case queued
+        /// Исполнитель работает: системный индикатор.
+        case working
+        /// Ждёт подтверждения: статичный значок цвета ожидания, без анимации.
+        case awaitingApproval
+        case doneUnseen
+        case done
+        case failed
+        case cancelled
+    }
+
+    static func glyph(for task: TaskInfo, isUnseen: Bool) -> Glyph {
+        if task.isAwaitingApproval { return .awaitingApproval }
         switch task.status {
+        case .queued: return .queued
+        case .running: return .working
+        case .done: return isUnseen ? .doneUnseen : .done
+        case .failed: return .failed
+        case .cancelled: return .cancelled
+        }
+    }
+
+    var body: some View {
+        switch Self.glyph(for: task, isUnseen: isUnseen) {
         case .queued:
             Image(systemName: "clock").foregroundStyle(.secondary)
-        case .running:
+        case .working:
             ProgressView().controlSize(.small).scaleEffect(0.8)
+        case .awaitingApproval:
+            Image(systemName: StatusChip.Kind.approvalSymbol).foregroundStyle(.orange)
+        case .doneUnseen:
+            Circle().fill(.green).frame(width: 7, height: 7)
         case .done:
-            if isUnseen {
-                Circle().fill(.green).frame(width: 7, height: 7)
-            } else {
-                Image(systemName: "checkmark").foregroundStyle(.secondary)
-            }
+            Image(systemName: "checkmark").foregroundStyle(.secondary)
         case .failed:
             Circle().fill(.red).frame(width: 7, height: 7)
         case .cancelled:
@@ -173,10 +197,16 @@ extension TaskInfo {
     var statusLine: String {
         switch status {
         case .queued: "В очереди"
-        case .running: progress ?? "Думаю…"
+        case .running: isAwaitingApproval ? "ждёт подтверждения" : (progress ?? "Думаю…")
         case .done: durationSeconds.map { "Готово · \($0) с" } ?? "Готово"
         case .failed: error?.message ?? "Ошибка"
         case .cancelled: "Отменена"
         }
+    }
+
+    /// Цвет строки состояния: ошибка — красным, ожидание подтверждения — оранжевым.
+    var statusLineStyle: AnyShapeStyle {
+        if isAwaitingApproval { return AnyShapeStyle(.orange) }
+        return status == .failed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary)
     }
 }

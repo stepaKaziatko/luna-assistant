@@ -160,7 +160,7 @@ private struct PeekDialogChip: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            DialogIndicator(task: dialog.last, isUnseen: isUnseen)
+            DialogIndicator(task: dialog.shownTask, isUnseen: isUnseen)
                 .font(.system(size: 10, weight: .semibold))
                 .frame(width: 14, height: 14)
             Text(dialog.title)
@@ -174,6 +174,6 @@ private struct PeekDialogChip: View {
         .contentShape(Rectangle())
         .onTapGesture { state.open(threadId: dialog.threadId) }
         .onHover { isHovered = $0 }
-        .help("\(dialog.title) — \(dialog.last.statusLine)")
+        .help("\(dialog.title) — \(dialog.shownTask.statusLine)")
     }
 }

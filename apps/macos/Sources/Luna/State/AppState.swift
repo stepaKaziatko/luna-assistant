@@ -235,9 +235,9 @@ final class AppState: ObservableObject {
         StatusChip.make(tasks: tasks, unseen: unseen, hasProblem: problem != nil, agents: agentsSummary)
     }
 
-    /// Диалоги блока под курсором: самые свежие.
+    /// Диалоги блока под курсором: сначала ждущие подтверждения, затем самые свежие.
     var peekDialogs: [Dialog] {
-        Array(Dialog.group(tasks).prefix(Self.peekDialogLimit))
+        Dialog.peek(Dialog.group(tasks), limit: Self.peekDialogLimit)
     }
 
     static let peekDialogLimit = 4

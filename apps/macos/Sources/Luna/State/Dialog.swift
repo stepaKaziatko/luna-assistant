@@ -14,6 +14,10 @@ struct Dialog: Equatable, Identifiable {
     var title: String { first.prompt }
     var followUpCount: Int { tasks.count - 1 }
     var activeTask: TaskInfo? { tasks.last { $0.isActive } }
+    /// Исполнитель остановился на одной из задач диалога и ждёт «Разрешить» или «Отклонить».
+    var isAwaitingApproval: Bool { tasks.contains { $0.isAwaitingApproval } }
+    /// Задача, по которой строка и значок диалога: ждущая подтверждения, иначе последняя.
+    var shownTask: TaskInfo { tasks.last { $0.isAwaitingApproval } ?? last }
     /// Задача, к которой уйдёт уточнение (`followUpOf`); нет — поле продолжения не показывается.
     var continuationPoint: TaskInfo? { Self.continuationPoint(of: tasks) }
 
@@ -41,6 +45,14 @@ struct Dialog: Equatable, Identifiable {
                     : lhs.offset > rhs.offset
             }
             .map(\.element)
+    }
+
+    /// Диалоги блока под курсором: сначала те, что ждут подтверждения, затем остальные в прежнем порядке
+    /// (по свежести), не больше `limit`. Ждущий диалог виден, даже если он старше свежих.
+    static func peek(_ dialogs: [Dialog], limit: Int) -> [Dialog] {
+        let waiting = dialogs.filter(\.isAwaitingApproval)
+        let rest = dialogs.filter { !$0.isAwaitingApproval }
+        return Array((waiting + rest).prefix(limit))
     }
 
     /// Те же правила, что у ядра: последняя `done` с `sessionId`; после неё — только `failed`
