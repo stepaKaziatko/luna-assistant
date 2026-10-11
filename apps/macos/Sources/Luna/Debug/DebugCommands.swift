@@ -57,6 +57,7 @@ import AppKit
 ///   `submitModel:<модель>:<текст>` — то же с указанной моделью в обход списка (проверка ответа ядра на плохое значение);
 /// - `taskSet:<json>` — подменить задачу снимком `TaskInfo`, как если бы его прислало ядро (с `approval` — как
 ///   `task.needs_approval`, без — как `task.progress`/`task.done`): блок подтверждения проверяется без исполнителя;
+///   видимость запроса — в `dump`: `pill`, `pillText`, `pillMood` (настроение аватара), `chips`, `sounds`, `frontmostApp`;
 /// - `approve:<true|false>[:<taskId>]` — клик по «Разрешить»/«Отклонить» у задачи с `approval` (без id — у ждущей
 ///   задачи открытой карточки); в `dump` — `approvalPending` (запросы, ответ на которые ушёл, а снимка ещё нет)
 ///   и `approvalError` (отказ ядра принять ответ), `approvalQueue` (id ждущих задач в порядке показа) и
@@ -393,6 +394,8 @@ enum DebugCommands {
         let pill: String
         /// Фраза развёрнутого pill; nil — pill свёрнут в полоску.
         let pillText: String?
+        /// Настроение аватара pill (`waiting`, `error`, `working`…); nil — показывать нечего. Не зависит от того, раскрыты ли крылья.
+        let pillMood: String?
         /// Счётчики шторки: род и число.
         let chips: [String]
         /// Размер видимой части острова — тело фигуры без плеч.
@@ -468,6 +471,7 @@ enum DebugCommands {
             unseen = state.unseen.sorted()
             pill = String(describing: state.pillState)
             pillText = state.shownPillPresentation?.text
+            pillMood = state.pillPresentation.map { String(describing: $0.mood) }
             chips = state.statusChips.map { "\($0.kind.rawValue):\($0.count)" }
             island = NSStringFromSize(state.islandSize)
             agents = state.agents
