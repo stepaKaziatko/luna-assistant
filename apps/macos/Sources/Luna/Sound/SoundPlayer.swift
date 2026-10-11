@@ -2,7 +2,7 @@ import AppKit
 
 /// События, о которых Luna сообщает звуком.
 enum SoundEvent: String, CaseIterable, Identifiable {
-    /// Сессия агента ждёт ответа или разрешения.
+    /// Кто-то ждёт человека: сессия агента — ответа или разрешения, Luna — «Разрешить» или «Отклонить».
     case attention
     /// Сессия агента закончила ход, пока на неё не смотрели.
     case finished
@@ -14,7 +14,7 @@ enum SoundEvent: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .attention: "Агент ждёт вас"
+        case .attention: "Ждут вас"
         case .finished: "Агент закончил ход"
         case .done: "Ответ Luna готов"
         case .failure: "Ошибка задачи"
@@ -37,8 +37,8 @@ enum SoundEvent: String, CaseIterable, Identifiable {
 @MainActor
 final class SoundPlayer {
     private let settings: LunaSettings
-    /// Звук живёт, пока играет: по одному на событие, новый сменяет прежний.
-    private var playing: [String: NSSound] = [:]
+    /// Звук живёт, пока играет: по одному на событие, новый сменяет прежний. Снаружи — только чтение (тесты).
+    private(set) var playing: [String: NSSound] = [:]
 
     init(settings: LunaSettings) {
         self.settings = settings

@@ -309,8 +309,12 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// ⌥⇧Space: пока кто-то ждёт ответа, хоткей работает с самым ранним запросом — открывает его карточку
+    /// и закрывает её же повторным нажатием. Запросов нет — открывает последний результат и закрывает карточку.
     func toggleLastResult() {
-        if case .result = mode {
+        if let waiting = pendingApprovals.first {
+            if isShown(waiting) { collapse() } else { open(waiting) }
+        } else if case .result = mode {
             collapse()
         } else {
             openLastResult()
@@ -350,8 +354,13 @@ final class AppState: ObservableObject {
         listMessage = nil
     }
 
-    /// Открывает самый свежий непросмотренный результат, а если таких нет — последнюю задачу.
+    /// Открывает карточку самого раннего запроса подтверждения; запросов нет — самый свежий непросмотренный
+    /// результат, а если таких нет — последнюю задачу.
     func openLastResult() {
+        if let waiting = pendingApprovals.first {
+            open(waiting)
+            return
+        }
         guard let task = tasks.last(where: { unseen.contains($0.id) }) ?? tasks.last else {
             openInput()
             return
@@ -489,12 +498,16 @@ final class AppState: ObservableObject {
     /// Применяет полный список сессий из ответа или уведомления ядра.
     func applyAgents(_ sessions: [AgentSession]) {
         let previous = Dictionary(agents.map { ($0.id, $0.state) }, uniquingKeysWith: { first, _ in first })
+        let approvalsBefore = Dictionary(agents.compactMap { session in session.approval.map { (session.id, $0.id) } }, uniquingKeysWith: { first, _ in first })
+        let approvalsNow = Dictionary(sessions.compactMap { session in session.approval.map { (session.id, $0.id) } }, uniquingKeysWith: { first, _ in first })
         // Один звук на список: тот, кто зовёт человека, важнее закончившего ход.
         var cue: SoundEvent?
         for session in sessions {
             let before = previous[session.id]
             // Открытая карточка сессии видна сразу — ни новостью, ни поводом для звука она не становится.
             let isShown = shownAgentId == session.id
+            // Новый запрос подтверждения звучит и у сессии в `working`: состояние при этом не меняется.
+            if let approval = session.approval, approvalsBefore[session.id] != approval.id, agentsLoaded, !isShown { cue = .attention }
             if session.state != .idle {
                 finishedAgents.remove(session.id)
                 if session.state == .waiting, before != .waiting, agentsLoaded, !isShown { cue = .attention }
@@ -507,8 +520,6 @@ final class AppState: ObservableObject {
         if let cue { notify(cue) }
         // Запрос подтверждения сессии не меняет её состояние: оживляем шторку и на него. Ответ дошёл — снимок без
         // прежнего запроса (или с новым) снимает ожидание кнопок и прошлую ошибку.
-        let approvalsBefore = Dictionary(agents.compactMap { session in session.approval.map { (session.id, $0.id) } }, uniquingKeysWith: { first, _ in first })
-        let approvalsNow = Dictionary(sessions.compactMap { session in session.approval.map { (session.id, $0.id) } }, uniquingKeysWith: { first, _ in first })
         for (sessionId, approvalId) in approvalsBefore where approvalsNow[sessionId] != approvalId {
             approvalPending.remove(approvalId)
             approvalError = nil
@@ -896,6 +907,15 @@ final class AppState: ObservableObject {
         if let next = otherPendingApprovals(than: subject).first { open(next) }
     }
 
+    /// Открыта карточка именно этого запроса: диалога задачи или сессии агента.
+    private func isShown(_ pending: PendingApproval) -> Bool {
+        switch (pending.subject, mode) {
+        case (.task(let id), .result(let threadId)): task(id: id)?.threadId == threadId
+        case (.session(let id), .agent(let sessionId)): id == sessionId
+        default: false
+        }
+    }
+
     private func open(_ pending: PendingApproval) {
         switch pending.subject {
         case .task(let id):
@@ -1014,12 +1034,15 @@ final class AppState: ObservableObject {
     }
 
     /// Применяет снимок задачи из ответа или уведомления ядра. Запрос подтверждения карточку не открывает:
-    /// меняется только pill, остальное — по клику.
+    /// меняется pill, звучит сигнал и (в режиме «В фоне») выезжает остров, остальное — по клику.
     func apply(_ task: TaskInfo) {
         let previous = self.task(id: task.id)
         let before = previous?.status
-        // Новый запрос подтверждения статус не меняет — шторка оживает и на него.
-        if before != task.status || (task.approval != nil && task.approval?.id != previous?.approval?.id) { enliven() }
+        // Задача диалога, открытого в карточке, видна сразу — ни непросмотренной, ни поводом для звука она не становится.
+        let isShown = mode == .result(threadId: task.threadId)
+        // Новый запрос подтверждения статус не меняет — шторка оживает и на него. Повторный снимок того же запроса — не событие.
+        let newApproval = task.isAwaitingApproval && task.approval?.id != previous?.approval?.id
+        if before != task.status || newApproval { enliven() }
         // Ответ дошёл: снимок без прежнего запроса (или с новым) снимает ожидание и прошлую ошибку.
         if let pending = previous?.approval?.id, task.approval?.id != pending {
             approvalPending.remove(pending)
@@ -1030,8 +1053,8 @@ final class AppState: ObservableObject {
         } else {
             tasks.append(task)
         }
-        // Задача диалога, открытого в карточке, видна сразу — непросмотренной она не становится.
-        let isShown = mode == .result(threadId: task.threadId)
+        // Запрос звучит один раз: тем же событием, что и «агент ждёт вас». Отдельного переключателя у него нет.
+        if newApproval, !isShown { notify(.attention) }
         if (task.status == .done || task.status == .failed) && !isShown {
             unseen.insert(task.id)
             // Повторное событие о той же завершённой задаче второй раз не звучит.

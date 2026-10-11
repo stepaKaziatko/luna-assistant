@@ -180,6 +180,48 @@ final class AgentApprovalTests: XCTestCase {
         XCTAssertTrue(state.approvalPending.isEmpty)
     }
 
+    // MARK: - Звук
+
+    private func makeSoundState() -> (AppState, () -> [SoundEvent]) {
+        let (state, _) = makeState()
+        var played: [SoundEvent] = []
+        state.playSound = { played.append($0) }
+        return (state, { played })
+    }
+
+    func testRequestOfWorkingSessionPlaysAttentionOnce() {
+        let (state, played) = makeSoundState()
+        state.applyAgents([session("s", .working)])
+        XCTAssertEqual(played(), [], "первый список — не новость")
+
+        state.applyAgents([session("s", .working, approval: request("r1"))])
+        XCTAssertEqual(played(), [.attention], "запрос у сессии в working звучит: состояние не менялось")
+        state.applyAgents([session("s", .working, approval: request("r1"))])
+        XCTAssertEqual(played(), [.attention], "уже прозвучавший запрос повторным списком — тишина")
+        state.applyAgents([session("s", .working, approval: request("r2"))])
+        XCTAssertEqual(played(), [.attention, .attention], "новый запрос — новый сигнал")
+    }
+
+    func testWaitingAndRequestInOneSnapshotPlayOnce() {
+        let (state, played) = makeSoundState()
+        state.applyAgents([session("s", .working), session("t", .working)])
+        state.applyAgents([session("s", .waiting, approval: request("r1")), session("t", .waiting)])
+        XCTAssertEqual(played(), [.attention], "переход в waiting и запрос — один сигнал на список")
+    }
+
+    func testFirstSnapshotWithRequestIsSilentAndOpenCardToo() {
+        let (first, firstPlayed) = makeSoundState()
+        first.applyAgents([session("s", .working, approval: request())])
+        XCTAssertEqual(firstPlayed(), [], "запрос, что уже висел при запуске, — не новость")
+        XCTAssertEqual(first.pillState, .needsApproval(1))
+
+        let (state, played) = makeSoundState()
+        state.applyAgents([session("s", .working)])
+        state.openAgent(id: "s")
+        state.applyAgents([session("s", .working, approval: request())])
+        XCTAssertEqual(played(), [], "карточка сессии открыта — человек видит запрос")
+    }
+
     // MARK: - Pill и порядок
 
     func testPillCountsSessionsWithApprovalAlongsideTasks() {

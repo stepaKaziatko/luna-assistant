@@ -71,6 +71,128 @@ final class ApprovalTests: XCTestCase {
         XCTAssertEqual(enlivened, 3, "новый запрос — событие")
     }
 
+    /// Состояние, записывающее проигранные звуки: до `playSound` дело доходит только через `notify`.
+    private func makeSoundState() -> (AppState, () -> [SoundEvent]) {
+        let (state, _) = makeState()
+        var played: [SoundEvent] = []
+        state.playSound = { played.append($0) }
+        return (state, { played })
+    }
+
+    func testNewApprovalPlaysOneAttentionSoundPerRequest() {
+        let (state, played) = makeSoundState()
+        state.apply(task("a"))
+        XCTAssertEqual(played(), [], "обычная задача звука не даёт")
+
+        state.apply(task("a", approval: request()))
+        XCTAssertEqual(played(), [.attention])
+        state.apply(task("a", approval: request()))
+        XCTAssertEqual(played(), [.attention], "тот же запрос повторным снимком — не звучит")
+
+        state.apply(task("a", approval: request("req-2")))
+        XCTAssertEqual(played(), [.attention, .attention], "новый запрос той же задачи — второй сигнал")
+
+        state.apply(task("a"))
+        XCTAssertEqual(played(), [.attention, .attention], "ответ дошёл — сигнала нет")
+        XCTAssertEqual(state.mode, .pill, "ни звук, ни запрос панель не открывают")
+    }
+
+    func testApprovalOfOpenCardIsSilent() {
+        let (state, played) = makeSoundState()
+        state.apply(task("a"))
+        state.open(threadId: "a")
+        XCTAssertEqual(state.mode, .result(threadId: "a"))
+        state.apply(task("a", approval: request()))
+        XCTAssertEqual(played(), [], "карточка диалога открыта — человек и так видит запрос")
+        XCTAssertEqual(state.pillState, .needsApproval(1))
+    }
+
+    func testSoundsSwitchSilencesApprovalAndPillStays() {
+        let defaults = UserDefaults(suiteName: "dev.luna.tests.\(UUID().uuidString)")!
+        let settings = LunaSettings(defaults: defaults)
+        settings.soundsEnabled = false
+        let player = SoundPlayer(settings: settings)
+        player.play(.attention)
+        XCTAssertTrue(player.playing.isEmpty, "общий переключатель звуков гасит и сигнал подтверждения")
+
+        let state = AppState(settings: settings)
+        state.playSound = { player.play($0) }
+        state.apply(task("a", approval: request()))
+        XCTAssertTrue(player.playing.isEmpty)
+        XCTAssertEqual(state.pillState, .needsApproval(1), "pill и счётчик остаются")
+    }
+
+    func testApprovalShowsIslandInBackgroundMode() {
+        let suite = "dev.luna.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.set("background", forKey: "islandMode")
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        let state = AppState(settings: LunaSettings(defaults: defaults))
+        state.playSound = { _ in }
+        state.apply(task("a"))
+        XCTAssertFalse(state.islandShown, "в фоне шторка скрыта")
+        state.apply(task("a", approval: request()))
+        XCTAssertTrue(state.islandShown, "запрос выезжает островом, как остальные события")
+        XCTAssertEqual(state.mode, .pill)
+    }
+
+    func testLastResultHotkeyOpensEarliestRequestAmongTasksAndSessions() {
+        let (state, _) = makeState()
+        state.apply(task("done", .done, createdAt: 1))
+        state.applyAgents([])
+        state.apply(task("early", createdAt: 2, approval: request("req-early", createdAt: 20)))
+        state.applyAgents([askingSession("late", createdAt: 40)])
+        XCTAssertEqual(state.pendingApprovals.count, 2)
+
+        state.toggleLastResult()
+        XCTAssertEqual(state.mode, .result(threadId: "early"), "самый ранний запрос, а не последний результат")
+        state.toggleLastResult()
+        XCTAssertEqual(state.mode, .pill, "повторное нажатие закрывает карточку")
+        XCTAssertEqual(state.pillState, .needsApproval(2), "запрос остался")
+
+        state.open(threadId: "done")
+        state.toggleLastResult()
+        XCTAssertEqual(state.mode, .result(threadId: "early"), "открыта чужая карточка — переключается на запрос")
+
+        // Пункт меню «Последний результат» ведёт себя так же.
+        state.collapse()
+        state.openLastResult()
+        XCTAssertEqual(state.mode, .result(threadId: "early"))
+    }
+
+    func testLastResultHotkeyOpensEarliestSessionRequest() {
+        let (state, _) = makeState()
+        state.applyAgents([])
+        state.apply(task("t", createdAt: 2, approval: request("req-t", createdAt: 40)))
+        state.applyAgents([askingSession("s", createdAt: 20)])
+        state.toggleLastResult()
+        XCTAssertEqual(state.mode, .agent(sessionId: "s"))
+        state.toggleLastResult()
+        XCTAssertEqual(state.mode, .pill)
+    }
+
+    func testLastResultHotkeyWithoutRequestsKeepsOldBehaviour() {
+        let (state, _) = makeState()
+        state.toggleLastResult()
+        XCTAssertEqual(state.mode, .input, "нет ни задач, ни запросов — ввод")
+
+        state.collapse()
+        state.apply(task("a", .done, createdAt: 1))
+        state.apply(task("b", .running, createdAt: 2))
+        state.toggleLastResult()
+        XCTAssertEqual(state.mode, .result(threadId: "a"), "самый свежий непросмотренный результат")
+        state.toggleLastResult()
+        XCTAssertEqual(state.mode, .pill)
+    }
+
+    private func askingSession(_ id: String, createdAt: Int) -> AgentSession {
+        AgentSession(
+            activity: nil, agent: "claude-code", approval: request("req-\(id)", createdAt: createdAt), cwd: "/work/shop",
+            host: AgentHost(appPath: nil, kind: .unknown, name: nil, tty: nil, workspace: nil), id: id, model: nil, openUrl: nil,
+            pid: 1, project: "shop", startedAt: 0, state: .working, title: "сессия \(id)", trail: nil, updatedAt: 0, waitingFor: nil
+        )
+    }
+
     func testPillClickOpensOldestWaitingDialogAheadOfErrorsAndAgents() {
         let (state, _) = makeState()
         state.apply(task("failed", .failed, createdAt: 1))
