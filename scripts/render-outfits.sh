@@ -1,7 +1,7 @@
 #!/bin/bash
-# render-outfits.sh — compile and run the Mochi outfit planche renderer
+# render-outfits.sh — лист кадров персонажа: наряды, состояния, глаза (реальным BotEngine)
 # NOT in CI. Run manually: bash scripts/render-outfits.sh
-# Output: /tmp/coucou-outfits.png
+# Output: /tmp/luna-outfits.png, luna-roll.png, luna-transition.png, luna-states.png
 
 set -e
 cd "$(dirname "$0")/.."
@@ -16,15 +16,18 @@ swiftc \
   apps/macos/Sources/CoucouKit/IslandScreenGeometry.swift \
   apps/macos/Sources/CoucouKit/IslandTypes.swift \
   apps/macos/Sources/CoucouKit/MochiWardrobe.swift \
+  apps/macos/Sources/CoucouKit/LunaLook.swift \
+  apps/macos/Sources/CoucouKit/LunaFace.swift \
   apps/macos/Sources/CoucouKit/BotEngine.swift \
   apps/macos/Sources/CoucouKit/MochiOutfitDrawing.swift \
+  scripts/RenderStubs.swift \
   scripts/RenderOutfits.swift \
   -framework AppKit \
   -framework SwiftUI \
-  -o /tmp/coucou-render-outfits \
+  -o /tmp/luna-render-outfits \
   2>&1
 
 echo "Running renderer..."
-/tmp/coucou-render-outfits
-echo "Opening..."
-open /tmp/coucou-outfits.png
+/tmp/luna-render-outfits
+echo "Done: /tmp/luna-outfits.png"
+[ -n "${CI:-}" ] || open /tmp/luna-outfits.png

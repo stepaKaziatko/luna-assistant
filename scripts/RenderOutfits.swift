@@ -1,143 +1,85 @@
-// RenderOutfits.swift — standalone planche renderer for Mochi outfits
+// RenderOutfits.swift — лист кадров персонажа (наряды, состояния, глаза), реальным BotEngine
 // Compile + run via: bash scripts/render-outfits.sh
-// Output: /tmp/coucou-outfits.png
+// Output: /tmp/luna-outfits.png
 
 import Foundation
 import SwiftUI
 import AppKit
 
-// MARK: - Stubs (substitutes for app-only types)
-
-@MainActor
-final class SoundEngine {
-    static let shared = SoundEngine()
-    var enabled: Bool = false
-    func play(_ name: String) {}
-}
-
-extension Notification.Name {
-    static let botDizzy          = Notification.Name("notchBuddy.botDizzy")
-    static let botGreet          = Notification.Name("notchBuddy.botGreet")
-    static let botBlink          = Notification.Name("notchBuddy.botBlink")
-    static let botSetTgEs        = Notification.Name("notchBuddy.botSetTgEs")
-    static let botGulp           = Notification.Name("notchBuddy.botGulp")
-    static let botMorphTo        = Notification.Name("notchBuddy.botMorphTo")
-    static let triggerEmote      = Notification.Name("notchBuddy.triggerEmote")
-    static let triggerSlap       = Notification.Name("notchBuddy.triggerSlap")
-    static let greetComplete     = Notification.Name("notchBuddy.greetComplete")
-    static let greetingHover     = Notification.Name("notchBuddy.greetingHover")
-    static let greetingInterrupt = Notification.Name("notchBuddy.greetingInterrupt")
-    static let islandAction      = Notification.Name("notchBuddy.islandAction")
-    static let islandCollapse    = Notification.Name("notchBuddy.islandCollapse")
-    static let hookReveal        = Notification.Name("notchBuddy.hookReveal")
-    static let musicReveal       = Notification.Name("notchBuddy.musicReveal")
-    static let openFullSettings  = Notification.Name("notchBuddy.openFullSettings")
-}
-
-extension Color {
-    init(hex: String) {
-        let h = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-        let val = UInt64(h, radix: 16) ?? 0
-        let r = Double((val >> 16) & 0xFF) / 255
-        let g = Double((val >> 8)  & 0xFF) / 255
-        let b = Double( val        & 0xFF) / 255
-        self.init(red: r, green: g, blue: b)
-    }
-}
-
-// MARK: - Cell view — one outfit at one pose
+// MARK: - Cell view — one frame of the real BotEngine
+//
+// Лист рисует тем же кодом, что и приложение (`BotEngine.draw` и проходы нарядов), а не
+// своей копией тела: если облик в приложении меняется, лист меняется вместе с ним.
 
 struct MochiCell: View {
-    let outfit: Outfit
-    let yaw: CGFloat
-    let pitch: CGFloat
-    let tilt: CGFloat
-    let phys: (dx: CGFloat, dy: CGFloat)
+    var outfit: Outfit = .none
+    var state: BotState = .idle
+    var yaw: CGFloat = 0
+    var pitch: CGFloat = 0
+    var tilt: CGFloat = 0
+    var phys: (dx: CGFloat, dy: CGFloat) = (0, 0)
     let cellSize: CGFloat
     var roll: CGFloat = 0
     var presence: CGFloat = 1
+    var eye: EyeShape? = nil
+    var hands: CGFloat = 0
+    var blush: CGFloat = 0
+    var mini = false
+    var miniHex: String? = nil
 
     var body: some View {
         Canvas { context, sz in
-            let W = sz.width, H = sz.height
-            // scale=0.62, R = W * 0.62 * 0.3
-            let R  = W * 0.62 * 0.3
-            let rx = R * 1.14
-            let ry = R * 0.88
-            let cx = W / 2
-            let cy = H / 2 + R * 0.06
-            let sx: CGFloat = 1, sy: CGFloat = 1
-            let morph: CGFloat = 0
+            // Движок рисует по холсту W×H с R = 0.3·W; лист показывает его на 62 % ячейки.
+            let k: CGFloat = 0.62
+            let size = CGSize(width: sz.width * k, height: sz.height * k)
+            var ctx = context
+            ctx.translateBy(x: sz.width * (1 - k) / 2, y: sz.height * (1 - k) / 2)
 
-            let mH = MochiH(R: R, yaw: yaw, pitch: pitch, physDx: phys.dx, physDy: phys.dy, roll: roll)
+            let e = BotEngine()
+            e.isMini = mini
+            if let hx = miniHex { e.bodyColor = Color(hex: hx).renderCGColor }
+            e.nextBlink = .greatestFiniteMagnitude
+            e.miniNextBehavior = .greatestFiniteMagnitude
+            e.setState(state, force: true)
+            e.col = e.cfg.color.renderTuple
+            e.tint = e.cfg.tint
+            e.badge = e.cfg.badge
+            e.badgeS = e.cfg.badge == nil ? 0 : 1
+            e.yaw = yaw; e.pitch = pitch; e.tilt = tilt != 0 ? tilt : e.cfg.tilt
+            e.physDx = phys.dx; e.physDy = phys.dy
+            e.roll = roll
+            e.hands = hands; e.blush = blush
+            if let eye { e.eyeOverride = eye; e.eyeOverrideUntil = .greatestFiniteMagnitude }
+            if outfit != .none { e.outfit = outfit; e.outfitPresence = presence }
 
-            // 1. Behind-body outfit
-            drawOutfitBehindStatic(
-                context: context, outfit: outfit, H: mH,
-                cx: cx, cy: cy, tilt: tilt, sx: sx, sy: sy,
-                roll: roll, morph: morph, isMini: false, presence: presence
-            )
-
-            // 2. Body (replicate BotEngine.drawBody for idle / pumpkin state)
-            var bCtx = context
-            bCtx.translateBy(x: cx, y: cy)
-            if tilt != 0 { bCtx.rotate(by: .radians(tilt)) }
-            bCtx.scaleBy(x: sx, y: sy)
-            let body = mochiOutfitPath(rx, ry)
-
-            // Base gradient (pumpkin-aware)
-            let pumpkin = outfit == .pumpkin
-            let cTop: Color = pumpkin ? Color(hex: "#FFA94D") : Color(red: 0.929, green: 0.929, blue: 0.937)
-            let cBot: Color = pumpkin ? Color(hex: "#E8590C") : Color(red: 0.769, green: 0.773, blue: 0.792)
-            bCtx.fill(body, with: .linearGradient(
-                Gradient(colors: [cTop, cBot]),
-                startPoint: CGPoint(x: rx * 0.7, y: -ry * 0.85),
-                endPoint:   CGPoint(x: -rx * 0.8, y: ry * 0.9)
-            ))
-            // Shadow rim
-            bCtx.fill(body, with: .radialGradient(
-                Gradient(stops: [
-                    .init(color: .clear, location: 0.6),
-                    .init(color: Color.black.opacity(0.2), location: 1)
-                ]),
-                center: .zero, startRadius: R * 0.15, endRadius: R * 1.25
-            ))
-            // Top-left highlight
-            bCtx.fill(body, with: .radialGradient(
-                Gradient(stops: [
-                    .init(color: Color.white.opacity(0.55), location: 0),
-                    .init(color: .clear, location: 1)
-                ]),
-                center: CGPoint(x: rx * 0.34, y: -ry * 0.46),
-                startRadius: 0, endRadius: R * 0.42
-            ))
-
-            // 3. Eyes (clipped to body)
-            var eyeBase = bCtx
-            eyeBase.clip(to: body)
-            let ink = Color(red: 0.102, green: 0.082, blue: 0.071)
-            for f in mEyeFrames(mH) {
-                guard f.visible else { continue }
-                var eCtx = eyeBase
-                eCtx.translateBy(x: f.x, y: f.y)
-                eCtx.scaleBy(x: f.fx, y: f.fy)
-                let hh = max(f.h, f.w * 0.3)
-                var pill = Path()
-                pill.addRoundedRect(
-                    in: CGRect(x: -f.w / 2, y: -hh / 2, width: f.w, height: hh),
-                    cornerSize: CGSize(width: min(f.w / 2, hh / 2), height: min(f.w / 2, hh / 2))
-                )
-                eCtx.fill(pill, with: .color(ink))
+            // Как BotCanvasView: наряд вращается вместе с телом, поэтому поворачиваем контекст.
+            if outfit != .none && presence > 0.05 && abs(roll) > 0.001 {
+                let c = e.bodyCenter(size: size)
+                var rigid = ctx
+                rigid.translateBy(x: c.x, y: c.y)
+                rigid.rotate(by: .radians(roll))
+                rigid.translateBy(x: -c.x, y: -c.y)
+                e.drawHandsBehind(context: rigid, size: size)
+                e.drawOutfitBehind(context: rigid, size: size)
+                e.draw(context: rigid, size: size)
+                e.drawOutfitFront(context: rigid, size: size)
+            } else {
+                e.drawHandsBehind(context: ctx, size: size)
+                e.drawOutfitBehind(context: ctx, size: size)
+                e.draw(context: ctx, size: size)
+                e.drawOutfitFront(context: ctx, size: size)
             }
-
-            // 4. Front outfit
-            drawOutfitFrontStatic(
-                context: context, outfit: outfit, H: mH,
-                cx: cx, cy: cy, tilt: tilt, sx: sx, sy: sy,
-                roll: roll, morph: morph, isMini: false, presence: presence
-            )
+            e.drawHandsAndExtras(context: ctx, size: size)
         }
         .frame(width: cellSize, height: cellSize)
+    }
+}
+
+extension Color { var renderCGColor: CGColor { NSColor(self).cgColor } }
+extension CGColor {
+    var renderTuple: (CGFloat, CGFloat, CGFloat) {
+        let c = NSColor(cgColor: self)!.usingColorSpace(.sRGB)!
+        return (c.redComponent, c.greenComponent, c.blueComponent)
     }
 }
 
@@ -292,6 +234,57 @@ struct TransitionGrid: View {
     }
 }
 
+// MARK: - States planche
+//
+// Состояния, взгляды, эмоции и мини-Luna: то, что проверяют глазами при смене облика.
+
+private let stateRows: [BotState] = [.idle, .working, .thinking, .searching, .approval, .question,
+                                     .error, .finished, .ratelimit, .sleeping, .dizzy]
+private let emoteEyes: [EyeShape] = [.pill, .wide, .dot, .line, .flat, .happy, .closed,
+                                     .spiral, .heart, .star, .tired, .wink, .cup]
+private let miniColors = ["#FFFFFF", "#E86A6A", "#3E86E0", "#EFAE5A", "#8C73F2", "#34D399"]
+
+struct StateGrid: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: gap) {
+            HStack(spacing: gap) {
+                ForEach(stateRows.indices, id: \.self) { i in
+                    MochiCell(state: stateRows[i], cellSize: 120, hands: i == 0 ? 1 : 0,
+                              blush: stateRows[i] == .finished ? 0.8 : 0)
+                        .background(Color(red: 0.083, green: 0.090, blue: 0.106))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+            HStack(spacing: gap) {
+                ForEach(stateRows.indices, id: \.self) { i in
+                    MochiCell(state: stateRows[i], yaw: 0.55, pitch: -0.2, cellSize: 120)
+                        .background(Color(red: 0.083, green: 0.090, blue: 0.106))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+            HStack(spacing: gap) {
+                ForEach(emoteEyes.indices, id: \.self) { i in
+                    MochiCell(cellSize: 100, eye: emoteEyes[i])
+                        .background(Color(red: 0.083, green: 0.090, blue: 0.106))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+            HStack(spacing: gap) {
+                ForEach(miniColors, id: \.self) { hx in
+                    MochiCell(state: .working, cellSize: 64, mini: true, miniHex: hx)
+                        .background(Color.black)
+                }
+                MochiCell(state: .idle, cellSize: 28, mini: true, miniHex: "#E86A6A").background(Color.black)
+                MochiCell(state: .idle, cellSize: 20, mini: true, miniHex: "#3E86E0").background(Color.black)
+                MochiCell(state: .idle, cellSize: 60).background(Color.black)
+                MochiCell(state: .working, cellSize: 33).background(Color.black)
+            }
+        }
+        .padding(12)
+        .background(Color(red: 0.043, green: 0.047, blue: 0.055))
+    }
+}
+
 // MARK: - Helper to render and save a view
 
 @MainActor
@@ -323,9 +316,10 @@ private func renderAndSave<V: View>(_ view: V, path: String) {
 struct RenderOutfits {
     static func main() {
         MainActor.assumeIsolated {
-            renderAndSave(OutfitGrid(),      path: "/tmp/coucou-outfits.png")
-            renderAndSave(RollGrid(),        path: "/tmp/coucou-roll.png")
-            renderAndSave(TransitionGrid(),  path: "/tmp/coucou-transition.png")
+            renderAndSave(OutfitGrid(),      path: "/tmp/luna-outfits.png")
+            renderAndSave(RollGrid(),        path: "/tmp/luna-roll.png")
+            renderAndSave(TransitionGrid(),  path: "/tmp/luna-transition.png")
+            renderAndSave(StateGrid(),       path: "/tmp/luna-states.png")
         }
     }
 }
