@@ -108,13 +108,6 @@ struct AboutView: View {
                 Text("The Home Screen icon follows your choice; dark and tinted icons follow the Home Screen style. Spotlight's index stays on this iPhone.")
             }
 
-            Section("Luna") {
-                Link("Website", destination: URL(string: "https://louis-cfm.github.io/coucou/")!)
-                Link("Support", destination: URL(string: "https://louis-cfm.github.io/coucou/support.html")!)
-                Link("Privacy Policy", destination: URL(string: "https://louis-cfm.github.io/coucou/privacy.html")!)
-                Link("Terms", destination: URL(string: "https://louis-cfm.github.io/coucou/terms.html")!)
-            }
-
             Section {
                 Text("No account, no analytics, no ads. Your sessions travel through your own private iCloud, encrypted with your keys.")
                     .font(.footnote)
