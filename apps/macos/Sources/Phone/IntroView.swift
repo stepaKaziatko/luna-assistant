@@ -173,7 +173,7 @@ final class IntroEngine {
     private let bot: BotEngine = {
         let bot = BotEngine()
         bot.isMini = true
-        bot.bodyColor = cgColorFromHex("#FFFFFF")
+        bot.bodyColor = cgColorFromHex(LunaLook.bodyMidHex)
         bot.setState(.idle, force: true)
         return bot
     }()

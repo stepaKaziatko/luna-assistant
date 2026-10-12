@@ -1,15 +1,18 @@
 import SwiftUI
 import CoreGraphics
 
-// MARK: - Constants (mirror JS)
+// MARK: - Constants
+//
+// Форма тела и положение глаз берутся из LunaLook и MochiConst: наряды садятся на ту же
+// «яичную» голову, что рисует BotEngine, и не расходятся с ним.
 
-private let kEXP: CGFloat = 2.7
+private let kEXP: CGFloat = LunaLook.exponent
 private let kVIEW_TILT: CGFloat = -0.30
 private let kACC_PITCH: CGFloat = 0.4
-private let kEYE_W: CGFloat = 0.25
-private let kEYE_H: CGFloat = 0.27
-private let kEYE_SP: CGFloat = 0.37
-private let kEYE_P: CGFloat = -0.12
+private let kEYE_W: CGFloat = MochiConst.eyeW
+private let kEYE_H: CGFloat = MochiConst.eyeH
+private let kEYE_SP: CGFloat = MochiConst.eyeSp
+private let kEYE_P: CGFloat = MochiConst.eyeP
 
 // MARK: - MochiH  (head geometry + physics)
 
@@ -23,8 +26,8 @@ struct MochiH {
     init(R: CGFloat, yaw: CGFloat = 0, pitch: CGFloat = 0,
          physDx: CGFloat = 0, physDy: CGFloat = 0, roll: CGFloat = 0) {
         self.R = R
-        self.rx = R * 1.14
-        self.ry = R * 0.88
+        self.rx = R * LunaLook.rxK
+        self.ry = R * LunaLook.ryK
         self.yaw = yaw
         self.pitch = pitch
         self.view = kVIEW_TILT
@@ -69,7 +72,7 @@ func mEyeFrames(_ H: MochiH) -> [EyeFrame] {
 /// Backward-compat shim (used by existing callers that haven't been updated yet).
 func mochiEyePositions(yaw: CGFloat, pitch: CGFloat, rx: CGFloat, ry: CGFloat)
     -> [(ex: CGFloat, ey: CGFloat, fx: CGFloat, fy: CGFloat)] {
-    let H = MochiH(R: rx / 1.14, yaw: yaw, pitch: pitch)
+    let H = MochiH(R: rx / LunaLook.rxK, yaw: yaw, pitch: pitch)
     return mEyeFrames(H).filter { $0.visible }.map { (ex: $0.x, ey: $0.y, fx: $0.fx, fy: $0.fy) }
 }
 
@@ -567,8 +570,8 @@ private func drawBeaniesFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: P
     knitCtx.clip(to: mCapClip(H, y: yCuff, s: s))
     knitCtx.fill(head, with: .linearGradient(
         Gradient(stops: [
-            .init(color: Color(hex: "#7DB6FF"), location: 0),
-            .init(color: Color(hex: "#2F6FE0"), location: 1)
+            .init(color: Color(hex: "#9C8CFF"), location: 0),
+            .init(color: Color(hex: "#4A3BC4"), location: 1)
         ]),
         startPoint: CGPoint(x: H.rx * 0.5,  y: -H.ry * 1.1),
         endPoint:   CGPoint(x: -H.rx * 0.6, y:  H.ry * 0.2)
@@ -589,7 +592,7 @@ private func drawBeaniesFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: P
             var rp = Path()
             rp.move(to: CGPoint(x: pts[0].x, y: pts[0].y))
             for pt in pts.dropFirst() { rp.addLine(to: CGPoint(x: pt.x, y: pt.y)) }
-            ribCtx.stroke(rp, with: .color(Color(red: 20/255, green: 50/255, blue: 140/255, opacity: 0.16)),
+            ribCtx.stroke(rp, with: .color(Color(red: 30/255, green: 20/255, blue: 110/255, opacity: 0.2)),
                           style: StrokeStyle(lineWidth: H.R * 0.045, lineCap: .round))
         }
     }
@@ -601,8 +604,8 @@ private func drawBeaniesFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: P
     let cuffHead = mochiOutfitPath(H.rx * s * 1.04, H.ry * s * 1.04)
     cuffCtx.fill(cuffHead, with: .linearGradient(
         Gradient(stops: [
-            .init(color: Color(hex: "#3C7BEA"), location: 0),
-            .init(color: Color(hex: "#2257C4"), location: 1)
+            .init(color: Color(hex: "#7C6CF0"), location: 0),
+            .init(color: Color(hex: "#3A2C9E"), location: 1)
         ]),
         startPoint: CGPoint(x: 0, y: -H.ry * 0.6),
         endPoint:   CGPoint(x: 0, y: -H.ry * 0.2)
@@ -617,7 +620,7 @@ private func drawBeaniesFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: P
         var cp = Path()
         cp.move(to: CGPoint(x: a.x, y: a.y))
         cp.addLine(to: CGPoint(x: b.x, y: b.y))
-        cuffRib.stroke(cp, with: .color(Color(red: 10/255, green: 30/255, blue: 100/255, opacity: 0.22)),
+        cuffRib.stroke(cp, with: .color(Color(red: 25/255, green: 15/255, blue: 90/255, opacity: 0.26)),
                        style: StrokeStyle(lineWidth: H.R * 0.035, lineCap: .butt))
     }
 
@@ -636,9 +639,11 @@ private func drawBeaniesFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: P
 
     // pompom on short spring
     let top = mProj(H, (0, 1.08 * s, 0))
+    // Помпон цвета лунного света, как украшение над головой без шапки
     drawPompom(&ctx, x: top.x + H.physDx * H.rx * 0.25,
                y: top.y - H.R * 0.12 + H.physDy * H.ry * 0.15,
-               r: H.R * 0.24)
+               r: H.R * 0.24,
+               base: Color(hex: "#FFF1C2"), shade: Color(hex: "#E8C36A"))
 }
 
 // MARK: - Santa hat
@@ -881,8 +886,9 @@ private func drawCrownPart(ctx: inout GraphicsContext, H: MochiH, side: CGFloat,
         ))
         // gems + ball tips on front spikes (skip when simplified)
         if !simplified {
-            let gems: [Color] = [Color(hex: "#EF4444"), Color(hex: "#3B82F6"),
-                                 Color(hex: "#22C55E"), Color(hex: "#A855F7")]
+            // Камни ночного неба: сливочный, васильковый, сиреневый, мятный
+            let gems: [Color] = [Color(hex: "#FFF2C4"), Color(hex: "#8FB0FF"),
+                                 Color(hex: "#C4A8FF"), Color(hex: "#7FE0D0")]
             for k in 0..<n {
                 let lon = -.pi + (CGFloat(k) + 0.5) / CGFloat(n) * 2 * .pi
                 let sp = mSurf(yt, lon, s)
@@ -1136,7 +1142,7 @@ private func drawSunglassesFront(ctx: inout GraphicsContext, H: MochiH, bodyPath
             in: CGRect(x: -w / 2, y: -h / 2, width: w, height: h),
             cornerSize: CGSize(width: h * 0.42, height: h * 0.42)
         )
-        lg.fill(lensLocal, with: .color(Color(red: 17/255, green: 19/255, blue: 23/255, opacity: 0.82)))
+        lg.fill(lensLocal, with: .color(Color(red: 18/255, green: 20/255, blue: 58/255, opacity: 0.86)))
         lg.stroke(lensLocal, with: .color(Color(hex: "#0B0C0F")),
                   style: StrokeStyle(lineWidth: H.R * 0.05))
         // glare
@@ -1166,7 +1172,7 @@ private func drawRoundGlassesFront(ctx: inout GraphicsContext, H: MochiH, bodyPa
             to:      CGPoint(x: re.x - d / 2 * re.fx, y: re.y - d * 0.08),
             control: CGPoint(x: (le.x + re.x) / 2, y: (le.y + re.y) / 2 - d * 0.3)
         )
-        g.stroke(bridge, with: .color(Color(hex: "#8A4B12")),
+        g.stroke(bridge, with: .color(Color(hex: "#C98F1F")),
                  style: StrokeStyle(lineWidth: H.R * 0.055, lineCap: .round))
     }
     for e in eyes {
@@ -1174,7 +1180,7 @@ private func drawRoundGlassesFront(ctx: inout GraphicsContext, H: MochiH, bodyPa
         var temple = Path()
         temple.move(to: CGPoint(x: e.x + e.sd * d / 2 * e.fx, y: e.y - d * 0.1))
         temple.addLine(to: CGPoint(x: e.sd * H.rx * 1.05, y: e.y - d * 0.25))
-        g.stroke(temple, with: .color(Color(hex: "#8A4B12")),
+        g.stroke(temple, with: .color(Color(hex: "#C98F1F")),
                  style: StrokeStyle(lineWidth: H.R * 0.05, lineCap: .round))
     }
     for e in eyes {
@@ -1186,7 +1192,7 @@ private func drawRoundGlassesFront(ctx: inout GraphicsContext, H: MochiH, bodyPa
         var circle = Path()
         circle.addEllipse(in: CGRect(x: -d / 2, y: -d / 2, width: d, height: d))
         lg.fill(circle, with: .color(Color(red: 190/255, green: 225/255, blue: 1, opacity: 0.18)))
-        lg.stroke(circle, with: .color(Color(hex: "#9A5A1A")),
+        lg.stroke(circle, with: .color(Color(hex: "#E2B04A")),
                   style: StrokeStyle(lineWidth: H.R * 0.065, lineCap: .round))
         // highlight arc
         var arcPath = Path()
@@ -1217,8 +1223,8 @@ private func drawScarfFront(ctx: inout GraphicsContext, H: MochiH) {
     g.clip(to: mochiOutfitPath(H.rx * s, H.ry * s))
     g.fill(band, with: .linearGradient(
         Gradient(stops: [
-            .init(color: Color(hex: "#F87171"), location: 0),
-            .init(color: Color(hex: "#B91C1C"), location: 1)
+            .init(color: Color(hex: "#FFE08A"), location: 0),
+            .init(color: Color(hex: "#D9A233"), location: 1)
         ]),
         startPoint: CGPoint(x: 0, y: -H.ry * 0.2),
         endPoint:   CGPoint(x: 0, y:  H.ry * 0.7)
@@ -1233,7 +1239,7 @@ private func drawScarfFront(ctx: inout GraphicsContext, H: MochiH) {
         var stripe = Path()
         stripe.move(to: CGPoint(x: a.x, y: a.y - 4))
         stripe.addLine(to: CGPoint(x: b.x, y: b.y + 4))
-        g2.stroke(stripe, with: .color(Color.white.opacity(0.85)),
+        g2.stroke(stripe, with: .color(Color(hex: "#2B3375").opacity(0.85)),
                   style: StrokeStyle(lineWidth: H.R * 0.09 * max(0.3, a.z), lineCap: .round))
     }
     g.fill(band, with: .linearGradient(
@@ -1263,8 +1269,8 @@ private func drawScarfFront(ctx: inout GraphicsContext, H: MochiH) {
         end.closeSubpath()
         ctx.fill(end, with: .linearGradient(
             Gradient(stops: [
-                .init(color: Color(hex: "#EF4444"), location: 0),
-                .init(color: Color(hex: "#B91C1C"), location: 1)
+                .init(color: Color(hex: "#FFD36B"), location: 0),
+                .init(color: Color(hex: "#C98F1F"), location: 1)
             ]),
             startPoint: CGPoint(x: 0, y: k.y),
             endPoint:   CGPoint(x: 0, y: k.y + H.ry * 0.6)
@@ -1279,7 +1285,7 @@ private func drawScarfFront(ctx: inout GraphicsContext, H: MochiH) {
                 y: k.y + H.ry * 0.62 * t,
                 width: H.R * 0.8, height: H.R * 0.07
             ))
-            eCtx.fill(stripe, with: .color(Color.white.opacity(0.85)))
+            eCtx.fill(stripe, with: .color(Color(hex: "#2B3375").opacity(0.85)))
         }
         // fringe
         for i in 0..<4 {
@@ -1287,7 +1293,7 @@ private func drawScarfFront(ctx: inout GraphicsContext, H: MochiH) {
             var fringe = Path()
             fringe.move(to: CGPoint(x: fx, y: k.y + H.ry * 0.6))
             fringe.addLine(to: CGPoint(x: fx, y: k.y + H.ry * 0.72))
-            ctx.stroke(fringe, with: .color(Color(hex: "#DC2626")),
+            ctx.stroke(fringe, with: .color(Color(hex: "#C98F1F")),
                        style: StrokeStyle(lineWidth: H.R * 0.035, lineCap: .round))
         }
         // knot (rotated ellipse)
@@ -1298,8 +1304,8 @@ private func drawScarfFront(ctx: inout GraphicsContext, H: MochiH) {
         knot.addEllipse(in: CGRect(x: -H.R * 0.17, y: -H.R * 0.14, width: H.R * 0.34, height: H.R * 0.28))
         knotCtx.fill(knot, with: .radialGradient(
             Gradient(stops: [
-                .init(color: Color(hex: "#F87171"), location: 0),
-                .init(color: Color(hex: "#B91C1C"), location: 1)
+                .init(color: Color(hex: "#FFE8A8"), location: 0),
+                .init(color: Color(hex: "#C98F1F"), location: 1)
             ]),
             center: CGPoint(x: -H.R * 0.05, y: -H.R * 0.05),
             startRadius: 0, endRadius: H.R * 0.2

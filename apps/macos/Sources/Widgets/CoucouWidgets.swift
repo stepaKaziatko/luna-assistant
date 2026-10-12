@@ -413,7 +413,7 @@ extension SharedSession {
 struct WidgetMochi: View {
     @Environment(\.widgetRenderingMode) private var renderingMode
     var state: BotState = .idle
-    var bodyHex: String = "#FFFFFF"
+    var bodyHex: String = LunaLook.bodyMidHex
     var showBadge: Bool = true
     var pose: MochiPose = .neutral
 
@@ -426,7 +426,7 @@ struct WidgetMochi: View {
             // with white rather than left black.
             Color.white
                 .mask {
-                    MochiStill(state: state, bodyHex: "#FFFFFF", showBadge: showBadge, pose: pose)
+                    MochiStill(state: state, bodyHex: LunaLook.bodyMidHex, showBadge: showBadge, pose: pose)
                         .luminanceToAlpha()
                 }
                 .widgetAccentable()

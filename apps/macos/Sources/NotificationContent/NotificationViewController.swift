@@ -46,7 +46,7 @@ struct ApprovalNotificationView: View {
     let message: String
 
     private var pill: PillDefinition? { PillCatalog.definition(for: pillId) }
-    private var color: String { pill?.color ?? "#FFFFFF" }
+    private var color: String { pill?.color ?? LunaLook.bodyMidHex }
 
     /// The command alone, without the "Waiting for your OK: " the local notification adds.
     private var command: String {

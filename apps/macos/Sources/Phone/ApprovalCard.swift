@@ -163,7 +163,7 @@ struct HistoryView: View {
     private func row(_ log: DecisionLog) -> some View {
         let pill = PillCatalog.definition(for: log.pillId)
         return HStack(alignment: .top, spacing: 12) {
-            MochiStill(state: log.decision == .allow ? .finished : .error, bodyHex: pill?.color ?? "#FFFFFF")
+            MochiStill(state: log.decision == .allow ? .finished : .error, bodyHex: pill?.color ?? LunaLook.bodyMidHex)
                 .padding(3)
                 .frame(width: 34, height: 34)
                 .background(Color(white: 0.16), in: RoundedRectangle(cornerRadius: 9))

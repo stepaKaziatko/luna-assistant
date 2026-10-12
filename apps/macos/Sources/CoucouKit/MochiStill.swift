@@ -7,8 +7,9 @@ struct MochiStill: View {
     var state: BotState = .idle
     /// Overrides the state's eyes (e.g. .closed for a sleeping agent).
     var eye: EyeShape? = nil
-    /// Body color; white by default, like the mockups.
-    var bodyHex: String = "#FFFFFF"
+    /// Body color; the night blue of the character by default (the color of an agent
+    /// for the mini Luna that stand for agents).
+    var bodyHex: String = LunaLook.bodyMidHex
     var showBadge: Bool = true
     /// Where he looks and how his eyes are, for a still that isn't always the same.
     var pose: MochiPose = .neutral
@@ -77,13 +78,13 @@ struct MochiPose: Equatable, Sendable {
 }
 
 extension Color {
-    /// Background for a white Luna on an agent's color. Very light colors
-    /// (VS Code's is near-white) would hide him, so they get a dark gray tile.
+    /// Background for the night-blue Luna on an agent's color. Very dark colors
+    /// would hide him (he is dark himself), so they get a light gray tile.
     static func mochiTile(hex: String) -> Color {
         guard let c = cgColorFromHex(hex), let comps = c.components, comps.count >= 3 else {
             return Color(hex: hex)
         }
         let luminance = 0.2126 * comps[0] + 0.7152 * comps[1] + 0.0722 * comps[2]
-        return luminance > 0.7 ? Color(white: 0.32) : Color(hex: hex)
+        return luminance < 0.25 ? Color(white: 0.82) : Color(hex: hex)
     }
 }

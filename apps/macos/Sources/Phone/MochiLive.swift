@@ -7,7 +7,7 @@ import SwiftUI
 /// unless capped.
 struct MochiLive: View {
     let state: BotState
-    var bodyHex: String = "#FFFFFF"
+    var bodyHex: String = LunaLook.bodyMidHex
     /// A cap for small, numerous Luna (list rows); nil = the screen's rate.
     var fps: Double? = nil
 

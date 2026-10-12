@@ -45,7 +45,9 @@
 		1DED2517FA6BD7C28FF891AB /* ClaudeSettingsFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6E866D5D416DC7EB39DBDF6 /* ClaudeSettingsFile.swift */; };
 		1F0363564D007BAF708801DB /* PillCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F91BFCBFB57C93F12DF37659 /* PillCatalog.swift */; };
 		1FAD78A5AADDEFC8D9BFAD8A /* ApprovalRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2182C30224BE101104796194 /* ApprovalRelay.swift */; };
+		1FC9A9ADB2A0B40DA35B9E1D /* LunaFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B8011718A67C6B88A6BE38 /* LunaFace.swift */; };
 		2080148A2B14BDD24F8596ED /* VoiceQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8385CCF63C3B80880B22D385 /* VoiceQuery.swift */; };
+		20F75AF85DB7493658DC07B4 /* LunaLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60B3AADA4CB5D0BC851D5A62 /* LunaLook.swift */; };
 		23C8CBFCA074621B1F4C1F86 /* AskQuestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 664AF0D8FFF6EAF4ADF96F8F /* AskQuestion.swift */; };
 		244F722338F2D06846A73F35 /* ColorHex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F2CC061ED6335D20A54FAA /* ColorHex.swift */; };
 		26DA7CC641CA3D822BEAD4D1 /* MochiLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35DC88BE6BA84BFB6FF37014 /* MochiLiveActivity.swift */; };
@@ -105,6 +107,7 @@
 		45A60A332640AB91EBA62B27 /* ClaudePlanGauge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CC98A58797FD28F8865A421 /* ClaudePlanGauge.swift */; };
 		45E40FF772F856BBA1B1EEDE /* CryptoController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68BB8CAF6BB3F9744EB233D5 /* CryptoController.swift */; };
 		469509B6ED86EA357D50883D /* DiffEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14F544BB40847187F00DB6C7 /* DiffEngine.swift */; };
+		4731A0DF28B3F9BFA1F77923 /* LunaLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60B3AADA4CB5D0BC851D5A62 /* LunaLook.swift */; };
 		474A446766533EE80A138045 /* IslandStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29102D07D591D3F3CA9EFE4 /* IslandStateMachine.swift */; };
 		479CE88EC4A7CC77DA36E166 /* VoiceAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B8217C69B506669B3099A2 /* VoiceAudio.swift */; };
 		489EFE250E196CF398253EAE /* MailController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E4400BA68E44AF0BCD94AB /* MailController.swift */; };
@@ -149,6 +152,7 @@
 		7213A9BB49C514E32E07867C /* AppLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DFF648B3AFA7A00691A495 /* AppLog.swift */; };
 		7218F3F09845FFB6B31CBD90 /* ClaudeHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7688ECE88213AA75981E64D /* ClaudeHost.swift */; };
 		7364A0306596B01AC107F0AF /* ClaudeHookDetection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 477B625D1001235BB94CB288 /* ClaudeHookDetection.swift */; };
+		7400E97802A88A64629BF4BC /* LunaLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60B3AADA4CB5D0BC851D5A62 /* LunaLook.swift */; };
 		744E9F8A697A5302DD2D902B /* SoundEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E3454AEE69052BE283922E9 /* SoundEngine.swift */; };
 		75568D2E9A4E7726245365CB /* CryptoViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1225496ADCE3F4F661D734 /* CryptoViews.swift */; };
 		7593FCBD793567B8CFF9E32D /* ShortcutsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527FC61461CF4E01E3886994 /* ShortcutsSettingsView.swift */; };
@@ -185,7 +189,10 @@
 		8D09B20BF29F99BE2B205755 /* IslandRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99F2D9AE449DA2A6AB563013 /* IslandRootView.swift */; };
 		8D5C66F5B13BDD78F898AF25 /* DenyApprovalIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF9BB4594F01921CF913C1A /* DenyApprovalIntent.swift */; };
 		9120FE0440315DAB1EBA1518 /* ServiceSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A8FA856FDAF090E01E8355 /* ServiceSnapshot.swift */; };
+		923789933E0BE82B9F6E7DC6 /* LunaFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B8011718A67C6B88A6BE38 /* LunaFace.swift */; };
 		923892BB32AC2AC049FD1427 /* MochiLive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 187D7824F6D4030C4C82F2B4 /* MochiLive.swift */; };
+		93FB2192CBDFC3D6E28A873F /* LunaLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60B3AADA4CB5D0BC851D5A62 /* LunaLook.swift */; };
+		9417FCACF63E8AF1F1ED10F3 /* LunaFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B8011718A67C6B88A6BE38 /* LunaFace.swift */; };
 		94653CACC83E48846717A526 /* MailViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED2E2E3D05FD4A0C5D515619 /* MailViews.swift */; };
 		94667065C67B92ED8BA514AB /* AgentNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 583FDBD0A423333F378D47D8 /* AgentNotifier.swift */; };
 		94D61F15F8C5051C50A2D5C1 /* ColorHex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F2CC061ED6335D20A54FAA /* ColorHex.swift */; };
@@ -227,6 +234,7 @@
 		B1E9829FC4952FFDE0556D6F /* CalcomPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04D14751EDF90D79A378E21 /* CalcomPoller.swift */; };
 		B365F7D87AF7033F39037445 /* CoucouIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B16C7837D7837DE0B5A76C41 /* CoucouIntents.swift */; };
 		B418651542F060632E496226 /* VercelPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4876F92C04BDEE0C53BADB0 /* VercelPoller.swift */; };
+		B75315C379CBA001991DAA57 /* LunaFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B8011718A67C6B88A6BE38 /* LunaFace.swift */; };
 		B791D696009B4A58FEF12741 /* VoiceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B628D78C5557499E326B514 /* VoiceEngine.swift */; };
 		B7A42BC01AA8F6828B25B941 /* EntityResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4DEDDBA6F12509FF8421567 /* EntityResolver.swift */; };
 		B852FD1E6F48AA4CCFA3E4BF /* ApprovalCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F7F677EFAE3C349DAFBAF00 /* ApprovalCard.swift */; };
@@ -281,6 +289,7 @@
 		D7A3A92C7D7E57FBF133B974 /* NotificationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9387C95B5D14751DE9C51BD /* NotificationViewController.swift */; };
 		D86A92A4C877F82237CAC527 /* GitHubActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8799290543F43D111DAF55AE /* GitHubActivity.swift */; };
 		D89BFE008E06B6ED8027E7D1 /* PhoneLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60161789FC74688C9CA54584 /* PhoneLink.swift */; };
+		D8DC6790C24BF959AD67CFBD /* LunaLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60B3AADA4CB5D0BC851D5A62 /* LunaLook.swift */; };
 		D8F0813E3548EC4B525ED8C2 /* WakeWindowBackoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D648120C61BAB8822B67B2 /* WakeWindowBackoff.swift */; };
 		D9D0075092E2F0FB010F9750 /* PhoneAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A006B9F6B86B2DEDC34C2CFF /* PhoneAssets.xcassets */; };
 		DB5D6F3DE5DCADE51B70ECFA /* VoiceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93683250BFF48A95395116EC /* VoiceSettings.swift */; };
@@ -319,6 +328,7 @@
 		EE589E412D6AF6635ABAFC31 /* QuestionPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837DC928E400E61FC73ED7A3 /* QuestionPayload.swift */; };
 		EEA23C0390DB42C29DF54AAD /* ResendPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 543CD115B940C37FCDBC801F /* ResendPoller.swift */; };
 		EF4B0E9A3D8451DB906D1588 /* DenyApprovalIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF9BB4594F01921CF913C1A /* DenyApprovalIntent.swift */; };
+		F05D91E90C69D05651195002 /* LunaFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B8011718A67C6B88A6BE38 /* LunaFace.swift */; };
 		F0A27EDD4CD0E1F29EE219D4 /* CloudProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAF9CB6CCD7B3802335DE90B /* CloudProbe.swift */; };
 		F0DD51DB9B4D0C3B1E8698A6 /* VoiceAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B8217C69B506669B3099A2 /* VoiceAudio.swift */; };
 		F2AAE9E117A5CAF6CFC95407 /* TurnArchive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C4AA5C7B704DACCCA75479B /* TurnArchive.swift */; };
@@ -433,6 +443,7 @@
 		5EE01EBB280EC89D6650708D /* error.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = error.wav; sourceTree = "<group>"; };
 		60161789FC74688C9CA54584 /* PhoneLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneLink.swift; sourceTree = "<group>"; };
 		605D56A58B0E64294C6FF1AC /* LiveActivityRelay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityRelay.swift; sourceTree = "<group>"; };
+		60B3AADA4CB5D0BC851D5A62 /* LunaLook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaLook.swift; sourceTree = "<group>"; };
 		626E066A59CA1486222CD5F5 /* IntentParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentParser.swift; sourceTree = "<group>"; };
 		63542A71166400B0AE96EA8F /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 		664AF0D8FFF6EAF4ADF96F8F /* AskQuestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskQuestion.swift; sourceTree = "<group>"; };
@@ -477,6 +488,7 @@
 		A6DBE14071DAC16C4AA76D46 /* ChatMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMarkdownView.swift; sourceTree = "<group>"; };
 		A7688ECE88213AA75981E64D /* ClaudeHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeHost.swift; sourceTree = "<group>"; };
 		B04D14751EDF90D79A378E21 /* CalcomPoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalcomPoller.swift; sourceTree = "<group>"; };
+		B0B8011718A67C6B88A6BE38 /* LunaFace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaFace.swift; sourceTree = "<group>"; };
 		B16C7837D7837DE0B5A76C41 /* CoucouIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoucouIntents.swift; sourceTree = "<group>"; };
 		B1FA8F8C6AAEF63356336624 /* LastTurnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastTurnView.swift; sourceTree = "<group>"; };
 		B4919BFC4E23D0CCD1429F67 /* ChatMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMarkdown.swift; sourceTree = "<group>"; };
@@ -635,6 +647,8 @@
 				14F544BB40847187F00DB6C7 /* DiffEngine.swift */,
 				8DB0764B3B1D8C5A103D3179 /* IslandScreenGeometry.swift */,
 				D977DA3E938824631C16E7CA /* IslandTypes.swift */,
+				B0B8011718A67C6B88A6BE38 /* LunaFace.swift */,
+				60B3AADA4CB5D0BC851D5A62 /* LunaLook.swift */,
 				4620E7FB6DAF4A4718AE9218 /* MochiActivityState.swift */,
 				8136282F512C5F88510F3A84 /* MochiOutfitDrawing.swift */,
 				47E02EC056563DD4847B1CA5 /* MochiStill.swift */,
@@ -1001,6 +1015,8 @@
 				A822AB92BA39CB15547ABCD9 /* DiffEngine.swift in Sources */,
 				BC2A059E19F469C99FC1F50B /* IslandScreenGeometry.swift in Sources */,
 				FA85ED3EBACEACD7FF42ACB1 /* IslandTypes.swift in Sources */,
+				923789933E0BE82B9F6E7DC6 /* LunaFace.swift in Sources */,
+				4731A0DF28B3F9BFA1F77923 /* LunaLook.swift in Sources */,
 				D619C2E15A0AB8A311A22A3B /* MacStubs.swift in Sources */,
 				1DC9AC9057E5A3B4ECFA4725 /* MochiActivityAttributes.swift in Sources */,
 				9FD767BE5500983D2F8C6810 /* MochiActivityState.swift in Sources */,
@@ -1075,6 +1091,8 @@
 				69EF8D9F3BD4904EBDF53993 /* LiveActivityRelay.swift in Sources */,
 				CF3114A060CC3E5F0D6169B5 /* LiveVoiceControls.swift in Sources */,
 				B1B8016773A494DB3AE47051 /* LocalChat.swift in Sources */,
+				9417FCACF63E8AF1F1ED10F3 /* LunaFace.swift in Sources */,
+				7400E97802A88A64629BF4BC /* LunaLook.swift in Sources */,
 				978CC8C7DCC86772C95E3A11 /* MacDictation.swift in Sources */,
 				489EFE250E196CF398253EAE /* MailController.swift in Sources */,
 				94653CACC83E48846717A526 /* MailViews.swift in Sources */,
@@ -1165,6 +1183,8 @@
 				63631F990D544DECDD0C4746 /* LastTurnView.swift in Sources */,
 				8A9E37F58C9C0967518A26F6 /* LinkTestView.swift in Sources */,
 				390699B1B41A762FFC9AD758 /* LiveActivityLink.swift in Sources */,
+				1FC9A9ADB2A0B40DA35B9E1D /* LunaFace.swift in Sources */,
+				93FB2192CBDFC3D6E28A873F /* LunaLook.swift in Sources */,
 				33FC5C79BC2DC5E111EE4467 /* MacStubs.swift in Sources */,
 				8326B18B276D35DC481058B2 /* MochiActivityAttributes.swift in Sources */,
 				8A0D23B19DA96A529FC762D7 /* MochiActivityState.swift in Sources */,
@@ -1202,6 +1222,8 @@
 				C6C15516EEDCB6C9EDACFA8E /* DiffEngine.swift in Sources */,
 				333C9572E11D32F407205AD7 /* IslandScreenGeometry.swift in Sources */,
 				DFB37FBAB64825217C7AB310 /* IslandTypes.swift in Sources */,
+				B75315C379CBA001991DAA57 /* LunaFace.swift in Sources */,
+				D8DC6790C24BF959AD67CFBD /* LunaLook.swift in Sources */,
 				83F3E69F1ED826F6220F2ADA /* MacStubs.swift in Sources */,
 				DBF1C18D9F14870766760B7B /* MochiActivityState.swift in Sources */,
 				923892BB32AC2AC049FD1427 /* MochiLive.swift in Sources */,
@@ -1273,6 +1295,8 @@
 				E1B0122E0EB191F97E558952 /* LiveActivityRelay.swift in Sources */,
 				DC45CFB7AB30D9DCF076A62B /* LiveVoiceControls.swift in Sources */,
 				78F7E13589C585DFB0A72F3B /* LocalChat.swift in Sources */,
+				F05D91E90C69D05651195002 /* LunaFace.swift in Sources */,
+				20F75AF85DB7493658DC07B4 /* LunaLook.swift in Sources */,
 				DEE283D1AEAB4F175F86D5D7 /* MacDictation.swift in Sources */,
 				E21E20B5D3436955F098F8E6 /* MailController.swift in Sources */,
 				4E8E122D0B55313DCBCB9CF1 /* MailViews.swift in Sources */,

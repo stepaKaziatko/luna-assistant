@@ -75,14 +75,32 @@ enum BadgeType {
 // MARK: - Luna track constants (from PISTES.mochi)
 
 enum MochiConst {
-    static let eyeW: CGFloat  = 0.25
-    static let eyeH: CGFloat  = 0.27
-    static let eyeSp: CGFloat = 0.37
-    static let eyeP: CGFloat  = -0.12
-    static let baseTop    = CGColor(red: 0.929, green: 0.929, blue: 0.937, alpha: 1)  // #EDEDEF
-    static let baseBottom = CGColor(red: 0.769, green: 0.773, blue: 0.792, alpha: 1)  // #C4C5CA
-    static let ink        = CGColor(red: 0.102, green: 0.082, blue: 0.071, alpha: 1)  // #1A1412
+    // Глаза малыша: крупнее, шире расставлены и сидят ниже середины тела.
+    static let eyeW: CGFloat  = 0.28
+    static let eyeH: CGFloat  = 0.34
+    static let eyeSp: CGFloat = 0.42
+    static let eyeP: CGFloat  = -0.20
+    // Цвета и форма живут в LunaLook; здесь только CGColor-обёртки для движка.
+    static let baseTop    = CGColor(red: LunaLook.bodyTop.r, green: LunaLook.bodyTop.g,
+                                    blue: LunaLook.bodyTop.b, alpha: 1)
+    static let baseBottom = CGColor(red: LunaLook.bodyBottom.r, green: LunaLook.bodyBottom.g,
+                                    blue: LunaLook.bodyBottom.b, alpha: 1)
+    /// Глаза на светлом теле (цвет агента, тыква).
+    static let ink        = CGColor(red: LunaLook.ink.r, green: LunaLook.ink.g, blue: LunaLook.ink.b, alpha: 1)
     static let miniInk    = CGColor(red: 0.063, green: 0.075, blue: 0.102, alpha: 1)  // #10131A
+    /// Светящиеся глаза на тёмном теле.
+    static let glow       = CGColor(red: LunaLook.glow.r, green: LunaLook.glow.g,
+                                    blue: LunaLook.glow.b, alpha: 1)
+}
+
+extension Outfit {
+    /// Закрывает ли наряд макушку: тогда полумесяц и звёздочка над головой не рисуются.
+    var coversHead: Bool {
+        switch self {
+        case .beanie, .santaHat, .partyHat, .crown, .witchHat, .bunnyEars, .pumpkin, .bow: return true
+        default: return false
+        }
+    }
 }
 
 // MARK: - Bot state configs
@@ -294,27 +312,68 @@ final class BotEngine: ObservableObject {
 
         switch newState {
         case .finished:
-            doRoll(duration: 950, turns: 1)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.emit(.spark, count: 5)
+            // Готово: Luna подпрыгивает, качнувшись, и роняет горсть звёздочек.
+            anim("oy", keys: [
+                TweenKey(target: -0.22, duration: 170, ease: Ease.out),
+                TweenKey(target: 0.02,  duration: 190, ease: Ease.inOut),
+                TweenKey(target: 0,     duration: 220, ease: Ease.back),
+            ])
+            anim("tilt", keys: [
+                TweenKey(target: -0.2, duration: 160, ease: Ease.out),
+                TweenKey(target: 0.16, duration: 260, ease: Ease.inOut),
+                TweenKey(target: 0,    duration: 280, ease: Ease.inOut),
+            ])
+            physVy += 0.8
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                self?.emit(.star, count: 4)
+                self?.emit(.spark, count: 3)
             }
         case .error:
+            // Ошибка: глаза гаснут, Luna оседает и вздрагивает едва заметной дрожью.
+            anim("sy", keys: [
+                TweenKey(target: 0.88, duration: 120, ease: Ease.out),
+                TweenKey(target: 0.96, duration: 520, ease: Ease.inOut),
+                TweenKey(target: 1,    duration: 380, ease: Ease.inOut),
+            ])
+            anim("es", keys: [
+                TweenKey(target: 0.78, duration: 150, ease: Ease.out),
+                TweenKey(target: 1,    duration: 700, ease: Ease.inOut),
+            ])
             anim("ox", keys: [
-                TweenKey(target: 0.08,  duration: 50,  ease: Ease.out),
-                TweenKey(target: -0.08, duration: 70,  ease: Ease.inOut),
-                TweenKey(target: 0.05,  duration: 70,  ease: Ease.inOut),
-                TweenKey(target: 0,     duration: 90,  ease: Ease.out),
+                TweenKey(target: 0.035,  duration: 55, ease: Ease.out),
+                TweenKey(target: -0.035, duration: 70, ease: Ease.inOut),
+                TweenKey(target: 0.02,   duration: 70, ease: Ease.inOut),
+                TweenKey(target: 0,      duration: 110, ease: Ease.out),
             ])
         case .approval:
+            // Просит ответа: два коротких подскока, как постукивание.
             anim("oy", keys: [
-                TweenKey(target: -0.2, duration: 150, ease: Ease.out),
-                TweenKey(target: 0,    duration: 300, ease: Ease.back),
+                TweenKey(target: -0.13, duration: 110, ease: Ease.out),
+                TweenKey(target: 0,     duration: 120, ease: Ease.inOut),
+                TweenKey(target: -0.09, duration: 100, ease: Ease.out),
+                TweenKey(target: 0,     duration: 190, ease: Ease.back),
+            ])
+            anim("es", keys: [
+                TweenKey(target: 1.14, duration: 140, ease: Ease.out),
+                TweenKey(target: 1,    duration: 360, ease: Ease.inOut),
             ])
         case .dizzy:
-            doRoll(duration: 1300, turns: 2)
+            // Головокружение: один медленный оборот, потом качается, как маятник.
+            doRoll(duration: 1500, turns: 1)
         case .question:
+            // Вопрос: наклоняет голову сильнее, чем держит потом.
+            anim("tilt", keys: [
+                TweenKey(target: 0.3,  duration: 190, ease: Ease.out),
+                TweenKey(target: 0.17, duration: 300, ease: Ease.inOut),
+            ])
             blink()
         case .ratelimit:
+            // Лимит: тяжело вздыхает — раздувается и сдувается.
+            anim("sy", keys: [
+                TweenKey(target: 1.06, duration: 480, ease: Ease.inOut),
+                TweenKey(target: 0.97, duration: 520, ease: Ease.inOut),
+                TweenKey(target: 1,    duration: 300, ease: Ease.inOut),
+            ])
             emit(.sweat, count: 1)
         default:
             if prev != .idle || newState != .idle { blink() }
@@ -339,23 +398,27 @@ final class BotEngine: ObservableObject {
 
     func blink() {
         guard !locks.contains("open") else { return }
+        // Luna моргает неторопливо: веко опускается дольше, чем поднимается.
         anim("open", keys: [
-            TweenKey(target: 0.06, duration: 70,  ease: Ease.inOut),
-            TweenKey(target: 1,    duration: 130, ease: Ease.out),
+            TweenKey(target: 0.08, duration: 95,  ease: Ease.inOut),
+            TweenKey(target: 1,    duration: 170, ease: Ease.out),
         ])
     }
 
     func squash() {
-        physVy += 0.6
+        // Желе: сплющивается, вытягивается, оседает и успокаивается; украшения качаются следом.
+        physVy += 0.9
         anim("sy", keys: [
-            TweenKey(target: 0.78, duration: 70,  ease: Ease.out),
-            TweenKey(target: 1.1,  duration: 130, ease: Ease.out),
-            TweenKey(target: 1,    duration: 170, ease: Ease.inOut),
+            TweenKey(target: 0.8,  duration: 80,  ease: Ease.out),
+            TweenKey(target: 1.12, duration: 140, ease: Ease.out),
+            TweenKey(target: 0.97, duration: 120, ease: Ease.inOut),
+            TweenKey(target: 1,    duration: 160, ease: Ease.inOut),
         ])
         anim("sx", keys: [
-            TweenKey(target: 1.16, duration: 70,  ease: Ease.out),
-            TweenKey(target: 0.95, duration: 130, ease: Ease.out),
-            TweenKey(target: 1,    duration: 170, ease: Ease.inOut),
+            TweenKey(target: 1.12, duration: 80,  ease: Ease.out),
+            TweenKey(target: 0.92, duration: 140, ease: Ease.out),
+            TweenKey(target: 1.02, duration: 120, ease: Ease.inOut),
+            TweenKey(target: 1,    duration: 160, ease: Ease.inOut),
         ])
     }
 
@@ -371,16 +434,20 @@ final class BotEngine: ObservableObject {
                 self?.isChewing = false
             }
         }
+        // Глоток: сначала вытягивается, чтобы поймать письмо, потом оседает.
         anim("sy", keys: [
-            TweenKey(target: 0.78, duration: 80,  ease: Ease.out),
-            TweenKey(target: 1.18, duration: 130, ease: Ease.out),
-            TweenKey(target: 1,    duration: 220, ease: Ease.back),
+            TweenKey(target: 1.16, duration: 100, ease: Ease.out),
+            TweenKey(target: 0.82, duration: 150, ease: Ease.out),
+            TweenKey(target: 1.04, duration: 160, ease: Ease.inOut),
+            TweenKey(target: 1,    duration: 200, ease: Ease.back),
         ])
         anim("sx", keys: [
-            TweenKey(target: 1.28, duration: 80,  ease: Ease.out),
-            TweenKey(target: 0.92, duration: 130, ease: Ease.out),
-            TweenKey(target: 1,    duration: 220, ease: Ease.back),
+            TweenKey(target: 0.86, duration: 100, ease: Ease.out),
+            TweenKey(target: 1.22, duration: 150, ease: Ease.out),
+            TweenKey(target: 0.97, duration: 160, ease: Ease.inOut),
+            TweenKey(target: 1,    duration: 200, ease: Ease.back),
         ])
+        physVy += 0.7
         blink()
     }
 
@@ -395,7 +462,14 @@ final class BotEngine: ObservableObject {
         SoundEngine.shared.play("slap")
         squash()
         physVy -= 1.2
-        physVx += Bool.random() ? 0.7 : -0.7
+        let side: CGFloat = Bool.random() ? 1 : -1
+        physVx += side * 0.9
+        // Шлепок отбрасывает голову в сторону удара, и она возвращается с перекатом.
+        anim("tilt", keys: [
+            TweenKey(target: side * 0.24,  duration: 80,  ease: Ease.out),
+            TweenKey(target: -side * 0.1,  duration: 160, ease: Ease.inOut),
+            TweenKey(target: 0,            duration: 200, ease: Ease.inOut),
+        ])
         if slapTimes.count >= 3 {
             slapTimes = []
             NotificationCenter.default.post(name: .botDizzy, object: nil)
@@ -422,67 +496,75 @@ final class BotEngine: ObservableObject {
         switch permanentEmote {
 
         case .happy:
-            // Little jump + squash
+            // Два лёгких прыжка подряд, с поворотом головы на вершине
             guard !locks.contains("oy") else {
                 miniNextBehavior = CACurrentMediaTime() + 0.4
                 return
             }
             anim("oy", keys: [
-                TweenKey(target: -0.30, duration: 120, ease: Ease.out),
-                TweenKey(target:  0.03, duration: 200, ease: Ease.inOut),
-                TweenKey(target:  0,    duration: 160, ease: Ease.back),
+                TweenKey(target: -0.24, duration: 150, ease: Ease.out),
+                TweenKey(target:  0.02, duration: 170, ease: Ease.inOut),
+                TweenKey(target: -0.12, duration: 110, ease: Ease.out),
+                TweenKey(target:  0,    duration: 190, ease: Ease.back),
+            ])
+            anim("tilt", keys: [
+                TweenKey(target:  0.14, duration: 180, ease: Ease.out),
+                TweenKey(target: -0.1,  duration: 260, ease: Ease.inOut),
+                TweenKey(target:  0,    duration: 190, ease: Ease.inOut),
             ])
             anim("sy", keys: [
-                TweenKey(target: 0.82, duration: 80,  ease: Ease.out),
-                TweenKey(target: 1.18, duration: 130, ease: Ease.out),
-                TweenKey(target: 0.88, duration: 160, ease: Ease.inOut),
-                TweenKey(target: 1,    duration: 200, ease: Ease.back),
+                TweenKey(target: 0.86, duration: 70,  ease: Ease.out),
+                TweenKey(target: 1.14, duration: 150, ease: Ease.out),
+                TweenKey(target: 0.94, duration: 150, ease: Ease.inOut),
+                TweenKey(target: 1,    duration: 230, ease: Ease.back),
             ])
-            anim("sx", keys: [
-                TweenKey(target: 1.15, duration: 80,  ease: Ease.out),
-                TweenKey(target: 0.88, duration: 130, ease: Ease.out),
-                TweenKey(target: 1.06, duration: 160, ease: Ease.inOut),
-                TweenKey(target: 1,    duration: 200, ease: Ease.back),
-            ])
-            miniNextBehavior = CACurrentMediaTime() + 2.2 + Double.random(in: 0...1.2)
+            miniNextBehavior = CACurrentMediaTime() + 2.6 + Double.random(in: 0...1.4)
 
         case .annoyed:
-            // Rapid head shake
+            // Сердитое «фух»: раздувается и дважды медленно качает головой
             guard !locks.contains("yaw") else {
                 miniNextBehavior = CACurrentMediaTime() + 0.5
                 return
             }
             anim("yaw", keys: [
-                TweenKey(target: -0.65, duration: 50,  ease: Ease.out),
-                TweenKey(target:  0.65, duration: 90,  ease: Ease.inOut),
-                TweenKey(target: -0.5,  duration: 80,  ease: Ease.inOut),
-                TweenKey(target:  0.4,  duration: 75,  ease: Ease.inOut),
-                TweenKey(target: -0.2,  duration: 70,  ease: Ease.inOut),
-                TweenKey(target:  0,    duration: 140, ease: Ease.out),
+                TweenKey(target: -0.5, duration: 140, ease: Ease.out),
+                TweenKey(target:  0.5, duration: 220, ease: Ease.inOut),
+                TweenKey(target: -0.3, duration: 200, ease: Ease.inOut),
+                TweenKey(target:  0,   duration: 220, ease: Ease.out),
             ])
-            miniNextBehavior = CACurrentMediaTime() + 3.0 + Double.random(in: 0...2.5)
+            anim("sx", keys: [
+                TweenKey(target: 1.14, duration: 240, ease: Ease.inOut),
+                TweenKey(target: 1,    duration: 360, ease: Ease.inOut),
+            ])
+            miniNextBehavior = CACurrentMediaTime() + 3.4 + Double.random(in: 0...2.5)
 
         case .wink:
-            // Brief wink: eye closes, head tilts slightly
+            // Подмигивает правым глазом и чуть приподнимается на цыпочки
             let now2 = CACurrentMediaTime()
             eyeOverride = .wink
-            eyeOverrideUntil = now2 + 0.55
+            eyeOverrideUntil = now2 + 0.6
             anim("tilt", keys: [
-                TweenKey(target:  0.13, duration: 100, ease: Ease.out),
-                TweenKey(target:  0.13, duration: 320, ease: Ease.lin),
-                TweenKey(target:  0,    duration: 200, ease: Ease.inOut),
+                TweenKey(target:  0.2,  duration: 130, ease: Ease.out),
+                TweenKey(target:  0.2,  duration: 300, ease: Ease.lin),
+                TweenKey(target:  0,    duration: 220, ease: Ease.inOut),
             ])
-            miniNextBehavior = CACurrentMediaTime() + 2.2 + Double.random(in: 0...2.0)
+            if !locks.contains("oy") {
+                anim("oy", keys: [
+                    TweenKey(target: -0.05, duration: 130, ease: Ease.out),
+                    TweenKey(target:  0,    duration: 320, ease: Ease.inOut),
+                ])
+            }
+            miniNextBehavior = CACurrentMediaTime() + 2.6 + Double.random(in: 0...2.0)
 
         case .love:
-            // Emit hearts + gentle sway
+            // Сердечки и покачивание из стороны в сторону, как колыбель
             emit(.heart, count: 2)
             anim("tilt", keys: [
-                TweenKey(target: -0.1, duration: 180, ease: Ease.out),
-                TweenKey(target:  0.1, duration: 340, ease: Ease.inOut),
-                TweenKey(target:  0,   duration: 220, ease: Ease.inOut),
+                TweenKey(target: -0.16, duration: 240, ease: Ease.out),
+                TweenKey(target:  0.16, duration: 460, ease: Ease.inOut),
+                TweenKey(target:  0,    duration: 280, ease: Ease.inOut),
             ])
-            miniNextBehavior = CACurrentMediaTime() + 2.6 + Double.random(in: 0...1.5)
+            miniNextBehavior = CACurrentMediaTime() + 3.0 + Double.random(in: 0...1.5)
 
         default:
             miniNextBehavior = CACurrentMediaTime() + 3.0 + Double.random(in: 0...2.0)
@@ -493,8 +575,17 @@ final class BotEngine: ObservableObject {
         roll = 0
         rollTurns = turns
         anim("roll", keys: [TweenKey(target: .pi * 2 * turns, duration: duration, ease: Ease.inOut)]) { [weak self] in
-            self?.roll = 0
-            self?.squash()
+            guard let self else { return }
+            self.roll = 0
+            self.squash()
+            if self.state == .dizzy {
+                self.anim("tilt", keys: [
+                    TweenKey(target: 0.22,  duration: 220, ease: Ease.out),
+                    TweenKey(target: -0.16, duration: 300, ease: Ease.inOut),
+                    TweenKey(target: 0.08,  duration: 260, ease: Ease.inOut),
+                    TweenKey(target: 0,     duration: 260, ease: Ease.inOut),
+                ])
+            }
         }
     }
 
@@ -534,54 +625,61 @@ final class BotEngine: ObservableObject {
         let now = CACurrentMediaTime()
         greetToken += 1
         let tok = greetToken
-        waveStart = now + 0.45   // wave begins at 0.45s
-        waveUntil = now + 1.55   // wave ends at 1.55s
-        physVx += 0.2
+        waveStart = now + 0.55   // wave begins at 0.55s
+        waveUntil = now + 1.7    // wave ends at 1.7s
+        physVx += 0.35
 
         // 0s: happy eyes for full greeting (2s — no gap, no flicker)
         eyeOverride = .happy
         eyeOverrideUntil = now + 2.0
+        // Лёгкий поклон: головой вперёд-вниз, потом выпрямляется.
         anim("oy", keys: [
-            TweenKey(target: -0.06, duration: 220, ease: Ease.out),
-            TweenKey(target:  0.0,  duration: 220, ease: Ease.back),
+            TweenKey(target:  0.04, duration: 160, ease: Ease.out),
+            TweenKey(target: -0.1,  duration: 260, ease: Ease.out),
+            TweenKey(target:  0.0,  duration: 240, ease: Ease.back),
+        ])
+        anim("tilt", keys: [
+            TweenKey(target: -0.12, duration: 200, ease: Ease.out),
+            TweenKey(target: -0.06, duration: 400, ease: Ease.inOut),
         ])
 
-        // 0.25s: hands out + body squash + sound
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+        // 0.3s: hands out + body squash + sound
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             guard let self, self.greetToken == tok else { return }
-            self.anim("hands", keys: [TweenKey(target: 1, duration: 280, ease: Ease.out)])
+            self.anim("hands", keys: [TweenKey(target: 1, duration: 320, ease: Ease.out)])
             self.anim("sy", keys: [
-                TweenKey(target: 0.95, duration: 100, ease: Ease.out),
-                TweenKey(target: 1.0,  duration: 260, ease: Ease.back),
+                TweenKey(target: 0.93, duration: 110, ease: Ease.out),
+                TweenKey(target: 1.0,  duration: 300, ease: Ease.back),
             ])
             self.anim("sx", keys: [
-                TweenKey(target: 1.04, duration: 100, ease: Ease.out),
-                TweenKey(target: 1.0,  duration: 260, ease: Ease.back),
+                TweenKey(target: 1.06, duration: 110, ease: Ease.out),
+                TweenKey(target: 1.0,  duration: 300, ease: Ease.back),
             ])
             SoundEngine.shared.play("greet")
         }
 
-        // 0.55s: first blink
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { [weak self] in
+        // 0.7s: first blink
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
             guard let self, self.greetToken == tok else { return }
             self.blink()
         }
 
-        // 1.50s: second blink
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.50) { [weak self] in
+        // 1.6s: second blink
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in
             guard let self, self.greetToken == tok else { return }
             self.blink()
         }
 
-        // 1.55s: retract hands
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.55) { [weak self] in
+        // 1.7s: retract hands
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.7) { [weak self] in
             guard let self, self.greetToken == tok else { return }
             self.waveUntil = 0
-            self.anim("hands", keys: [TweenKey(target: 0, duration: 200, ease: Ease.inOut)])
+            self.anim("hands", keys: [TweenKey(target: 0, duration: 240, ease: Ease.inOut)])
+            self.anim("tilt", keys: [TweenKey(target: 0, duration: 260, ease: Ease.inOut)])
         }
 
-        // 1.75s: brief happy eyes then back to normal
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.75) { [weak self] in
+        // 1.85s: brief happy eyes then back to normal
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.85) { [weak self] in
             guard let self, self.greetToken == tok else { return }
             self.eyeOverride = .happy
             self.eyeOverrideUntil = CACurrentMediaTime() + 0.30
@@ -606,10 +704,10 @@ final class BotEngine: ObservableObject {
         listeningPrevPermanentEmote = permanentEmote
         interruptGreet()
 
-        // Small jump
+        // Привстаёт на цыпочки, как прислушиваясь
         anim("oy", keys: [
-            TweenKey(target: -0.20, duration: 130, ease: Ease.out),
-            TweenKey(target: 0,     duration: 280, ease: Ease.back),
+            TweenKey(target: -0.14, duration: 170, ease: Ease.out),
+            TweenKey(target: -0.04, duration: 260, ease: Ease.inOut),
         ])
         squash()
 
@@ -763,25 +861,33 @@ final class BotEngine: ObservableObject {
             ])
             emit(.heart, count: 4)
             anim("oy", keys: [
-                TweenKey(target: -0.1, duration: 160, ease: Ease.out),
-                TweenKey(target: 0,    duration: 300, ease: Ease.back),
+                TweenKey(target: -0.08, duration: 200, ease: Ease.out),
+                TweenKey(target: 0,     duration: 380, ease: Ease.back),
+            ])
+            // Прижимает «ручки»: чуть сжимается и покачивается
+            anim("sx", keys: [
+                TweenKey(target: 0.94, duration: 220, ease: Ease.out),
+                TweenKey(target: 1,    duration: 420, ease: Ease.back),
             ])
         case .surprised:
+            // Удивление: отскакивает назад (вверх и в сторону), глаза огромные
             anim("oy", keys: [
-                TweenKey(target: -0.3, duration: 140, ease: Ease.out),
-                TweenKey(target: 0,    duration: 380, ease: Ease.back),
+                TweenKey(target: -0.36, duration: 120, ease: Ease.out),
+                TweenKey(target: 0,     duration: 460, ease: Ease.back),
             ])
             anim("es", keys: [
-                TweenKey(target: 1.25, duration: 120, ease: Ease.out),
-                TweenKey(target: 1,    duration: 500, ease: Ease.inOut),
+                TweenKey(target: 1.35, duration: 110, ease: Ease.out),
+                TweenKey(target: 1,    duration: 620, ease: Ease.inOut),
             ])
+            physVx += 0.5
         case .proud:
             squash()
             emit(.star, count: 5)
+            // Гордо задирает нос: наклон назад и вытягивается вверх
             anim("tilt", keys: [
-                TweenKey(target: -0.14, duration: 220, ease: Ease.out),
-                TweenKey(target: -0.14, duration: CGFloat((duration - 0.5) * 1000), ease: Ease.lin),
-                TweenKey(target: 0,     duration: 280, ease: Ease.inOut),
+                TweenKey(target: -0.18, duration: 260, ease: Ease.out),
+                TweenKey(target: -0.18, duration: CGFloat((duration - 0.5) * 1000), ease: Ease.lin),
+                TweenKey(target: 0,     duration: 300, ease: Ease.inOut),
             ])
             anim("blush", keys: [
                 TweenKey(target: 0.7, duration: 250, ease: Ease.out),
@@ -795,15 +901,18 @@ final class BotEngine: ObservableObject {
                 TweenKey(target: 0,    duration: 240, ease: Ease.inOut),
             ])
         case .yawn:
+            // Зевок: тянется вверх медленнее, чем раньше, и оседает
             anim("sy", keys: [
-                TweenKey(target: 1.12, duration: 500, ease: Ease.inOut),
-                TweenKey(target: 1,    duration: 500, ease: Ease.inOut),
+                TweenKey(target: 1.16, duration: 640, ease: Ease.inOut),
+                TweenKey(target: 0.96, duration: 360, ease: Ease.inOut),
+                TweenKey(target: 1,    duration: 300, ease: Ease.inOut),
             ])
             anim("sx", keys: [
-                TweenKey(target: 0.94, duration: 500, ease: Ease.inOut),
-                TweenKey(target: 1,    duration: 500, ease: Ease.inOut),
+                TweenKey(target: 0.92, duration: 640, ease: Ease.inOut),
+                TweenKey(target: 1.03, duration: 360, ease: Ease.inOut),
+                TweenKey(target: 1,    duration: 300, ease: Ease.inOut),
             ])
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
                 self?.eyeOverride = .closed
                 self?.emit(.z, count: 2)
             }
@@ -837,8 +946,8 @@ final class BotEngine: ObservableObject {
             let isZ = type == .z
             let p = Particle(
                 type: type,
-                x: (CGFloat.random(in: -0.5...0.5)) * 0.9 + (isZ ? 0.55 : 0),
-                y: -0.7 - CGFloat.random(in: 0...0.2),
+                x: (CGFloat.random(in: -0.5...0.5)) * 0.8 + (isZ ? 0.45 : 0),
+                y: -0.85 - CGFloat.random(in: 0...0.2),
                 vx: CGFloat.random(in: -0.5...0.5) * 0.35 + (isZ ? 0.18 : 0),
                 vy: -(0.45 + CGFloat.random(in: 0...0.35)),
                 age: -Double(i) * 0.14,
@@ -968,20 +1077,25 @@ final class BotEngine: ObservableObject {
             tgTilt = -0.06 + sin(2 * .pi * 1.2 * wt) * 0.07
         }
 
-        let bounce = cfg.bounces ? -abs(sin(t * 5.2)) * 0.07 : CGFloat(0)
+        // Подскоки с мягким приземлением: пик острее, чем у синусоиды
+        let bounce = cfg.bounces ? -pow(abs(sin(t * 4.0)), 1.5) * 0.08 : CGFloat(0)
         // oy tween can override if not locked
         if !locks.contains("oy") { oy += (bounce - oy) * CGFloat(1 - pow(0.0008, dt)) }
 
         if cfg.breathes {
-            let amp: CGFloat = isMini ? 0.07 : 0.035
-            tgSy = 1 + sin(t * 1.8) * amp
-            tgSx = 1 - sin(t * 1.8) * amp * 0.57
+            // Сон: глубокое медленное дыхание (период около 6.6 с)
+            let amp: CGFloat = isMini ? 0.08 : 0.05
+            tgSy = 1 + sin(t * 0.95) * amp
+            tgSx = 1 - sin(t * 0.95) * amp * 0.5
+            if !isMini { tgTilt = cfg.tilt - 0.05 }   // голова чуть склонена
         } else if isMini {
             // Subtle idle pulse (unique phase per engine via t0)
-            tgSy = 1 + sin(t * 2.2) * 0.04
-            tgSx = 1 - sin(t * 2.2) * 0.02
+            tgSy = 1 + sin(t * 1.7) * 0.05
+            tgSx = 1 - sin(t * 1.7) * 0.025
         } else {
-            tgSy = 1; tgSx = 1
+            // Покой: дышит еле заметно, период около 5 с
+            tgSy = 1 + sin(t * 1.25) * 0.016
+            tgSx = 1 - sin(t * 1.25) * 0.009
         }
 
         // Mini bots: periodic dramatic behaviors
@@ -990,7 +1104,7 @@ final class BotEngine: ObservableObject {
         }
 
         // Smooth look
-        let kLook = CGFloat(1 - pow(0.0025, dt))
+        let kLook = CGFloat(1 - pow(0.004, dt))   // взгляд ленивее: Luna как будто сонная
         let kGen  = CGFloat(1 - pow(0.0008, dt))
 
         if !locks.contains("yaw")   { yaw   += (tgYaw   - yaw)   * kLook }
@@ -1007,12 +1121,12 @@ final class BotEngine: ObservableObject {
         if now > nextBlink {
             if state != .sleeping && state != .dizzy {
                 blink()
-                if Double.random(in: 0...1) < 0.22 {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.23) { [weak self] in self?.blink() }
+                if Double.random(in: 0...1) < 0.16 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in self?.blink() }
                 }
             }
-            nextBlink = now + (isInListeningMode ? 3.0 + Double.random(in: 0...1.5)
-                                                 : 2.2 + Double.random(in: 0...3.2))
+            nextBlink = now + (isInListeningMode ? 3.4 + Double.random(in: 0...1.5)
+                                                 : 2.8 + Double.random(in: 0...3.6))
         }
 
         // Clear expired eye override (restore permanent if set)
@@ -1070,16 +1184,17 @@ final class BotEngine: ObservableObject {
 
     /// Applies a 112-BPM dance bounce/sway around the bottom of the body.
     /// Call this on a copy of the GraphicsContext before the three draw passes.
+    /// Luna танцует покачиваясь: наклон шире, прыжок ниже, чем у прежнего облика.
     func applyDance(_ ctx: inout GraphicsContext, size: CGSize) {
         guard dancingLevel > 0.001 else { return }
         let W = size.width, H = size.height, R = W * 0.3
         let px = W / 2 + ox * R
-        let py = H / 2 + particleOverhang / 2 + oy * R + R * 0.06 + R * 0.88
+        let py = H / 2 + particleOverhang / 2 + oy * R + R * 0.06 + R * LunaLook.ryK
         let beat = CGFloat(CACurrentMediaTime()) * 112 / 60
         let hop = abs(sin(.pi * beat)), land = pow(1 - hop, 6), l = dancingLevel
-        ctx.translateBy(x: px + 0.08 * R * sin(.pi * beat) * l, y: py - 0.20 * R * hop * l)
-        ctx.rotate(by: .radians(0.10 * sin(.pi * beat) * l))
-        ctx.scaleBy(x: 1 + 0.045 * land * l, y: 1 - 0.06 * land * l)
+        ctx.translateBy(x: px + 0.1 * R * sin(.pi * beat) * l, y: py - 0.16 * R * hop * l)
+        ctx.rotate(by: .radians(0.15 * sin(.pi * beat) * l))
+        ctx.scaleBy(x: 1 + 0.06 * land * l, y: 1 - 0.07 * land * l)
         ctx.translateBy(x: -px, y: -py)
     }
 
@@ -1089,8 +1204,8 @@ final class BotEngine: ObservableObject {
         let W = size.width
         let H = size.height
         let R = W * 0.3
-        let rx = R * 1.14
-        let ry = R * 0.88
+        let rx = R * LunaLook.rxK
+        let ry = R * LunaLook.ryK
 
         let cx = W / 2 + ox * R
         // particleOverhang shifts the bot body down in canvas coords so hearts can fly into
@@ -1101,6 +1216,9 @@ final class BotEngine: ObservableObject {
         ctx.translateBy(x: cx, y: cy)
         if tilt != 0 { ctx.rotate(by: .radians(tilt)) }
         ctx.scaleBy(x: sx, y: sy)
+
+        // Украшения над головой: рисуются первыми, чтобы макушка тела закрывала их основание.
+        drawCharm(ctx: ctx, R: R)
 
         // Body path (superellipse for Luna, morph to rect for upload)
         let bodyPath = mochiPath(rx: rx, ry: ry, morph: morph, R: R)
@@ -1124,8 +1242,8 @@ final class BotEngine: ObservableObject {
             let hW = R * 1.80 * morph   // hole width = box width (2×1.0R) − 2×0.10R margin
             let hH = slotH * R * morph  // hole height (spring-animated, scaled by morph)
             let hX = -hW / 2
-            // Hole Y: box top is -R*0.94 at morph=1, lerped from -R*0.88 at morph=0
-            let boxTop = -R * (0.88 + 0.06 * morph)
+            // Hole Y: box top is -R*0.94 at morph=1, lerped from the egg's top at morph=0
+            let boxTop = -R * lerp(LunaLook.ryK, 0.94, morph)
             let hY = boxTop + R * 0.08 * morph  // top margin scales with morph
 
             var boxCtx = ctx
@@ -1174,17 +1292,17 @@ final class BotEngine: ObservableObject {
         let R = W * 0.3
         // Only draw hands when Luna is large enough to be meaningful (not compact/peek)
         guard R > 14 else { return }
-        let rx = R * 1.14
-        let ry = R * 0.88
+        let rx = R * LunaLook.rxK
+        let ry = R * LunaLook.ryK
         let cx = W / 2 + ox * R
         let cy = H / 2 + particleOverhang / 2 + oy * R + R * 0.06
 
         let now = CACurrentMediaTime()
         let bodyH = 2 * ry   // full body height
 
-        // Hand ellipse half-dims: 0.30×bodyH wide, 0.26×bodyH tall (scaled by hands 0→1)
-        let hew = 0.30 * ry * hands   // half-width
-        let heh = 0.26 * ry * hands   // half-height
+        // Ручка-варежка: чуть выше, чем шире (0.24 и 0.30 высоты тела), растёт вместе с hands
+        let hew = 0.24 * ry * hands   // half-width
+        let heh = 0.30 * ry * hands   // half-height
 
         // Body half-dims with current squash scale
         let hwB = rx * sx
@@ -1200,25 +1318,26 @@ final class BotEngine: ObservableObject {
             if sd > 0 && isWaving {
                 // Right hand: rise to wave position over first 180ms, then oscillate
                 let wt = CGFloat(now - waveStart)
-                let rise = min(1.0, wt / 0.18)
+                let rise = min(1.0, wt / 0.24)
                 let riseEased: CGFloat = 1 - pow(1 - rise, 3)   // easeOut cubic
 
                 // Rest position is lower-side; wave position is upper-side (at eye height)
                 let restX: CGFloat = hwB * 1.08
                 let restY: CGFloat = hhB * 0.70
-                let oscX = cos(13 * wt) * 0.06 * bodyH
-                let oscY = -sin(13 * wt) * 0.14 * bodyH
-                let waveX: CGFloat = hwB * 1.10 + oscX
-                let waveY: CGFloat = -hhB * 0.15 + oscY
+                // Машет медленнее (9 рад/с вместо 13), широкой дугой
+                let oscX = cos(9 * wt) * 0.08 * bodyH
+                let oscY = -sin(9 * wt) * 0.12 * bodyH
+                let waveX: CGFloat = hwB * 1.12 + oscX
+                let waveY: CGFloat = -hhB * 0.2 + oscY
                 localX = restX + (waveX - restX) * riseEased
                 localY = restY + (waveY - restY) * riseEased
-                handRot = (-0.5 + sin(13 * wt) * 0.35) * riseEased
+                handRot = (-0.5 + sin(9 * wt) * 0.4) * riseEased
 
             } else if sd < 0 && isWaving {
                 // Left hand: gentle sway at rest position
                 let wt = CGFloat(now - waveStart)
                 localX = -hwB * 1.08
-                localY = hhB * 0.70 + sin(6 * wt) * 0.04 * bodyH
+                localY = hhB * 0.70 + sin(4.5 * wt) * 0.04 * bodyH
 
             } else if sd > 0 && listenHandRaise > 0.01 {
                 // Right hand: raised to attentive listening position (not waving)
@@ -1243,31 +1362,32 @@ final class BotEngine: ObservableObject {
             handCtx.translateBy(x: worldX, y: worldY)
             if handRot != 0 { handCtx.rotate(by: .radians(handRot)) }
 
-            let handRect = CGRect(x: -hew, y: -heh, width: hew * 2, height: heh * 2)
-            var handPath = Path()
-            handPath.addEllipse(in: handRect)
-
-            // Fill with body material (same gradient as body)
+            // Варежка: скруглённый квадрат, а не овал. Тело — ночное, по краю контур света.
+            let handPath = Path(LunaLook.superellipse(rx: hew, ry: heh, exponent: 3.2, steps: 40))
+            let c0: Color, c1: Color
             if let bc = bodyColor {
-                let c0 = mix3(cgColorToTuple(bc), (1, 1, 1), 0.35)
-                let c1 = cgColorToTuple(bc)
-                handCtx.fill(handPath, with: .linearGradient(
-                    Gradient(colors: [colorFromTuple(c0), colorFromTuple(c1)]),
-                    startPoint: CGPoint(x: hew * 0.7, y: -heh * 0.85),
-                    endPoint: CGPoint(x: -hew * 0.8, y: heh * 0.9)
-                ))
+                c0 = colorFromTuple(mix3(cgColorToTuple(bc), (1, 1, 1), 0.35))
+                c1 = colorFromTuple(cgColorToTuple(bc))
             } else {
-                let c0 = cgColorToTuple(MochiConst.baseTop)
-                let c1 = cgColorToTuple(MochiConst.baseBottom)
-                handCtx.fill(handPath, with: .linearGradient(
-                    Gradient(colors: [colorFromTuple(c0), colorFromTuple(c1)]),
-                    startPoint: CGPoint(x: hew * 0.7, y: -heh * 0.85),
-                    endPoint: CGPoint(x: -hew * 0.8, y: heh * 0.9)
-                ))
+                c0 = colorFromTuple(cgColorToTuple(MochiConst.baseTop))
+                c1 = colorFromTuple(cgColorToTuple(MochiConst.baseBottom))
             }
-
-            // Subtle separation border — rgba(0,0,0,0.08) 1pt
-            handCtx.stroke(handPath, with: .color(Color.black.opacity(0.08)), lineWidth: 1)
+            handCtx.fill(handPath, with: .linearGradient(
+                Gradient(colors: [c0, c1]),
+                startPoint: CGPoint(x: hew * 0.7, y: -heh * 0.85),
+                endPoint: CGPoint(x: -hew * 0.8, y: heh * 0.9)
+            ))
+            if bodyColor == nil {
+                // Контур света и звёздочка на ладони
+                let rim = Color(red: LunaLook.rim.r, green: LunaLook.rim.g, blue: LunaLook.rim.b)
+                handCtx.stroke(handPath, with: .color(rim.opacity(0.55)), lineWidth: 1)
+                if heh > 3 {
+                    handCtx.fill(Path(LunaLook.sparkle(outer: heh * 0.34)),
+                                 with: .color(rim.opacity(0.7)))
+                }
+            } else {
+                handCtx.stroke(handPath, with: .color(Color.black.opacity(0.08)), lineWidth: 1)
+            }
         }
     }
 
@@ -1275,8 +1395,8 @@ final class BotEngine: ObservableObject {
         let W = size.width
         let H = size.height
         let R = W * 0.3
-        let rx = R * 1.14
-        let ry = R * 0.88
+        let rx = R * LunaLook.rxK
+        let ry = R * LunaLook.ryK
         let cx = W / 2 + ox * R
         let cy = H / 2 + particleOverhang / 2 + oy * R + R * 0.06
 
@@ -1336,7 +1456,7 @@ final class BotEngine: ObservableObject {
 
     private func mochiPath(rx: CGFloat, ry: CGFloat, morph: CGFloat, R: CGFloat) -> Path {
         let n = 72
-        let expN: CGFloat = 2.0 / 2.7
+        let expN: CGFloat = 2.0 / LunaLook.exponent
         // Target mailbox dims (spec: 1.0R wide, 0.94R tall, 0.42R corner radius)
         let tw = R * 1.0
         let th = R * 0.94
@@ -1404,6 +1524,37 @@ final class BotEngine: ObservableObject {
         return CGPoint(x: kx * W, y: ky * H)
     }
 
+    /// Полумесяц и звёздочка над головой. Качаются с запаздыванием за телом (`physDx/physDy`),
+    /// сдвигаются от поворота головы и исчезают под шапкой, в мини-версии и при превращении в ящик.
+    private func drawCharm(ctx: GraphicsContext, R: CGFloat) {
+        guard !isMini, R > 8, morph < 0.05 else { return }
+        var alpha: CGFloat = 1
+        if outfit.coversHead { alpha = 1 - min(1, outfitPresence * 1.6) }
+        guard alpha > 0.01 else { return }
+
+        let ch = LunaLook.charm(R: R)
+        let lagX = physDx * R * 0.12 + sin(yaw) * R * 0.18
+        let lagY = physDy * R * 0.06
+        var c = ctx
+        c.opacity = Double(alpha)
+        c.translateBy(x: lagX, y: lagY)
+        // Подвеска качается вокруг основания: при наклоне головы отстаёт от неё.
+        c.rotate(by: .radians(Double(physDx * 0.18)))
+        let color = Color(red: LunaLook.charm.r, green: LunaLook.charm.g, blue: LunaLook.charm.b)
+        let moon = Path(LunaLook.moonPath(ch))
+        let star = Path(LunaLook.starPath(ch))
+        c.stroke(moon, with: .color(color.opacity(0.18)),
+                 style: StrokeStyle(lineWidth: R * 0.1, lineJoin: .round))
+        c.fill(moon, with: .color(color))
+        // Звёздочка мерцает: пульс размера дважды в 3 секунды.
+        let tw = 1 + 0.12 * sin(CGFloat(CACurrentMediaTime() - t0) * 2.1)
+        var s = c
+        s.translateBy(x: ch.starCenter.x, y: ch.starCenter.y)
+        s.scaleBy(x: tw, y: tw)
+        s.translateBy(x: -ch.starCenter.x, y: -ch.starCenter.y)
+        s.fill(star, with: .color(color))
+    }
+
     private func drawBody(ctx: inout GraphicsContext, path: Path, R: CGFloat, rx: CGFloat, ry: CGFloat,
                           pumpkinColors: Bool = false) {
         if let bc = bodyColor, !pumpkinColors {
@@ -1411,8 +1562,10 @@ final class BotEngine: ObservableObject {
             ctx.fill(path, with: .color(Color(cgColor: bc)))
         } else {
             // Main bot: linear gradient body
-            let top: Color = pumpkinColors ? Color(hex: "#FFA94D") : Color(red: 0.929, green: 0.929, blue: 0.937)
-            let bot: Color = pumpkinColors ? Color(hex: "#E8590C") : Color(red: 0.769, green: 0.773, blue: 0.792)
+            let top: Color = pumpkinColors ? Color(hex: "#FFA94D")
+                : colorFromTuple((LunaLook.bodyTop.r, LunaLook.bodyTop.g, LunaLook.bodyTop.b))
+            let bot: Color = pumpkinColors ? Color(hex: "#E8590C")
+                : colorFromTuple((LunaLook.bodyBottom.r, LunaLook.bodyBottom.g, LunaLook.bodyBottom.b))
             ctx.fill(path, with: .linearGradient(
                 Gradient(colors: [top, bot]),
                 startPoint: CGPoint(x: rx*0.7, y: -ry*0.85),
@@ -1422,14 +1575,36 @@ final class BotEngine: ObservableObject {
             let effectiveTint = tint * (1 - morph)
             if effectiveTint > 0.01 {
                 let tc = colorFromTuple(col)
-                ctx.fill(path, with: .linearGradient(
-                    Gradient(stops: [
-                        .init(color: tc.opacity(Double(0.72 * effectiveTint)), location: 0),
-                        .init(color: tc.opacity(0), location: 1)
-                    ]),
-                    startPoint: CGPoint(x: 0, y: ry),
-                    endPoint: CGPoint(x: 0, y: -ry)
-                ))
+                if pumpkinColors {
+                    ctx.fill(path, with: .linearGradient(
+                        Gradient(stops: [
+                            .init(color: tc.opacity(Double(0.72 * effectiveTint)), location: 0),
+                            .init(color: tc.opacity(0), location: 1)
+                        ]),
+                        startPoint: CGPoint(x: 0, y: ry),
+                        endPoint: CGPoint(x: 0, y: -ry)
+                    ))
+                } else {
+                    // На тёмном теле заливка грязнила бы цвет: состояние светится по краю,
+                    // середина (там глаза) остаётся тёмной и читаемой.
+                    let a = Double(min(1, effectiveTint * 1.25))
+                    ctx.fill(path, with: .radialGradient(
+                        Gradient(stops: [
+                            .init(color: tc.opacity(0), location: 0),
+                            .init(color: tc.opacity(0), location: 0.4),
+                            .init(color: tc.opacity(a), location: 1)
+                        ]),
+                        center: .zero, startRadius: 0, endRadius: ry * 1.02
+                    ))
+                    ctx.fill(path, with: .linearGradient(
+                        Gradient(stops: [
+                            .init(color: tc.opacity(0.4 * Double(effectiveTint)), location: 0),
+                            .init(color: tc.opacity(0), location: 1)
+                        ]),
+                        startPoint: CGPoint(x: 0, y: ry),
+                        endPoint: CGPoint(x: 0, y: ry * 0.1)
+                    ))
+                }
             }
             // Shadow rim
             ctx.fill(path, with: .radialGradient(
@@ -1440,29 +1615,58 @@ final class BotEngine: ObservableObject {
                 ]),
                 center: .zero, startRadius: R*0.15, endRadius: R*1.25
             ))
-            // Highlight
+            // Лунный блик: слева сверху, холодный
             ctx.fill(path, with: .radialGradient(
                 Gradient(stops: [
-                    .init(color: Color.white.opacity(0.55), location: 0),
+                    .init(color: Color(red: 0.86, green: 0.9, blue: 1).opacity(pumpkinColors ? 0.5 : 0.36), location: 0),
                     .init(color: .clear, location: 1)
                 ]),
-                center: CGPoint(x: rx*0.34, y: -ry*0.46),
+                center: CGPoint(x: -rx*0.36, y: -ry*0.5),
                 startRadius: 0,
-                endRadius: R*0.42
+                endRadius: R*0.4
             ))
+            if !pumpkinColors && morph < 0.05 {
+                // Звёздная пыль на брюшке; от поворота головы смещается внутри тела
+                var cc = ctx
+                cc.clip(to: path)
+                let par = sin(yaw) * rx * 0.3
+                let dust = Color(red: LunaLook.glow.r, green: LunaLook.glow.g, blue: LunaLook.glow.b)
+                let fade = Double(1 - min(1, effectiveTint * 0.8))
+                for (dx, dy, r, a) in [(-0.46, 0.62, 0.045, 0.55), (0.5, 0.44, 0.032, 0.45), (0.1, 0.82, 0.028, 0.4)]
+                    as [(CGFloat, CGFloat, CGFloat, Double)] {
+                    var e = Path()
+                    e.addEllipse(in: CGRect(x: dx * rx + par - r * R, y: dy * ry - r * R, width: r * R * 2, height: r * R * 2))
+                    cc.fill(e, with: .color(dust.opacity(a * fade)))
+                }
+            }
         }
     }
 
     private func drawBlush(ctx: inout GraphicsContext, path: Path, rx: CGFloat, ry: CGFloat, R: CGFloat, blush: CGFloat) {
         ctx.clip(to: path)
-        let yOffset = sin(yaw) * rx * 0.8
+        let yOffset = sin(yaw) * rx * 0.6
         for sd in [-1.0, 1.0] {
-            let bx = CGFloat(sd) * rx * 0.55 + yOffset
-            let by = ry * 0.2
+            // Щёчки ниже глаз и ближе к краю: глаза у малыша сидят низко
+            let bx = CGFloat(sd) * rx * 0.58 + yOffset
+            let by = ry * 0.56
             var ellipse = Path()
             ellipse.addEllipse(in: CGRect(x: bx - R*0.17, y: by - R*0.1, width: R*0.34, height: R*0.2))
-            ctx.fill(ellipse, with: .color(Color(red: 1, green: 0.471, blue: 0.588, opacity: Double(0.5 * blush))))
+            ctx.fill(ellipse, with: .color(Color(red: LunaLook.blush.r, green: LunaLook.blush.g,
+                                                 blue: LunaLook.blush.b, opacity: Double(0.5 * blush))))
         }
+    }
+
+    /// Каким цветом рисовать глаза на текущем теле и светятся ли они.
+    private var eyeInk: (color: Color, glows: Bool) {
+        let dark = Color(cgColor: isMini ? MochiConst.miniInk : MochiConst.ink)
+        let glow = Color(cgColor: MochiConst.glow)
+        if outfit == .pumpkin && !isMini { return (dark, false) }
+        if let bc = bodyColor {
+            let c = cgColorToTuple(bc)
+            let lum = LunaLook.luminance((c.0, c.1, c.2))
+            return lum < LunaLook.darkInkThreshold ? (glow, true) : (dark, false)
+        }
+        return (glow, true)
     }
 
     private func drawEyes(ctx: inout GraphicsContext, path: Path, R: CGFloat, rx: CGFloat, ry: CGFloat) {
@@ -1482,6 +1686,7 @@ final class BotEngine: ObservableObject {
         // When an outfit is rigidly rotating, the whole body turns — eyes do NOT add roll
         let rigidRoll = outfit != .none && outfitPresence > 0.05
         let mH = MochiH(R: R, yaw: yaw, pitch: pitch)
+        let (ink, glows) = eyeInk
         for f in mEyeFrames(mH) {
             // Re-derive pitch with roll for the roll-through effect (illusion, outfit=none only)
             var eyePitch = MochiConst.eyeP + pitch + (rigidRoll ? 0 : roll)
@@ -1494,131 +1699,23 @@ final class BotEngine: ObservableObject {
             let fx = lerp(f.fx, 1, morph * 0.7)
             let fy = lerp(f.fy, 1, morph * 0.7)
 
-            let eyeMult: CGFloat = isMini ? 1.9 : 1.0
+            let eyeMult: CGFloat = isMini ? 1.7 : 1.0
             let ew = R * MochiConst.eyeW * es * eyeMult
             let eh = R * MochiConst.eyeH * es * eyeMult
 
             var eyeCtx = ctx
             eyeCtx.translateBy(x: f.x, y: ey)
             eyeCtx.scaleBy(x: fx, y: fy)
-            drawEyeShape(ctx: &eyeCtx, shape: shape, w: ew, h: eh, open: open, sd: f.sd, R: R)
-        }
-    }
-
-    private func drawEyeShape(ctx: inout GraphicsContext, shape: EyeShape, w: CGFloat, h: CGFloat, open: CGFloat, sd: CGFloat, R: CGFloat) {
-        let ink = isMini ? Color(cgColor: MochiConst.miniInk) : Color(cgColor: MochiConst.ink)
-        let now = CGFloat(CACurrentMediaTime())
-
-        switch shape {
-        case .wide:
-            drawEyeShape(ctx: &ctx, shape: .pill, w: w*1.16, h: h*1.12, open: open, sd: sd, R: R)
-
-        case .pill:
-            let hh = max(h * open, w * 0.3)
-            var p = Path()
-            p.addRoundedRect(in: CGRect(x: -w/2, y: -hh/2, width: w, height: hh),
-                             cornerSize: CGSize(width: min(w/2, hh/2), height: min(w/2, hh/2)))
-            ctx.fill(p, with: .color(ink))
-
-        case .dot:
-            var p = Path()
-            p.addEllipse(in: CGRect(x: -w*0.45, y: -w*0.45, width: w*0.9, height: w*0.9))
-            ctx.fill(p, with: .color(ink))
-
-        case .line:
-            ctx.rotate(by: .radians(-sd * 0.2))
-            var p = Path()
-            p.addRoundedRect(in: CGRect(x: -w*0.78, y: -w*0.21, width: w*1.56, height: w*0.42),
-                             cornerSize: CGSize(width: w*0.21, height: w*0.21))
-            ctx.fill(p, with: .color(ink))
-
-        case .flat:
-            var p = Path()
-            p.addRoundedRect(in: CGRect(x: -w*0.72, y: -w*0.2, width: w*1.44, height: w*0.4),
-                             cornerSize: CGSize(width: w*0.2, height: w*0.2))
-            ctx.fill(p, with: .color(ink))
-
-        case .happy:
-            var p = Path()
-            p.addArc(center: CGPoint(x: 0, y: h*0.18), radius: w*0.82,
-                     startAngle: .degrees(180 + 12), endAngle: .degrees(180 - 12), clockwise: true)
-            ctx.stroke(p, with: .color(ink), style: StrokeStyle(lineWidth: w*0.5, lineCap: .round))
-
-        case .closed:
-            var p = Path()
-            p.addArc(center: CGPoint(x: 0, y: -h*0.08), radius: w*0.78,
-                     startAngle: .degrees(15), endAngle: .degrees(165), clockwise: false)
-            ctx.stroke(p, with: .color(ink), style: StrokeStyle(lineWidth: w*0.36, lineCap: .round))
-
-        case .spiral:
-            var p = Path()
-            var a: CGFloat = 0
-            while a < 4.4 * .pi {
-                let r  = w * 0.06 + a * w * 0.058
-                let aa = a + now * 9 * sd
-                let px = cos(aa) * r
-                let py = sin(aa) * r
-                if a == 0 { p.move(to: CGPoint(x: px, y: py)) }
-                else { p.addLine(to: CGPoint(x: px, y: py)) }
-                a += 0.2
-            }
-            ctx.stroke(p, with: .color(ink), style: StrokeStyle(lineWidth: w*0.22, lineCap: .round))
-
-        case .heart:
-            let heartPath = heartShape(size: w * 1.2)
-            ctx.fill(heartPath, with: .color(Color(hex: "#FF4D6D")))
-
-        case .star:
-            ctx.rotate(by: .radians(now * 1.5 * sd))
-            let starPath = starShape(outer: w * 1.05, inner: w * 0.46)
-            ctx.fill(starPath, with: .color(Color(hex: "#F7B32B")))
-
-        case .tired:
-            var p1 = Path()
-            p1.addRoundedRect(in: CGRect(x: -w/2, y: -h*0.02, width: w, height: h*0.38),
-                              cornerSize: CGSize(width: w/2, height: w/2))
-            ctx.fill(p1, with: .color(ink))
-            var p2 = Path()
-            p2.addRoundedRect(in: CGRect(x: -w*0.62, y: -h*0.1, width: w*1.24, height: w*0.22),
-                              cornerSize: CGSize(width: w*0.11, height: w*0.11))
-            ctx.fill(p2, with: .color(ink))
-
-        case .wink:
-            if sd < 0 {
-                let hh = max(h * open, w * 0.3)
-                var p = Path()
-                p.addRoundedRect(in: CGRect(x: -w/2, y: -hh/2, width: w, height: hh),
-                                 cornerSize: CGSize(width: min(w/2,hh/2), height: min(w/2,hh/2)))
-                ctx.fill(p, with: .color(ink))
-            } else {
-                var p = Path()
-                p.addArc(center: CGPoint(x: 0, y: h*0.18), radius: w*0.82,
-                         startAngle: .degrees(180+12), endAngle: .degrees(180-12), clockwise: true)
-                ctx.stroke(p, with: .color(ink), style: StrokeStyle(lineWidth: w*0.5, lineCap: .round))
-            }
-
-        case .cup:
-            // Flat top, rounded bottom corners (like a cup / U-shape)
-            let hh = max(h * open, w * 0.3)
-            let cr = min(w / 2, hh / 2)  // bottom corner radius
-            var p = Path()
-            p.move(to: CGPoint(x: -w/2, y: -hh/2))
-            p.addLine(to: CGPoint(x: w/2, y: -hh/2))
-            p.addLine(to: CGPoint(x: w/2, y: hh/2 - cr))
-            p.addQuadCurve(to: CGPoint(x: w/2 - cr, y: hh/2),
-                           control: CGPoint(x: w/2, y: hh/2))
-            p.addLine(to: CGPoint(x: -w/2 + cr, y: hh/2))
-            p.addQuadCurve(to: CGPoint(x: -w/2, y: hh/2 - cr),
-                           control: CGPoint(x: -w/2, y: hh/2))
-            p.closeSubpath()
-            ctx.fill(p, with: .color(ink))
+            let g = LunaFace.glyph(shape, w: ew, h: eh, open: open, sd: f.sd,
+                                   time: CGFloat(CACurrentMediaTime()))
+            LunaFace.render(g, in: &eyeCtx, ink: ink, halo: glows && !isMini ? ew * 0.3 : 0)
         }
     }
 
     private func drawBadge(context: GraphicsContext, size: CGSize, badge: BadgeType, R: CGFloat, rx: CGFloat, ry: CGFloat, cx: CGFloat, cy: CGFloat) {
         let bs = badgeS * (isMini ? 1.25 : 1)
-        let bx = cx - R * 0.72 * sx
-        let by = cy - R * 0.72 * sy
+        let bx = cx - R * 0.64 * sx
+        let by = cy - R * 0.76 * sy
         var ctx = context
         ctx.translateBy(x: bx, y: by)
         ctx.scaleBy(x: bs, y: bs)
