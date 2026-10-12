@@ -41,8 +41,12 @@ if [ -n "${LUNA_BUILD_NUMBER:-}" ]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $LUNA_BUILD_NUMBER" "$app/Contents/Info.plist"
 fi
 
+# Вложенный код подписывается раньше бандла: Debug-сборка Xcode 26 кладёт рядом с бинарником
+# Luna.debug.dylib, и без своей подписи у неё codesign отказывается подписывать приложение.
+identity="${LUNA_SIGN_IDENTITY:--}"
+find "$app/Contents" -name '*.dylib' -print0 | xargs -0 -r codesign --force --sign "$identity"
 # Энтайтлменты (микрофон, контакты, Apple Events) нужны в подписи: без них hardened runtime
 # не даст macOS спросить разрешение.
 codesign --force --options runtime --entitlements "$macos_dir/Resources/Luna.entitlements" \
-  --sign "${LUNA_SIGN_IDENTITY:--}" "$app"
+  --sign "$identity" "$app"
 echo "Готово: $app"
