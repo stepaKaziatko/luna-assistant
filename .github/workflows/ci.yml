@@ -13,13 +13,13 @@ permissions:
   contents: read
 
 jobs:
-  # Минуты macOS-раннеров в закрытом репозитории стоят вдесятеро дороже, поэтому shell
+  # Минуты macOS-раннеров в закрытом репозитории стоят вдесятеро дороже, поэтому приложение
   # проверяется, только когда изменение может его затронуть.
   changes:
     name: Что изменилось
     runs-on: ubuntu-latest
     outputs:
-      shell: ${{ steps.filter.outputs.shell }}
+      app: ${{ steps.filter.outputs.app }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -34,60 +34,40 @@ jobs:
             push) range="$BEFORE..$GITHUB_SHA" ;;
             *) range= ;;
           esac
-          shell=true
+          app=true
           # Диапазон не разобрать (первый push ветки, переписанная история) — проверяем всё.
           if [ -n "$range" ] && files=$(git diff --name-only "$range" 2>/dev/null) &&
-             ! printf '%s\n' "$files" | grep -qE '^(apps/macos/|core/|protocol/|scripts/|package(-lock)?\.json|\.github/workflows/)'; then
-            shell=false
+             ! printf '%s\n' "$files" | grep -qE '^(apps/macos/|tests/|scripts/|\.github/workflows/)'; then
+            app=false
           fi
           # Коммит в main с ещё не выпущенной версией собирает и тестирует workflow Release —
-          # второй раз те же тесты на macOS не гоняем.
+          # второй раз те же проверки на macOS не гоняем.
           if [ "$GITHUB_EVENT_NAME" = push ] && version=$(scripts/check-version.sh) &&
              ! git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
-            shell=false
+            app=false
           fi
-          echo "shell=$shell" >> "$GITHUB_OUTPUT"
+          echo "app=$app" >> "$GITHUB_OUTPUT"
 
-  core:
-    name: Ядро и протокол
+  version:
+    name: Версия согласована
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
-      - name: Версия согласована в ядре и приложении
-        run: scripts/check-version.sh
-      - name: Сгенерированные типы протокола соответствуют схеме
-        run: |
-          npm run generate
-          git diff --exit-code -- core/src/rpc/protocol.gen.ts apps/macos/Sources/Luna/Protocol/Protocol.gen.swift
+      - run: scripts/check-version.sh
 
-  shell:
-    name: Shell (macOS)
+  app:
+    name: Приложение (macOS)
     needs: changes
-    if: needs.changes.outputs.shell == 'true'
-    runs-on: macos-15
+    if: needs.changes.outputs.app == 'true'
+    # Код рассчитан на Swift 6.2 и SDK macOS 26: нужен Xcode 26+, он есть на образе macos-26.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-      - uses: actions/cache@v6
-        with:
-          path: apps/macos/.build
-          key: swiftpm-${{ runner.os }}-${{ hashFiles('apps/macos/Package.resolved') }}
-      - run: npm ci
-      - run: npm test
-      - run: swift test
-        working-directory: apps/macos
+      - name: XcodeGen
+        run: brew install xcodegen
+      - name: Тесты
+        run: for t in scripts/test-*.sh; do echo "== $t"; bash "$t"; done
       - name: Бандл собирается и запускается
         run: |
           apps/macos/scripts/bundle.sh debug
-          apps/macos/scripts/smoke.sh --debug
+          apps/macos/scripts/smoke.sh
