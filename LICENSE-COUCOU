@@ -1,3 +1,16 @@
+Исходный код Luna — проект coucou: https://github.com/Louis-CFM/coucou,
+коммит 0dffbaf (12 октября 2026), автор Louis Raillé, лицензия MIT (текст ниже).
+
+Имя «Coucou», персонаж «Mochi», иконка приложения и строки меню, звуки и медиа из
+docs/media и design/ в coucou лицензированы отдельно (LICENSE-ASSETS.md в upstream) и
+в этот репозиторий не переносились. В Luna вместо них: имя Luna, иконки из
+apps/macos/scripts/render-icons.swift, звуки из apps/macos/scripts/render-sounds.py.
+Персонаж остаётся нарисованным кодом coucou; его облик — на усмотрение автора coucou.
+
+Android-часть coucou (© Rhytam Biswas, MIT) и версии для Windows и Linux не переносились.
+
+---
+
 MIT License
 
 Copyright (c) 2026 Louis Raillé
