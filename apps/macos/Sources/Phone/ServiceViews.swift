@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Every service Mochi, connected on the Mac or not.
+/// Every service Luna, connected on the Mac or not.
 struct ServicesList: View {
     let services: [String: ServiceSnapshot]
 
@@ -69,7 +69,7 @@ struct ServiceRow: View {
     }
 }
 
-/// A service Mochi in his own color, like the little ones in the Mac's notch.
+/// A service Luna in his own color, like the little ones in the Mac's notch.
 struct ServiceMochi: View {
     let pillId: String
     let tone: ServiceTone?
@@ -236,7 +236,7 @@ struct ServiceDetailView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Connect \(pill?.name ?? "it") on your Mac")
                 .font(.subheadline.weight(.semibold))
-            Text("Add its key in Coucou's Settings on your Mac and keep the iPhone switch on (Settings → General → iPhone). What the Mac sees shows up here: no key is stored on your iPhone.")
+            Text("Add its key in Luna's Settings on your Mac and keep the iPhone switch on (Settings → General → iPhone). What the Mac sees shows up here: no key is stored on your iPhone.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }

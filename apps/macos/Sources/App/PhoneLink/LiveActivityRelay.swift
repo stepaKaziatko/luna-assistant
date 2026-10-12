@@ -3,9 +3,9 @@ import AppKit
 import CloudKit
 import Combine
 
-// MARK: - iPhone plan, step 8: Mochi leaves for the iPhone
+// MARK: - iPhone plan, step 8: Luna leaves for the iPhone
 //
-// When the Mac locks while an agent is working, Mochi moves to the iPhone's
+// When the Mac locks while an agent is working, Luna moves to the iPhone's
 // Dynamic Island and Lock Screen (a Live Activity), and comes back when the
 // Mac unlocks. Live Activity pushes need the APNs key, which can't ship in the
 // app, so they go through the user's relay (relay/ in this repo, a stateless
@@ -22,7 +22,7 @@ final class LiveActivityRelay {
     static let shared = LiveActivityRelay()
 
     static let enabledKey = "iPhoneLiveActivityEnabled"
-    /// Overrides the relay address (defaults write fr.louisraille.NotchBuddy phoneRelayURL <url>).
+    /// Overrides the relay address (defaults write dev.luna.Luna phoneRelayURL <url>).
     static let relayURLKey = "phoneRelayURL"
     /// The deployed relay (relay/README.md).
     static let defaultRelayURL = "https://coucou-relay.raillelouis.workers.dev"
@@ -131,7 +131,7 @@ final class LiveActivityRelay {
             log("Mac unlocked")
             lockTask?.cancel(); lockTask = nil
             guard startedAt != nil else { return }
-            // Mochi comes back to the notch, unless the Mac locks again within 30 s.
+            // Luna comes back to the notch, unless the Mac locks again within 30 s.
             unlockTask = Task {
                 try? await Task.sleep(for: .seconds(30))
                 guard !Task.isCancelled, !locked else { return }
@@ -199,7 +199,7 @@ final class LiveActivityRelay {
             startSent = start
             let targets = phones.filter { !$0.value.startToken.isEmpty }
             if targets.isEmpty {
-                log("no iPhone token yet: open Coucou on the iPhone once, with Live Activities allowed")
+                log("no iPhone token yet: open Luna on the iPhone once, with Live Activities allowed")
                 return
             }
             var reached = 0
@@ -209,9 +209,9 @@ final class LiveActivityRelay {
                 }
             }
             if reached > 0 {
-                log("Mochi left for the iPhone (\(state.agent), \(state.statusText))")
+                log("Luna left for the iPhone (\(state.agent), \(state.statusText))")
             } else {
-                log("Mochi couldn't reach the iPhone (see the relay line above)")
+                log("Luna couldn't reach the iPhone (see the relay line above)")
             }
         }
     }
@@ -266,7 +266,7 @@ final class LiveActivityRelay {
         sent = nil
         guard startSent == startedAt else {
             // The start never went out: nothing to end on the iPhone.
-            log("Mochi is back on the Mac")
+            log("Luna is back on the Mac")
             return
         }
         Task {
@@ -281,7 +281,7 @@ final class LiveActivityRelay {
                 await post(event: "end", token: phone.updateToken, env: phone.env, state: last,
                            dismissAfter: dismissAfter, phoneID: id)
             }
-            log(dismissAfter == 0 ? "Mochi is back on the Mac" : "agents done, the iPhone shows it for \(dismissAfter / 60) min")
+            log(dismissAfter == 0 ? "Luna is back on the Mac" : "agents done, the iPhone shows it for \(dismissAfter / 60) min")
         }
     }
 

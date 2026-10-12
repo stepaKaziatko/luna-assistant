@@ -17,7 +17,7 @@ struct MochiActivityState: Codable, Hashable, Sendable {
     var stepIndex: Int
     var stepCount: Int
     var others: Int         // other sessions still going
-    /// When Mochi left for the iPhone (Unix seconds): the iPhone counts the
+    /// When Luna left for the iPhone (Unix seconds): the iPhone counts the
     /// time from it, live. Optional so older pushes still decode.
     var since: Int? = nil
     /// The fingerprint of the command waiting for your OK (an opaque hash,

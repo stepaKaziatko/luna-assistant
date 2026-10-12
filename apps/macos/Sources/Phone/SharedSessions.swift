@@ -26,14 +26,14 @@ struct SharedSession: Codable, Identifiable, Hashable, Sendable {
     var isWaitingForYou: Bool { tone == .waiting || tone == .question }
     var isWorking: Bool { tone == .working }
 
-    /// Opens one Mochi in the app, a session or a service (widgets link here).
+    /// Opens one Luna in the app, a session or a service (widgets link here).
     static func url(for id: String) -> URL {
-        URL(string: "coucou://mochi/\(id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)")!
+        URL(string: "luna://mochi/\(id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)")!
     }
 
-    /// The pill id in a coucou://mochi/<id> link (coucou://session/<id> from builds before).
+    /// The pill id in a luna://mochi/<id> link (luna://session/<id> from builds before).
     static func sessionId(from url: URL) -> String? {
-        guard url.scheme == "coucou", url.host == "mochi" || url.host == "session" else { return nil }
+        guard url.scheme == "luna", url.host == "mochi" || url.host == "session" else { return nil }
         let id = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         return id.isEmpty ? nil : id
     }
@@ -50,7 +50,7 @@ struct SharedSession: Codable, Identifiable, Hashable, Sendable {
 }
 
 enum SharedSessions {
-    static let appGroup = "group.fr.louisraille.Coucou"
+    static let appGroup = "group.dev.luna.Luna"
 
     private static var fileURL: URL? {
         FileManager.default

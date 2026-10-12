@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Mochi in a fixed pose: one frame of BotEngine, no animation, no timer.
+/// Luna in a fixed pose: one frame of BotEngine, no animation, no timer.
 /// For surfaces that can't animate (widgets, lists on the iPhone). The Mac
 /// island keeps its animated BotCanvasView / MiniBotCanvasView.
 struct MochiStill: View {
@@ -40,9 +40,9 @@ struct MochiStill: View {
     }
 }
 
-/// One frame of the little life the Mac's mini Mochi have: looking around,
+/// One frame of the little life the Mac's mini Luna have: looking around,
 /// blinking, a happy squint. Widgets can't animate, so each refresh of the
-/// timeline picks a new pose per Mochi; the system cross-fades between them.
+/// timeline picks a new pose per Luna; the system cross-fades between them.
 struct MochiPose: Equatable, Sendable {
     var yaw: CGFloat = 0
     var pitch: CGFloat = 0
@@ -65,7 +65,7 @@ struct MochiPose: Equatable, Sendable {
         MochiPose(yaw: 0.15, pitch: 0.25),
     ]
 
-    /// A pose that differs per Mochi and per tick, the same every time for a
+    /// A pose that differs per Luna and per tick, the same every time for a
     /// given pair (so a widget redraw doesn't jump).
     static func idle(id: String, tick: Int) -> MochiPose {
         var hash: UInt64 = 5381
@@ -77,7 +77,7 @@ struct MochiPose: Equatable, Sendable {
 }
 
 extension Color {
-    /// Background for a white Mochi on an agent's color. Very light colors
+    /// Background for a white Luna on an agent's color. Very light colors
     /// (VS Code's is near-white) would hide him, so they get a dark gray tile.
     static func mochiTile(hex: String) -> Color {
         guard let c = cgColorFromHex(hex), let comps = c.components, comps.count >= 3 else {

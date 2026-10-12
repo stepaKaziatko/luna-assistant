@@ -2,7 +2,7 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-// Mochi's Live Activity: on the Lock Screen and in the Dynamic Island while
+// Luna's Live Activity: on the Lock Screen and in the Dynamic Island while
 // the Mac is locked and an agent is working. The Mac drives it (step 8).
 
 struct MochiLiveActivity: Widget {
@@ -133,7 +133,7 @@ struct LockScreenActivityView: View {
     }
 }
 
-/// Mochi with a little pop when his state changes: the old face fades, the
+/// Luna with a little pop when his state changes: the old face fades, the
 /// new one grows in.
 struct MochiSwap: View {
     let state: MochiActivityState
@@ -149,7 +149,7 @@ struct MochiSwap: View {
 }
 
 extension Animation {
-    /// Mochi's phase changes: a soft spring, inside the 2 s iOS allows.
+    /// Luna's phase changes: a soft spring, inside the 2 s iOS allows.
     static var phaseChange: Animation { .spring(duration: 0.6, bounce: 0.3) }
 }
 
@@ -166,7 +166,7 @@ extension AnyTransition {
     }
 }
 
-/// Deny answers right away; Allow opens Coucou on the command, where Face ID
+/// Deny answers right away; Allow opens Luna on the command, where Face ID
 /// confirms before anything is sent.
 struct ApprovalButtons: View {
     let fingerprint: String

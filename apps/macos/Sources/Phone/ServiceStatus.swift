@@ -1,6 +1,6 @@
 import SwiftUI
 
-// How a service Mochi reads on the iPhone: its dot color, a short status, and
+// How a service Luna reads on the iPhone: its dot color, a short status, and
 // what the widgets get.
 
 extension ServiceTone {
@@ -24,7 +24,7 @@ extension ServiceTone {
         }
     }
 
-    /// The Mochi face for this tone.
+    /// The Luna face for this tone.
     var botState: BotState {
         switch self {
         case .ok: .finished

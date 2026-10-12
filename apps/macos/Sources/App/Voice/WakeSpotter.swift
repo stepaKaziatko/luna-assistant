@@ -4,7 +4,7 @@ import Speech
 
 // MARK: - WakeSpotter
 //
-// Runs a single SFSpeechRecognizer window to detect the "OK Coucou" wake phrase,
+// Runs a single SFSpeechRecognizer window to detect the "OK Luna" wake phrase,
 // then switches to command mode in the same recognition session so words spoken
 // immediately after the wake phrase are not lost.
 //
@@ -53,7 +53,7 @@ final class WakeSpotter: @unchecked Sendable {
     private var phase:        Phase = .wake
     private var partialCount  = 0
     private var maxWords      = 0       // diagnostics only — never the words themselves
-    private var nearWake      = false   // a partial had a "coucou"-like token
+    private var nearWake      = false   // a partial had a "luna"-like token
     private var gen           = SpotterGeneration()   // stale-callback filter
 
     /// What a wake window heard, without any text: lets the log tell "recognizer
@@ -98,7 +98,7 @@ final class WakeSpotter: @unchecked Sendable {
             req.shouldReportPartialResults  = true
             req.requiresOnDeviceRecognition = true
             let extra = startInCommandPhase ? additionalContextualStrings : [String]()
-            req.contextualStrings = ["Coucou", "OK Coucou", "okay Coucou", "hey Coucou"] + extra
+            req.contextualStrings = ["Luna", "OK Luna", "okay Luna", "hey Luna"] + extra
             preroll.forEach { req.append($0) }
 
             recognizer   = r
@@ -187,7 +187,7 @@ final class WakeSpotter: @unchecked Sendable {
                     let words = WakePhrase.normalise(transcript).split(separator: " ")
                     maxWords = max(maxWords, words.count)
                     if words.contains(where: { w in
-                        ["cou", "kou", "kuku", "cuck", "koukou", "coco"].contains { w.contains($0) }
+                        ["lun", "loun", "loon", "luma", "runa"].contains { w.contains($0) }
                     }) { nearWake = true }
                     let r = WakePhrase.split(transcript)
                     if r.matched {

@@ -162,7 +162,7 @@ struct SettingsView: View {
                             .resizable()
                             .frame(width: 32, height: 32)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text("Coucou")
+                            Text("Luna")
                                 .font(.system(size: 13, weight: .semibold))
                             Text(appVersion)
                                 .font(.system(size: 11))
@@ -317,7 +317,7 @@ struct SettingsView: View {
                     }
                 }
                 .disabled(!state.soundEnabled)
-                Text("Drop a file named like one of Mochi's sounds (finish.wav, approval.mp3, greet.m4a…) in the sounds folder to replace it, then Reload.")
+                Text("Drop a file named like one of Luna's sounds (finish.wav, approval.mp3, greet.m4a…) in the sounds folder to replace it, then Reload.")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -349,7 +349,7 @@ struct SettingsView: View {
 
         GroupBox("Display") {
             VStack(alignment: .leading, spacing: 10) {
-                Picker("Show Mochi on", selection: $state.islandDisplay) {
+                Picker("Show Luna on", selection: $state.islandDisplay) {
                     Text("Screen with the notch").tag(IslandDisplayChoice.notch)
                     Text("Main screen (menu bar)").tag(IslandDisplayChoice.menuBar)
                     Text("Follow the mouse").tag(IslandDisplayChoice.followMouse)
@@ -363,7 +363,7 @@ struct SettingsView: View {
                     }
                 }
                 .frame(maxWidth: 360)
-                Text("On a screen without a notch, Mochi sits in a small bar at the top. Follow the mouse moves it to your cursor's screen while it is closed.")
+                Text("On a screen without a notch, Luna sits in a small bar at the top. Follow the mouse moves it to your cursor's screen while it is closed.")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -450,7 +450,7 @@ struct SettingsView: View {
                     UserDefaults.standard.synchronize()
                 }
                 HStack(spacing: 8) {
-                    Button(String(localized: "Restart Coucou")) {
+                    Button(String(localized: "Restart Luna")) {
                         let appPath = Bundle.main.bundleURL.path
                         let pid = ProcessInfo.processInfo.processIdentifier
                         let task = Process()
@@ -511,7 +511,7 @@ struct SettingsView: View {
     @ViewBuilder private var activePillsSection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Choose the tools you use. Coucou only shows what you declare here.")
+                Text("Choose the tools you use. Luna only shows what you declare here.")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
 
@@ -985,7 +985,7 @@ struct SettingsView: View {
                     }
                 }
                 Divider()
-                Text("Shows your Codex plan usage (weekly limit and free resets left) in the notch header. Coucou asks the Codex CLI (codex app-server) when the pill shows; nothing is installed. Codex must be signed in with ChatGPT.")
+                Text("Shows your Codex plan usage (weekly limit and free resets left) in the notch header. Luna asks the Codex CLI (codex app-server) when the pill shows; nothing is installed. Codex must be signed in with ChatGPT.")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1313,15 +1313,15 @@ struct SettingsView: View {
 
     private func speakVoiceSample() {
         let en = voiceLanguage != "fr"
-        VoiceSpeaker.shared.speak(en ? "Hi, I'm Coucou. Say OK Coucou whenever you need me."
-                                     : "Salut, c'est Coucou. Dis OK Coucou quand tu as besoin de moi.",
+        VoiceSpeaker.shared.speak(en ? "Hi, I'm Luna. Say OK Luna whenever you need me."
+                                     : "Salut, c'est Luna. Dis OK Luna quand tu as besoin de moi.",
                                   locale: Locale(identifier: en ? "en-US" : "fr-FR"))
     }
 
     @ViewBuilder private var voiceSection: some View {
-        // Claude is Coucou's brain: no model, language or feature switches any more,
-        // only the wake word, the Anthropic key it needs, and Coucou's voice.
-        GroupBox(String(localized: "«\u{202F}OK Coucou\u{202F}» — voice wake word")) {
+        // Claude is Luna's brain: no model, language or feature switches any more,
+        // only the wake word, the Anthropic key it needs, and Luna's voice.
+        GroupBox(String(localized: "«\u{202F}OK Luna\u{202F}» — voice wake word")) {
             VStack(alignment: .leading, spacing: 10) {
                 Toggle(String(localized: "Enable voice command"), isOn: $voiceEngine.isEnabled)
                     .disabled(!voicePermissionsGranted && !voiceEngine.isEnabled)
@@ -1401,7 +1401,7 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                     .frame(maxWidth: 180)
                     .onChange(of: voiceLanguage) { _, _ in
-                        // Chosen by hand: Coucou no longer offers to switch.
+                        // Chosen by hand: Luna no longer offers to switch.
                         VoiceSettings.languageOfferDone = true
                         ElevenLabsTTS.shared.reset()
                     }

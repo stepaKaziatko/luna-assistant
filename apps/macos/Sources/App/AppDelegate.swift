@@ -42,9 +42,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupMenuBarItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         guard let button = statusItem?.button else { return }
-        button.image = NSImage(named: "MenuBarIcon") ?? NSImage(systemSymbolName: "circle.fill", accessibilityDescription: "Coucou")
+        button.image = NSImage(named: "MenuBarIcon") ?? NSImage(systemSymbolName: "circle.fill", accessibilityDescription: "Luna")
         button.image?.size = NSSize(width: 24, height: 18)
-        button.image?.accessibilityDescription = "Coucou"
+        button.image?.accessibilityDescription = "Luna"
         button.image?.isTemplate = true
 
         let menu = NSMenu()
@@ -53,7 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         demoMenuItem = demoItem
         menu.addItem(demoItem)
         menu.addItem(.separator())
-        menu.addItem(withTitle: NSLocalizedString("Open Coucou", comment: ""), action: #selector(openIsland), keyEquivalent: "")
+        menu.addItem(withTitle: NSLocalizedString("Open Luna", comment: ""), action: #selector(openIsland), keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: NSLocalizedString("Weekly recap", comment: ""), action: #selector(openWeeklyRecap), keyEquivalent: "")
         menu.addItem(withTitle: NSLocalizedString("Settings…", comment: ""), action: #selector(openSettings), keyEquivalent: ",")
@@ -201,7 +201,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotionPoller.shared.start()
         NotificationCenter.default.addObserver(self, selector: #selector(openSettingsFromNotification(_:)),
                                                name: .openFullSettings, object: nil)
-        // After the greeting ends, fly Mochi back to the desktop if it was there at last quit
+        // After the greeting ends, fly Luna back to the desktop if it was there at last quit
         NotificationCenter.default.addObserver(forName: .greetComplete, object: nil, queue: .main) { [weak self] _ in
             DesktopMochiController.shared.launchFlyIfNeeded()
             self?.checkMondayRecap()

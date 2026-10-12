@@ -19,7 +19,7 @@ final class DesktopBotViewState: ObservableObject {
 
 // MARK: - Desktop bot view
 
-/// Full Mochi character rendered inside the desktop floating panel.
+/// Full Luna character rendered inside the desktop floating panel.
 struct DesktopBotView: View {
     @ObservedObject var appState: AppState
     /// Engine owned by DesktopMochiController; controller calls methods on it directly.
@@ -35,7 +35,7 @@ struct DesktopBotView: View {
                 engine.lookX = tanh((appState.mousePosition.x - viewState.lookOrigin.x) / 260)
                 engine.lookY = -tanh((appState.mousePosition.y - viewState.lookOrigin.y) / 200)
 
-                // Desktop Mochi is always the "main" Mochi — always dressed
+                // Desktop Luna is always the "main" Luna — always dressed
                 engine.setOutfit(appState.resolvedOutfit, animated: true)
 
                 // Dance when music plays (same rules as compact mode)
@@ -87,9 +87,9 @@ struct DesktopBotView: View {
     }
 }
 
-// MARK: - Desktop Mochi controller
+// MARK: - Desktop Luna controller
 
-/// Manages the "Mochi on the desktop" floating panel.
+/// Manages the "Luna on the desktop" floating panel.
 ///
 /// Life cycle:
 /// - **Install from drag**: `IslandWindowController.finishDrag` calls `install(ghostPanel:at:)`.
@@ -150,7 +150,7 @@ final class DesktopMochiController {
 
     // MARK: - Keyboard shortcut toggle (⌃⌥D)
 
-    /// Fly Mochi to the desktop if not there, or bring him back if he is.
+    /// Fly Luna to the desktop if not there, or bring him back if he is.
     func flyOutOrHome() {
         if phase == .home {
             UserDefaults.standard.set(true, forKey: DesktopMochiController.enabledKey)
@@ -162,7 +162,7 @@ final class DesktopMochiController {
 
     // MARK: - Install (from drag-drop)
 
-    /// Promote `ghostPanel` (the drag ghost) or create a fresh panel as the desktop Mochi,
+    /// Promote `ghostPanel` (the drag ghost) or create a fresh panel as the desktop Luna,
     /// centered on `screenPoint`. Called by `IslandWindowController.finishDrag`.
     func install(ghostPanel: NSPanel?, at screenPoint: NSPoint) {
         guard panel == nil, phase == .home else { ghostPanel?.close(); return }
@@ -344,8 +344,8 @@ final class DesktopMochiController {
 
     // MARK: - Retract for alert (panel flies home; comes back after alert resolves)
 
-    /// Close panel and show notch Mochi for the alert. UserDefaults flag stays true so
-    /// `launchFlyIfNeeded` restores Mochi once the alert is dismissed.
+    /// Close panel and show notch Luna for the alert. UserDefaults flag stays true so
+    /// `launchFlyIfNeeded` restores Luna once the alert is dismissed.
     private func retractForAlert() {
         guard let p = panel else { return }
         stopPolling()
@@ -484,7 +484,7 @@ final class DesktopMochiController {
     }
 
     // MARK: - 30 Hz polling (only while panel is live and the screen is on)
-    // Mochi is drawn at 30 fps (10 asleep): polling faster bought nothing. It also feeds
+    // Luna is drawn at 30 fps (10 asleep): polling faster bought nothing. It also feeds
     // the eye tracking (AppState.mousePosition), so the island poll can idle meanwhile.
 
     /// True between startPolling and stopPolling, whatever the screen does meanwhile.
@@ -650,7 +650,7 @@ final class DesktopMochiController {
 
         #if !APPSTORE
         if let ctx = islandController?.windowContextAtPoint(mouse) {
-            // Attach window context; Mochi returns to pre-drag position
+            // Attach window context; Luna returns to pre-drag position
             AppState.shared.promptContext = ctx
             SoundEngine.shared.play("approve")
             engine?.triggerEmote(.happy, duration: 0.6, silent: true)

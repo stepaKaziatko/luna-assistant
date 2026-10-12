@@ -199,7 +199,7 @@ struct RecapShareImageView: View {
     let summary: WeeklySummary
     let hideProjects: Bool
 
-    // Static BotEngine for the Mochi snapshot — idle state, no animation needed.
+    // Static BotEngine for the Luna snapshot — idle state, no animation needed.
     @StateObject private var mochiEngine = BotEngine()
 
     var body: some View {
@@ -217,14 +217,14 @@ struct RecapShareImageView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                // Mochi character
+                // Luna character
                 Canvas { context, size in
                     mochiEngine.draw(context: context, size: size)
                 }
                 .frame(width: 200, height: 200)
                 .padding(.bottom, 20)
 
-                Text("Coucou")
+                Text("Luna")
                     .font(.system(size: 52, weight: .black, design: .rounded))
                     .foregroundColor(Color(hex: "#F1F2F4"))
                 Text(String(localized: "recap.title"))
@@ -302,7 +302,7 @@ struct RecapShareImageView: View {
 
                 Spacer()
 
-                Text("Coucou · github.com/Louis-CFM/coucou")
+                Text("Luna · github.com/Louis-CFM/coucou")
                     .font(.system(size: 20, weight: .medium, design: .monospaced))
                     .foregroundColor(Color(hex: "#8E939C").opacity(0.6))
                     .padding(.bottom, 60)

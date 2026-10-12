@@ -2,7 +2,7 @@ import ActivityKit
 import CloudKit
 import UIKit
 
-// MARK: - iPhone plan, step 8: Mochi in the Dynamic Island
+// MARK: - iPhone plan, step 8: Luna in the Dynamic Island
 //
 // The Mac starts, updates and ends the Live Activity through the relay, which
 // needs this iPhone's push tokens:

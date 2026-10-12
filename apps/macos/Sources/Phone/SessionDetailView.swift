@@ -99,7 +99,7 @@ struct SessionDetailView: View {
             if let shareImage {
                 ToolbarItem(placement: .topBarTrailing) {
                     ShareLink(item: Image(uiImage: shareImage),
-                              preview: SharePreview(turn?.project ?? "Coucou", image: Image(uiImage: shareImage))) {
+                              preview: SharePreview(turn?.project ?? "Luna", image: Image(uiImage: shareImage))) {
                         Image(systemName: "square.and.arrow.up")
                     }
                 }

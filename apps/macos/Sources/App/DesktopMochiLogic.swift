@@ -4,7 +4,7 @@ import CoreGraphics
 // MARK: - Desktop space
 
 /// One y-down space for the whole desktop, like Quartz: x as in AppKit, y measured down
-/// from the top of the menu-bar screen. The cursor and every Mochi (island or desktop)
+/// from the top of the menu-bar screen. The cursor and every Luna (island or desktop)
 /// use it, so the gaze stays right whichever screen each one sits on.
 enum DesktopSpace {
     static func topDown(_ appKitPoint: CGPoint, desktopTop: CGFloat) -> CGPoint {
@@ -14,7 +14,7 @@ enum DesktopSpace {
 
 // MARK: - Alert state machine phase
 
-/// Phase of the desktop Mochi lifecycle.
+/// Phase of the desktop Luna lifecycle.
 enum DesktopPhase: Equatable {
     /// No panel on screen; `UserDefaults["mochiOnDesktop"]` is `false`.
     case home
@@ -26,7 +26,7 @@ enum DesktopPhase: Equatable {
     case retracting
     /// Alert cleared while retract animation was still running.
     case alertResolvedDuringRetract
-    /// Retract complete; notch Mochi is showing the alert.
+    /// Retract complete; notch Luna is showing the alert.
     case atNotchForAlert
 }
 
@@ -40,7 +40,7 @@ enum DesktopMochiLogic {
     static let clampMargin:        CGFloat      = 24
     static let bodyRadiusFraction: CGFloat      = 0.24
 
-    /// Whether Mochi should enter sleeping state.
+    /// Whether Luna should enter sleeping state.
     static func shouldSleep(lastAgentActiveInterval: TimeInterval,
                              mouseDistanceToPanelCenter: CGFloat) -> Bool {
         lastAgentActiveInterval > sleepTimeout && mouseDistanceToPanelCenter >= sleepMouseDistance
@@ -66,7 +66,7 @@ enum DesktopMochiLogic {
                              desktopTop: desktopTop)
     }
 
-    /// Whether Mochi should immediately retract after landing (alert was active during the flight).
+    /// Whether Luna should immediately retract after landing (alert was active during the flight).
     static func shouldRetractOnLanding(alertActive: Bool) -> Bool { alertActive }
 
     /// Clamp a panel origin so the panel stays inside `visibleFrame` with `margin` on each side.

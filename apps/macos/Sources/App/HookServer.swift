@@ -14,12 +14,12 @@ final class HookServer: @unchecked Sendable {
     // Support directory paths
     static var supportDir: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("NotchBuddy")
+            .appendingPathComponent("Luna")
     }
     static var socketPath: String {
         #if APPSTORE
         // Container home root keeps path ≤ 103 bytes (sun_path limit on macOS is 104 incl. NUL)
-        // /Users/louis/Library/Containers/fr.louisraille.Coucou/Data/nb.sock = 66 bytes ✓
+        // /Users/louis/Library/Containers/dev.luna.LunaPhone/Data/nb.sock = 66 bytes ✓
         return NSHomeDirectory() + "/nb.sock"
         #else
         return supportDir.appendingPathComponent("nb.sock").path
@@ -62,7 +62,7 @@ final class HookServer: @unchecked Sendable {
 
     // MARK: - Approval queue helpers
 
-    /// Note shown when a request was answered outside Coucou.
+    /// Note shown when a request was answered outside Luna.
     @MainActor
     private func handledNote(pill: String) -> String {
         switch pill {
@@ -727,7 +727,7 @@ final class HookServer: @unchecked Sendable {
             // Non-alert work events: reveal compact only, never force-expand
             NotificationCenter.default.post(name: .hookReveal, object: nil)
         }
-        // Already compact and non-alert: Mochi state update is enough, no expand
+        // Already compact and non-alert: Luna state update is enough, no expand
     }
 
     // MARK: - Status line (plan gauge)
@@ -1293,7 +1293,7 @@ final class HookServer: @unchecked Sendable {
 
     // MARK: - Outdated hook detection
 
-    /// Returns true if settings.json has a Coucou hook that needs updating:
+    /// Returns true if settings.json has a Luna hook that needs updating:
     /// either a PermissionRequest hook with timeout < 120s, or the AskUserQuestion
     /// PreToolUse matcher is missing (requires Claude Code 2.1.85+).
     static func hooksNeedUpdate() -> Bool {
@@ -1304,7 +1304,7 @@ final class HookServer: @unchecked Sendable {
               let hooks = settings["hooks"] as? [String: Any] else {
             return false
         }
-        // Track whether any Coucou hook is installed at all
+        // Track whether any Luna hook is installed at all
         var hasCoucouHooks = false
 
         if let permReqHooks = hooks["PermissionRequest"] as? [[String: Any]] {
@@ -1478,7 +1478,7 @@ final class HookServer: @unchecked Sendable {
             try? clCheck.run()
             clCheck.waitUntilExit()
             if clCheck.terminationStatus != 0 {
-                throw NSError(domain: "Coucou", code: 1,
+                throw NSError(domain: "Luna", code: 1,
                               userInfo: [NSLocalizedDescriptionKey:
                                   "Command Line Tools are required but not installed. Run: xcode-select --install"])
             }
@@ -1647,7 +1647,7 @@ final class HookServer: @unchecked Sendable {
 
     // MARK: - Claude Code installed-state detection (both builds)
 
-    /// True when ~/.claude/settings.json already routes Claude Code events to Coucou.
+    /// True when ~/.claude/settings.json already routes Claude Code events to Luna.
     /// Cursor sessions ride on these same hooks, so they share this state.
     static func claudeHooksInstalled() -> Bool {
         #if APPSTORE
@@ -1730,7 +1730,7 @@ final class HookServer: @unchecked Sendable {
         let url = Self.geminiSettingsURL
         let current = (try? Data(contentsOf: url)) ?? Data()
         guard sha256Hex(current) == fp else {
-            throw NSError(domain: "Coucou", code: 1, userInfo: [
+            throw NSError(domain: "Luna", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "~/.gemini/settings.json changed since preview. Refresh and try again."
             ])
         }
@@ -1743,8 +1743,8 @@ final class HookServer: @unchecked Sendable {
         var settings = try Self.strictReadJSONObject(at: Self.geminiSettingsURL,
                                                      label: "~/.gemini/settings.json")
         if let raw = settings["hooks"], !(raw is [String: Any]) {
-            throw NSError(domain: "Coucou", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "~/.gemini/settings.json: \"hooks\" has an unexpected type — Coucou has not touched it."
+            throw NSError(domain: "Luna", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "~/.gemini/settings.json: \"hooks\" has an unexpected type — Luna has not touched it."
             ])
         }
         let base = hookBase()
@@ -1760,8 +1760,8 @@ final class HookServer: @unchecked Sendable {
         var hooks = settings["hooks"] as? [String: Any] ?? [:]
         for (geminiEvent, normalizedEvent, timeout) in events {
             if let raw = hooks[geminiEvent], !(raw is [[String: Any]]) {
-                throw NSError(domain: "Coucou", code: 2, userInfo: [
-                    NSLocalizedDescriptionKey: "~/.gemini/settings.json: \"hooks\"[\"\(geminiEvent)\"] has an unexpected type — Coucou has not touched it."
+                throw NSError(domain: "Luna", code: 2, userInfo: [
+                    NSLocalizedDescriptionKey: "~/.gemini/settings.json: \"hooks\"[\"\(geminiEvent)\"] has an unexpected type — Luna has not touched it."
                 ])
             }
             var groups = hooks[geminiEvent] as? [[String: Any]] ?? []
@@ -1784,8 +1784,8 @@ final class HookServer: @unchecked Sendable {
         var settings = try Self.strictReadJSONObject(at: Self.geminiSettingsURL,
                                                      label: "~/.gemini/settings.json")
         if let raw = settings["hooks"], !(raw is [String: Any]) {
-            throw NSError(domain: "Coucou", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "~/.gemini/settings.json: \"hooks\" has an unexpected type — Coucou has not touched it."
+            throw NSError(domain: "Luna", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "~/.gemini/settings.json: \"hooks\" has an unexpected type — Luna has not touched it."
             ])
         }
         if var hooks = settings["hooks"] as? [String: Any] {
@@ -1826,7 +1826,7 @@ final class HookServer: @unchecked Sendable {
         let url = Self.agyHooksURL
         let current = (try? Data(contentsOf: url)) ?? Data()
         guard sha256Hex(current) == fp else {
-            throw NSError(domain: "Coucou", code: 1, userInfo: [
+            throw NSError(domain: "Luna", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "~/.gemini/config/hooks.json changed since preview. Refresh and try again."
             ])
         }
@@ -1882,13 +1882,13 @@ final class HookServer: @unchecked Sendable {
         let data: Data
         do { data = try Data(contentsOf: url) }
         catch {
-            throw NSError(domain: "Coucou", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "\(label) cannot be read — Coucou has not touched it."
+            throw NSError(domain: "Luna", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "\(label) cannot be read — Luna has not touched it."
             ])
         }
         guard let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
-            throw NSError(domain: "Coucou", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "\(label) is not valid JSON — Coucou has not touched it."
+            throw NSError(domain: "Luna", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "\(label) is not valid JSON — Luna has not touched it."
             ])
         }
         return obj
@@ -1905,7 +1905,7 @@ final class HookServer: @unchecked Sendable {
                 .appendingPathComponent("\(suffix).bak-\(fmt.string(from: Date()))")
             do { try fm.copyItem(at: url, to: backupURL) }
             catch {
-                throw NSError(domain: "Coucou", code: 3, userInfo: [
+                throw NSError(domain: "Luna", code: 3, userInfo: [
                     NSLocalizedDescriptionKey: "Could not back up \(url.lastPathComponent): \(error.localizedDescription)"
                 ])
             }
@@ -1939,7 +1939,7 @@ final class HookServer: @unchecked Sendable {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/hooks.json")
     }
 
-    /// True when ~/.codex/hooks.json already routes Codex events to Coucou's nb-hook.
+    /// True when ~/.codex/hooks.json already routes Codex events to Luna's nb-hook.
     static func codexHooksInstalled() -> Bool {
         guard let data = try? Data(contentsOf: codexHooksURL),
               let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -1981,7 +1981,7 @@ final class HookServer: @unchecked Sendable {
         let url = Self.codexHooksURL
         let current = (try? Data(contentsOf: url)) ?? Data()
         guard sha256Hex(current) == fp else {
-            throw NSError(domain: "Coucou", code: 1, userInfo: [
+            throw NSError(domain: "Luna", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "~/.codex/hooks.json changed since preview. Refresh and try again."
             ])
         }
@@ -1993,8 +1993,8 @@ final class HookServer: @unchecked Sendable {
     private func buildCodexHooksData() throws -> Data {
         var root = try Self.strictReadJSONObject(at: Self.codexHooksURL, label: "~/.codex/hooks.json")
         if let raw = root["hooks"], !(raw is [String: Any]) {
-            throw NSError(domain: "Coucou", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "~/.codex/hooks.json: \"hooks\" has an unexpected type — Coucou has not touched it."
+            throw NSError(domain: "Luna", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "~/.codex/hooks.json: \"hooks\" has an unexpected type — Luna has not touched it."
             ])
         }
         let base = hookBase()
@@ -2004,7 +2004,7 @@ final class HookServer: @unchecked Sendable {
             ("SessionStart",    10,  nil),
             ("UserPromptSubmit", 10, nil),
             ("PreToolUse",      10,  nil),
-            ("PermissionRequest", 120, "Waiting for your answer in the notch (Coucou)"),
+            ("PermissionRequest", 120, "Waiting for your answer in the notch (Luna)"),
             ("PostToolUse",     10,  nil),
             ("Stop",            10,  nil),
             ("SubagentStart",   10,  nil),
@@ -2015,12 +2015,12 @@ final class HookServer: @unchecked Sendable {
         var hooks = root["hooks"] as? [String: Any] ?? [:]
         for (event, timeout, statusMsg) in events {
             if let raw = hooks[event], !(raw is [[String: Any]]) {
-                throw NSError(domain: "Coucou", code: 2, userInfo: [
-                    NSLocalizedDescriptionKey: "~/.codex/hooks.json: \"hooks\"[\"\(event)\"] has an unexpected type — Coucou has not touched it."
+                throw NSError(domain: "Luna", code: 2, userInfo: [
+                    NSLocalizedDescriptionKey: "~/.codex/hooks.json: \"hooks\"[\"\(event)\"] has an unexpected type — Luna has not touched it."
                 ])
             }
             var groups = hooks[event] as? [[String: Any]] ?? []
-            // Remove existing Coucou entries
+            // Remove existing Luna entries
             groups = removeNbHookEntries(from: groups)
             var hookEntry: [String: Any] = [
                 "type": "command",
@@ -2039,8 +2039,8 @@ final class HookServer: @unchecked Sendable {
     private func withoutCodexHooks() throws -> Data {
         var root = try Self.strictReadJSONObject(at: Self.codexHooksURL, label: "~/.codex/hooks.json")
         if let raw = root["hooks"], !(raw is [String: Any]) {
-            throw NSError(domain: "Coucou", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "~/.codex/hooks.json: \"hooks\" has an unexpected type — Coucou has not touched it."
+            throw NSError(domain: "Luna", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "~/.codex/hooks.json: \"hooks\" has an unexpected type — Luna has not touched it."
             ])
         }
         if var hooks = root["hooks"] as? [String: Any] {
@@ -2063,7 +2063,7 @@ final class HookServer: @unchecked Sendable {
             .appendingPathComponent(".copilot/hooks/coucou.json")
     }
 
-    /// True when ~/.copilot/hooks/coucou.json already routes Copilot events to Coucou's nb-hook.
+    /// True when ~/.copilot/hooks/coucou.json already routes Copilot events to Luna's nb-hook.
     static func copilotHooksInstalled() -> Bool {
         guard let data = try? Data(contentsOf: copilotHooksURL),
               let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -2106,7 +2106,7 @@ final class HookServer: @unchecked Sendable {
         let url = Self.copilotHooksURL
         let current = (try? Data(contentsOf: url)) ?? Data()
         guard sha256Hex(current) == fp else {
-            throw NSError(domain: "Coucou", code: 1, userInfo: [
+            throw NSError(domain: "Luna", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "~/.copilot/hooks/coucou.json changed since preview. Refresh and try again."
             ])
         }
@@ -2124,8 +2124,8 @@ final class HookServer: @unchecked Sendable {
         var root = try Self.strictReadJSONObject(at: Self.copilotHooksURL,
                                                   label: "~/.copilot/hooks/coucou.json")
         if let raw = root["hooks"], !(raw is [String: Any]) {
-            throw NSError(domain: "Coucou", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "~/.copilot/hooks/coucou.json: \"hooks\" has an unexpected type — Coucou has not touched it."
+            throw NSError(domain: "Luna", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "~/.copilot/hooks/coucou.json: \"hooks\" has an unexpected type — Luna has not touched it."
             ])
         }
         let base = hookBase()
@@ -2145,8 +2145,8 @@ final class HookServer: @unchecked Sendable {
         var hooks = root["hooks"] as? [String: Any] ?? [:]
         for (event, timeout) in events {
             if let raw = hooks[event], !(raw is [[String: Any]]) {
-                throw NSError(domain: "Coucou", code: 2, userInfo: [
-                    NSLocalizedDescriptionKey: "~/.copilot/hooks/coucou.json: \"hooks\"[\"\(event)\"] has an unexpected type — Coucou has not touched it."
+                throw NSError(domain: "Luna", code: 2, userInfo: [
+                    NSLocalizedDescriptionKey: "~/.copilot/hooks/coucou.json: \"hooks\"[\"\(event)\"] has an unexpected type — Luna has not touched it."
                 ])
             }
             var entries = hooks[event] as? [[String: Any]] ?? []
@@ -2183,7 +2183,7 @@ final class HookServer: @unchecked Sendable {
             .appendingPathComponent(".config/muse/settings.json")
     }
 
-    /// True when ~/.config/muse/settings.json already routes Muse events to Coucou's nb-hook.
+    /// True when ~/.config/muse/settings.json already routes Muse events to Luna's nb-hook.
     static func museHooksInstalled() -> Bool {
         guard let data = try? Data(contentsOf: museSettingsURL),
               let settings = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -2227,7 +2227,7 @@ final class HookServer: @unchecked Sendable {
         let url = Self.museSettingsURL
         let current = (try? Data(contentsOf: url)) ?? Data()
         guard sha256Hex(current) == fp else {
-            throw NSError(domain: "Coucou", code: 1, userInfo: [
+            throw NSError(domain: "Luna", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "~/.config/muse/settings.json changed since preview. Refresh and try again."
             ])
         }
@@ -2240,8 +2240,8 @@ final class HookServer: @unchecked Sendable {
         var settings = try Self.strictReadJSONObject(at: Self.museSettingsURL,
                                                       label: "~/.config/muse/settings.json")
         if let raw = settings["hooks"], !(raw is [String: Any]) {
-            throw NSError(domain: "Coucou", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "~/.config/muse/settings.json: \"hooks\" has an unexpected type — Coucou has not touched it."
+            throw NSError(domain: "Luna", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "~/.config/muse/settings.json: \"hooks\" has an unexpected type — Luna has not touched it."
             ])
         }
         let base = hookBase()
@@ -2259,8 +2259,8 @@ final class HookServer: @unchecked Sendable {
         var hooks = settings["hooks"] as? [String: Any] ?? [:]
         for (event, timeoutSec) in events {
             if let raw = hooks[event], !(raw is [[String: Any]]) {
-                throw NSError(domain: "Coucou", code: 2, userInfo: [
-                    NSLocalizedDescriptionKey: "~/.config/muse/settings.json: \"hooks\"[\"\(event)\"] has an unexpected type — Coucou has not touched it."
+                throw NSError(domain: "Luna", code: 2, userInfo: [
+                    NSLocalizedDescriptionKey: "~/.config/muse/settings.json: \"hooks\"[\"\(event)\"] has an unexpected type — Luna has not touched it."
                 ])
             }
             var groups = hooks[event] as? [[String: Any]] ?? []
@@ -2283,8 +2283,8 @@ final class HookServer: @unchecked Sendable {
         var settings = try Self.strictReadJSONObject(at: Self.museSettingsURL,
                                                       label: "~/.config/muse/settings.json")
         if let raw = settings["hooks"], !(raw is [String: Any]) {
-            throw NSError(domain: "Coucou", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "~/.config/muse/settings.json: \"hooks\" has an unexpected type — Coucou has not touched it."
+            throw NSError(domain: "Luna", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "~/.config/muse/settings.json: \"hooks\" has an unexpected type — Luna has not touched it."
             ])
         }
         if var hooks = settings["hooks"] as? [String: Any] {
@@ -2320,8 +2320,8 @@ final class HookServer: @unchecked Sendable {
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "'", with: "\\'")
         return """
-// Coucou hook plugin for OpenCode — generated by Coucou.app
-// Forwards every event to the Coucou notch (fire-and-forget, never blocks).
+// Luna hook plugin for OpenCode — generated by Luna.app
+// Forwards every event to the Luna notch (fire-and-forget, never blocks).
 import { spawn } from 'node:child_process';
 
 const HOOK = '\(path)';
@@ -2401,7 +2401,7 @@ export const CoucouPlugin = async (_ctx) => ({
         let url = Self.openCodePluginURL
         let current = (try? Data(contentsOf: url)) ?? Data()
         guard sha256Hex(current) == fp else {
-            throw NSError(domain: "Coucou", code: 1, userInfo: [
+            throw NSError(domain: "Luna", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "~/.config/opencode/plugins/coucou.js changed since preview. Refresh and try again."
             ])
         }
@@ -2428,9 +2428,9 @@ export const CoucouPlugin = async (_ctx) => ({
         let url = Self.openCodePluginURL
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         let content = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
-        guard content.contains("generated by Coucou") else {
-            throw NSError(domain: "Coucou", code: 3, userInfo: [
-                NSLocalizedDescriptionKey: "~/.config/opencode/plugins/coucou.js was not generated by Coucou — not deleting it."
+        guard content.contains("generated by Luna") else {
+            throw NSError(domain: "Luna", code: 3, userInfo: [
+                NSLocalizedDescriptionKey: "~/.config/opencode/plugins/coucou.js was not generated by Luna — not deleting it."
             ])
         }
         try FileManager.default.removeItem(at: url)
@@ -2456,8 +2456,8 @@ export const CoucouPlugin = async (_ctx) => ({
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "'", with: "\\'")
         return """
-// Coucou hook plugin for Amp — generated by Coucou.app
-// Forwards every event to the Coucou notch (display only, never blocks).
+// Luna hook plugin for Amp — generated by Luna.app
+// Forwards every event to the Luna notch (display only, never blocks).
 import { spawn } from 'node:child_process';
 
 const HOOK = '\(path)';
@@ -2509,7 +2509,7 @@ export default function (amp: any): void {
         let url = Self.ampPluginURL
         let current = (try? Data(contentsOf: url)) ?? Data()
         guard sha256Hex(current) == fp else {
-            throw NSError(domain: "Coucou", code: 1, userInfo: [
+            throw NSError(domain: "Luna", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "~/.config/amp/plugins/coucou.ts changed since preview. Refresh and try again."
             ])
         }
@@ -2536,9 +2536,9 @@ export default function (amp: any): void {
         let url = Self.ampPluginURL
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         let content = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
-        guard content.contains("generated by Coucou") else {
-            throw NSError(domain: "Coucou", code: 3, userInfo: [
-                NSLocalizedDescriptionKey: "~/.config/amp/plugins/coucou.ts was not generated by Coucou — not deleting it."
+        guard content.contains("generated by Luna") else {
+            throw NSError(domain: "Luna", code: 3, userInfo: [
+                NSLocalizedDescriptionKey: "~/.config/amp/plugins/coucou.ts was not generated by Luna — not deleting it."
             ])
         }
         try FileManager.default.removeItem(at: url)
@@ -2653,8 +2653,8 @@ export default function (amp: any): void {
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "'", with: "\\'")
         return """
-# Coucou hook plugin for Hermes Agent — generated by Coucou.app
-# Session/tool events → Coucou notch (fire-and-forget, never blocks).
+# Luna hook plugin for Hermes Agent — generated by Luna.app
+# Session/tool events → Luna notch (fire-and-forget, never blocks).
 # Approval transport: uses register_approval_transport when available (future Hermes),
 # falls back to pre_approval_request observer-only hook (hermes 0.15.x).
 import json, subprocess, threading
@@ -2743,7 +2743,7 @@ def register(ctx) -> None:
     ctx.register_hook('post_tool_call',   post_tool_call)
 
     if hasattr(ctx, 'register_approval_transport'):
-        # Hermes version supports transport API — Coucou shows a real Allow/Deny card
+        # Hermes version supports transport API — Luna shows a real Allow/Deny card
         # and returns the user's choice to Hermes.
         def _present(request) -> object:
             sid = (getattr(request, 'session_id', None)
@@ -2803,10 +2803,10 @@ def register(ctx) -> None:
     private static let hermesPluginYaml = """
 name: coucou
 version: "1.0"
-description: Coucou notch integration — generated by Coucou.app
+description: Luna notch integration — generated by Luna.app
 """
 
-    /// Merges Coucou keys into a Hermes config.yaml string without touching other settings.
+    /// Merges Luna keys into a Hermes config.yaml string without touching other settings.
     ///
     /// Returns the merged YAML string, or nil if the file uses an unsupported structure
     /// (flow maps `{…}`, YAML anchors `&`, multi-document `---`) that the line-level
@@ -2904,7 +2904,7 @@ description: Coucou notch integration — generated by Coucou.app
         }
 
         func removeApprovalTransport() {
-            // Only remove exact Coucou-written transport keys; don't touch unrelated keys.
+            // Only remove exact Luna-written transport keys; don't touch unrelated keys.
             lines.removeAll { line in
                 let t = line.trimmingCharacters(in: .whitespaces)
                 return t == "transport: coucou" || t == "transport_fallback: builtin"
@@ -3017,7 +3017,7 @@ description: Coucou notch integration — generated by Coucou.app
         let url = Self.hermesInitPyURL
         let current = (try? Data(contentsOf: url)) ?? Data()
         guard sha256Hex(current) == fp else {
-            throw NSError(domain: "Coucou", code: 1, userInfo: [
+            throw NSError(domain: "Luna", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "~/.hermes/plugins/coucou/__init__.py changed since preview. Refresh and try again."
             ])
         }
@@ -3046,9 +3046,9 @@ description: Coucou notch integration — generated by Coucou.app
         let url = Self.hermesInitPyURL
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         let content = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
-        guard content.contains("generated by Coucou") else {
-            throw NSError(domain: "Coucou", code: 3, userInfo: [
-                NSLocalizedDescriptionKey: "~/.hermes/plugins/coucou/__init__.py was not generated by Coucou — not deleting it."
+        guard content.contains("generated by Luna") else {
+            throw NSError(domain: "Luna", code: 3, userInfo: [
+                NSLocalizedDescriptionKey: "~/.hermes/plugins/coucou/__init__.py was not generated by Luna — not deleting it."
             ])
         }
         // Remove from hermes plugins.enabled first, then delete the files.
@@ -3090,7 +3090,7 @@ description: Coucou notch integration — generated by Coucou.app
         let effectiveApprovals = enableApprovals && supportsTransport
         guard let merged = Self.mergedHermesConfig(base, enableApprovals: effectiveApprovals) else {
             _pendingHermesConfigContent = nil
-            throw NSError(domain: "Coucou", code: 4, userInfo: [
+            throw NSError(domain: "Luna", code: 4, userInfo: [
                 NSLocalizedDescriptionKey: "~/.hermes/config.yaml uses an unsupported structure (flow maps, YAML anchors, or multi-document). Edit it manually and add:\n  security:\n    approval:\n      transport: coucou\n      transport_fallback: builtin"
             ])
         }
@@ -3104,7 +3104,7 @@ description: Coucou notch integration — generated by Coucou.app
         let url = Self.hermesConfigURL
         let current = (try? Data(contentsOf: url)) ?? Data()
         guard sha256Hex(current) == fp else {
-            throw NSError(domain: "Coucou", code: 1, userInfo: [
+            throw NSError(domain: "Luna", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "~/.hermes/config.yaml changed since preview. Refresh and try again."
             ])
         }
@@ -3145,7 +3145,7 @@ extension Notification.Name {
 
 private let nbHookShellWrapper = """
 #!/bin/sh
-# Coucou hook relay — always exits 0, never blocks Claude Code
+# Luna hook relay — always exits 0, never blocks Claude Code
 HOOK_DIR="$(dirname "$0")"
 out=""
 if xcode-select -p >/dev/null 2>&1; then
@@ -3181,8 +3181,8 @@ exit 0
 
 private let nbHookPythonGitHub = """
 #!/usr/bin/env python3
-# nb-hook.py — Coucou hook relay for Claude Code and third-party agents (GitHub version)
-# Reads JSON from stdin, forwards to Coucou via Unix socket, translates response.
+# nb-hook.py — Luna hook relay for Claude Code and third-party agents (GitHub version)
+# Reads JSON from stdin, forwards to Luna via Unix socket, translates response.
 import sys, json, os, socket
 
 def normalize_event(name):
@@ -3256,10 +3256,10 @@ def main():
             return
 
     socket_path = os.path.expanduser(
-        '~/Library/Application Support/NotchBuddy/nb.sock'
+        '~/Library/Application Support/Luna/nb.sock'
     )
 
-    # --statusline mode: relay rate_limits to Coucou, then delegate to saved previous
+    # --statusline mode: relay rate_limits to Luna, then delegate to saved previous
     if '--statusline' in sys.argv[1:]:
         relay = {
             'coucou_kind': 'statusline',
@@ -3389,7 +3389,7 @@ def main():
     # socket_path is already defined above
 
     if event == 'PermissionRequest':
-        # Block and wait for Coucou's decision (Claude Code allows up to 120s)
+        # Block and wait for Luna's decision (Claude Code allows up to 120s)
         try:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             s.settimeout(118)
@@ -3435,7 +3435,7 @@ def main():
                     if agent in ('copilot', 'muse'):
                         out = {'permissionDecision': 'deny'}
                     else:
-                        out = {'hookSpecificOutput': {'hookEventName': 'PermissionRequest', 'decision': {'behavior': 'deny', 'message': 'Denied from Coucou'}}}
+                        out = {'hookSpecificOutput': {'hookEventName': 'PermissionRequest', 'decision': {'behavior': 'deny', 'message': 'Denied from Luna'}}}
                     sys.stdout.write(json.dumps(out) + '\\n')
                     sys.stdout.flush()
                     sys.exit(0)
@@ -3469,7 +3469,7 @@ def main():
         pass  # Always exit cleanly — never block the agent
 
     # Antigravity needs a decision on PreToolUse ({} reads as a denial). "ask" keeps its own
-    # permission prompt (and the user's Always Allow); Coucou never allows a tool by itself.
+    # permission prompt (and the user's Always Allow); Luna never allows a tool by itself.
     if agent == 'antigravity' and event == 'PreToolUse':
         sys.stdout.write('{"decision":"ask"}\\n')
         sys.stdout.flush()
@@ -3488,7 +3488,7 @@ sys.exit(0)
 
 private let nbHookPythonAppStore = """
 #!/usr/bin/env python3
-# nb-hook.py — Coucou (App Store) hook relay for Claude Code and third-party agents
+# nb-hook.py — Luna (App Store) hook relay for Claude Code and third-party agents
 # Socket lives inside the sandboxed container; script runs outside the sandbox.
 import sys, json, os, socket
 
@@ -3563,10 +3563,10 @@ def main():
             return
 
     socket_path = os.path.expanduser(
-        '~/Library/Containers/fr.louisraille.Coucou/Data/nb.sock'
+        '~/Library/Containers/dev.luna.LunaPhone/Data/nb.sock'
     )
 
-    # --statusline mode: relay rate_limits to Coucou, then delegate to saved previous
+    # --statusline mode: relay rate_limits to Luna, then delegate to saved previous
     if '--statusline' in sys.argv[1:]:
         relay = {
             'coucou_kind': 'statusline',
@@ -3695,7 +3695,7 @@ def main():
     # socket_path is already defined above
 
     if event == 'PermissionRequest':
-        # Block and wait for Coucou's decision (Claude Code allows up to 120s)
+        # Block and wait for Luna's decision (Claude Code allows up to 120s)
         try:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             s.settimeout(118)
@@ -3741,7 +3741,7 @@ def main():
                     if agent in ('copilot', 'muse'):
                         out = {'permissionDecision': 'deny'}
                     else:
-                        out = {'hookSpecificOutput': {'hookEventName': 'PermissionRequest', 'decision': {'behavior': 'deny', 'message': 'Denied from Coucou'}}}
+                        out = {'hookSpecificOutput': {'hookEventName': 'PermissionRequest', 'decision': {'behavior': 'deny', 'message': 'Denied from Luna'}}}
                     sys.stdout.write(json.dumps(out) + '\\n')
                     sys.stdout.flush()
                     sys.exit(0)
@@ -3774,7 +3774,7 @@ def main():
         pass  # Always exit cleanly — never block the agent
 
     # Antigravity needs a decision on PreToolUse ({} reads as a denial). "ask" keeps its own
-    # permission prompt (and the user's Always Allow); Coucou never allows a tool by itself.
+    # permission prompt (and the user's Always Allow); Luna never allows a tool by itself.
     if agent == 'antigravity' and event == 'PreToolUse':
         sys.stdout.write('{"decision":"ask"}\\n')
         sys.stdout.flush()

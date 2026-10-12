@@ -49,7 +49,7 @@ final class SpotifyController: ObservableObject {
 
     private var notifTokens: [Any] = []
     private var cancellables = Set<AnyCancellable>()
-    private let queue = DispatchQueue(label: "fr.louisraille.coucou.spotify")
+    private let queue = DispatchQueue(label: "dev.luna.Luna.spotify")
     private var artworkCache: [String: NSImage] = [:]
     private var artworkCacheOrder: [String] = []
     private var artworkLoadingId: String?

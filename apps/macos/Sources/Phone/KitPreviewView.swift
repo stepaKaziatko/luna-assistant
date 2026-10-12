@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Step 3 check: CoucouKit (Mochi, pills, diff, models) drawn on the iPhone
+/// Step 3 check: CoucouKit (Luna, pills, diff, models) drawn on the iPhone
 /// with the Mac's own code.
 struct KitPreviewView: View {
     private let poses: [(BotState, EyeShape?, String)] = [
@@ -16,12 +16,12 @@ struct KitPreviewView: View {
 
     private let sampleDiff = DiffEngine.fromEdit(
         old: "func greet() {\n    print(\"Hello\")\n}\n",
-        new: "func greet(name: String) {\n    print(\"Coucou \\(name)\")\n}\n",
+        new: "func greet(name: String) {\n    print(\"Luna \\(name)\")\n}\n",
         path: "/coucou/Greeting.swift")
 
     var body: some View {
         List {
-            Section("Mochi — fixed poses") {
+            Section("Luna — fixed poses") {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 72))], spacing: 12) {
                     ForEach(Array(poses.enumerated()), id: \.offset) { index, pose in
                         VStack(spacing: 4) {

@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Shortcut Action
 
-/// Every keyboard shortcut Coucou knows about.
+/// Every keyboard shortcut Luna knows about.
 /// The first 10 cases are *global* (registered with Carbon and effective from any app).
 /// Island-local shortcuts are documented in `ShortcutLogic.islandShortcuts` but are
 /// not managed here — they are handled by a local NSEvent monitor in IslandWindowController.
@@ -16,7 +16,7 @@ enum ShortcutAction: String, CaseIterable, Sendable {
     case nextPill          = "nextPill"           // ⌃⌥] — next pill, open if closed
     case prevPill          = "prevPill"           // ⌃⌥[ — previous pill, open if closed
     case muteToggle        = "muteToggle"         // ⌃⌥M — mute / unmute sounds
-    case desktopToggle     = "desktopToggle"      // ⌃⌥D — send Mochi to desktop / bring back
+    case desktopToggle     = "desktopToggle"      // ⌃⌥D — send Luna to desktop / bring back
     case wardrobeToggle    = "wardrobeToggle"     // ⌃⌥G — open / close wardrobe
     case talkToCoucou      = "talkToCoucou"       // (unset) — start listening without wake phrase (non-AppStore)
 
@@ -162,7 +162,7 @@ enum ShortcutLogic {
         return c
     }
 
-    // MARK: - Conflict detection (within Coucou's own shortcuts)
+    // MARK: - Conflict detection (within Luna's own shortcuts)
 
     /// Returns the set of actions whose (keyCode, nsFlags) pair is shared with another action.
     static func duplicates(in specs: [ShortcutAction: ShortcutSpec]) -> Set<ShortcutAction> {

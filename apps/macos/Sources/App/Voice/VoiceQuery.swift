@@ -3,7 +3,7 @@ import Foundation
 
 // MARK: - VoiceQuery
 //
-// Questions about what Coucou already knows ("combien d'étoiles sur GitHub ?",
+// Questions about what Luna already knows ("combien d'étoiles sur GitHub ?",
 // "mon déploiement Vercel est passé ?", "quel temps il fait ?") and the two
 // requests that are not pill or music commands (prepare an email, open an app).
 //
@@ -101,7 +101,7 @@ enum VoiceQuery {
     //   "il y a une image qui s'appelle Goku.png, envoie-la par mail à tana@gmail.com.
     //    En objet, tu écris : Voilà votre image. En description : Image en 1980 × 1080."
     //   "email the image called Goku.png to tana@gmail.com, subject Here you go, body …"
-    //   "write an email to Tana thanking her for yesterday"   (instruction → Coucou drafts)
+    //   "write an email to Tana thanking her for yesterday"   (instruction → Luna drafts)
 
     struct MailRequest: Equatable {
         var recipient: String
@@ -110,7 +110,7 @@ enum VoiceQuery {
         var subject: String? = nil
         var body: String? = nil
         /// What the mail should say when no body was dictated ("thanking her…"):
-        /// Coucou drafts the body from it.
+        /// Luna drafts the body from it.
         var instruction: String? = nil
         enum Folder: String, Equatable { case downloads, desktop, documents, pictures }
     }
@@ -128,7 +128,7 @@ enum VoiceQuery {
                                       "pour lui dire que", "pour lui dire", "pour dire que", "en disant que",
                                       "en disant", "qui dit", "with the text", "body", "saying that", "saying",
                                       "that says", "to say that", "to say", "telling"]
-    /// Markers after which the text is what the mail is about, for Coucou to write it
+    /// Markers after which the text is what the mail is about, for Luna to write it
     /// ("pour lui dire que l'image est prête"); the others dictate the exact text.
     private static let instructionMarkers: Set<String> = ["pour lui dire que", "pour lui dire", "pour dire que",
                                                           "en disant que", "en disant", "saying that", "saying",
@@ -159,7 +159,7 @@ enum VoiceQuery {
         let isMail = n.contains(where: { mailWords.contains($0) }) || ["email", "mail"].contains(n[v])
         guard isMail || n.contains(where: { fileWords.contains($0) }) else { return nil }
 
-        // No "à / to": a guided mail — Coucou asks who, the subject, the text, an attachment.
+        // No "à / to": a guided mail — Luna asks who, the subject, the text, an attachment.
         guard let to = n.lastIndex(where: { $0 == "a" || $0 == "to" }), to > v, to + 1 < n.count else {
             guard isMail else { return nil }
             return MailRequest(recipient: "", file: nil, folder: nil, subject: subject, body: bodyText,
@@ -274,7 +274,7 @@ enum VoiceQuery {
             .trimmingCharacters(in: CharacterSet(charactersIn: " .,;:!?\"«»“”"))
     }
 
-    /// One rule, always the same: Coucou writes the mail from what I say ("faut dire que
+    /// One rule, always the same: Luna writes the mail from what I say ("faut dire que
     /// l'image est prête" → a short mail saying it). Only "mot pour mot / exactement /
     /// word for word …" dictates the exact text.
     static func bodyAnswer(_ raw: String) -> (body: String?, instruction: String?) {
@@ -497,7 +497,7 @@ enum VoiceQuery {
         return phrases.contains(where: { joined == $0 || joined.hasPrefix($0 + " ") })
     }
 
-    /// Text Coucou can say aloud: no markdown, links, URLs, citation marks or bullets.
+    /// Text Luna can say aloud: no markdown, links, URLs, citation marks or bullets.
     static func spokenText(_ s: String) -> String {
         var t = s
         func sub(_ pattern: String, _ with: String) {
@@ -612,8 +612,8 @@ enum VoiceAnswer {
     static func text(_ topic: VoiceTopic, _ s: VoiceSnapshot, french fr: Bool) -> String {
         func t(_ f: String, _ e: String) -> String { fr ? f : e }
         if !s.configured {
-            return t("\(serviceName(topic)) n'est pas connecté dans les réglages de Coucou.",
-                     "\(serviceName(topic)) isn't connected in Coucou's settings.")
+            return t("\(serviceName(topic)) n'est pas connecté dans les réglages de Luna.",
+                     "\(serviceName(topic)) isn't connected in Luna's settings.")
         }
         switch topic {
         case .stripe:
@@ -722,8 +722,8 @@ enum VoiceAnswer {
             return (main + others).trimmingCharacters(in: .whitespaces)
 
         case .weatherToday, .weatherTomorrow:
-            if s.weatherOff { return t("Active la météo dans les réglages de Coucou, section Voix.", "Turn on weather in Coucou's settings, Voice section.") }
-            if s.weatherNoCity { return t("Indique ta ville dans les réglages de Coucou, section Voix.", "Set your city in Coucou's settings, Voice section.") }
+            if s.weatherOff { return t("Active la météo dans les réglages de Luna, section Voix.", "Turn on weather in Luna's settings, Voice section.") }
+            if s.weatherNoCity { return t("Indique ta ville dans les réglages de Luna, section Voix.", "Set your city in Luna's settings, Voice section.") }
             guard let w = s.weather else { return t("Je n'arrive pas à avoir la météo pour l'instant.", "I can't get the weather right now.") }
             let sky = weatherText(w.code, fr: fr)
             var out: String
@@ -753,7 +753,7 @@ enum VoiceAnswer {
         case .codexPlan:  return "Codex"
         case .agents:     return "Claude Code"
         case .music:      return "Music"
-        case .pills:      return "Coucou"
+        case .pills:      return "Luna"
         case .weatherToday, .weatherTomorrow: return "Météo"
         }
     }

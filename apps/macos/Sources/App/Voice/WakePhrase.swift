@@ -21,11 +21,11 @@ enum WakePhrase {
     /// preserving the original casing and punctuation of the command portion.
     ///
     /// Accepted patterns (case-insensitive, after phonetic normalisation):
-    /// - "ok coucou" and variants: "okay coucou", "ok cuckoo", "ok kuku", "ok cou cou" …
-    /// - "hey coucou"
+    /// - "ok luna" and variants: "okay luna", "ok lunar", "ok louna", "ok lu na" …
+    /// - "hey luna"
     ///
-    /// Word-boundary search means "euh ok coucou add" matches and returns "add".
-    /// Standalone "coucou" never matches (no preceding "ok"/"hey").
+    /// Word-boundary search means "euh ok luna add" matches and returns "add".
+    /// Standalone "luna" never matches (no preceding "ok"/"hey").
     static func split(_ raw: String) -> SplitResult {
         // Split original into whitespace-separated tokens (punctuation stays attached to words)
         let originalWords = raw.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
@@ -35,12 +35,12 @@ enum WakePhrase {
         let normWords = originalWords.map(normWord)
 
         // Wake phrase patterns (normalised).
-        // "ok cou cou" handled as a 3-token pattern in case the STT splits it.
+        // "ok lu na" handled as a 3-token pattern in case the STT splits it.
         let patterns: [[String]] = [
-            ["ok",  "coucou"],
-            ["ok",  "cou", "cou"],
-            ["hey", "coucou"],
-            ["hey", "cou", "cou"],
+            ["ok",  "luna"],
+            ["ok",  "lu", "na"],
+            ["hey", "luna"],
+            ["hey", "lu", "na"],
         ]
 
         // Find LAST occurrence of any pattern
@@ -87,9 +87,11 @@ enum WakePhrase {
     private static func normWord(_ w: String) -> String {
         var t = normalise(w)
         t = t
-            .replacingOccurrences(of: "cuckoo", with: "coucou")
-            .replacingOccurrences(of: "kuku",   with: "coucou")
-            .replacingOccurrences(of: "kucou",  with: "coucou")
+            .replacingOccurrences(of: "lunar", with: "luna")
+            .replacingOccurrences(of: "louna", with: "luna")
+            .replacingOccurrences(of: "loona", with: "luna")
+            .replacingOccurrences(of: "luma",  with: "luna")
+            .replacingOccurrences(of: "lune",  with: "luna")
             .replacingOccurrences(of: "okay",   with: "ok")
         return t
     }

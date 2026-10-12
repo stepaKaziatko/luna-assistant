@@ -72,7 +72,7 @@ enum BadgeType {
     case dot(CGColor)
 }
 
-// MARK: - Mochi track constants (from PISTES.mochi)
+// MARK: - Luna track constants (from PISTES.mochi)
 
 enum MochiConst {
     static let eyeW: CGFloat  = 0.25
@@ -253,7 +253,7 @@ final class BotEngine: ObservableObject {
 
     // Timing
     var lastTime: Double = CACurrentMediaTime()
-    /// Fractional engine steps owed when drawing slower than the display (Mac mini Mochis).
+    /// Fractional engine steps owed when drawing slower than the display (Mac mini Lunas).
     var stepDebt: Double = 0
     var t0: Double = CACurrentMediaTime() - Double.random(in: 0...5)
     var nextBlink: Double = CACurrentMediaTime() + 1.5 + Double.random(in: 0...2)
@@ -1102,7 +1102,7 @@ final class BotEngine: ObservableObject {
         if tilt != 0 { ctx.rotate(by: .radians(tilt)) }
         ctx.scaleBy(x: sx, y: sy)
 
-        // Body path (superellipse for Mochi, morph to rect for upload)
+        // Body path (superellipse for Luna, morph to rect for upload)
         let bodyPath = mochiPath(rx: rx, ry: ry, morph: morph, R: R)
 
         // Body fill
@@ -1166,13 +1166,13 @@ final class BotEngine: ObservableObject {
         // (We'll pass world-space cx/cy to these helpers)
     }
 
-    // MARK: - Draw hands behind body (called before draw() so hands appear under Mochi)
+    // MARK: - Draw hands behind body (called before draw() so hands appear under Luna)
 
     func drawHandsBehind(context: GraphicsContext, size: CGSize) {
         guard hands > 0.01, !isMini else { return }
         let W = size.width, H = size.height
         let R = W * 0.3
-        // Only draw hands when Mochi is large enough to be meaningful (not compact/peek)
+        // Only draw hands when Luna is large enough to be meaningful (not compact/peek)
         guard R > 14 else { return }
         let rx = R * 1.14
         let ry = R * 0.88
@@ -1317,7 +1317,7 @@ final class BotEngine: ObservableObject {
                               presence: outfitPresence, rollTurns: rollTurns)
     }
 
-    /// World-space center of Mochi's body (used by BotCanvasView for rigid-roll transform)
+    /// World-space center of Luna's body (used by BotCanvasView for rigid-roll transform)
     func bodyCenter(size: CGSize) -> CGPoint {
         let W = size.width, R = W * 0.3
         let cx = W / 2 + ox * R

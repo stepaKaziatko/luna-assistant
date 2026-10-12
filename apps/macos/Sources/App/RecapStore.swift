@@ -74,7 +74,7 @@ final class RecapStore {
 
     private static let storageURL: URL = {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return support.appendingPathComponent("NotchBuddy/recap.json")
+        return support.appendingPathComponent("Luna/recap.json")
     }()
 
     private init() { load() }

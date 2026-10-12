@@ -75,8 +75,8 @@ final class PhoneLink {
         case failed(String)
     }
 
-    static let containerID = "iCloud.fr.louisraille.Coucou"
-    static let zoneID = CKRecordZone.ID(zoneName: "Coucou", ownerName: CKCurrentUserDefaultName)
+    static let containerID = "iCloud.dev.luna.Luna"
+    static let zoneID = CKRecordZone.ID(zoneName: "Luna", ownerName: CKCurrentUserDefaultName)
     private static let subscriptionID = "coucou-zone-phone-silent"
     /// Step 1's subscription showed a "Ping from your Mac" banner. A saved
     /// subscription keeps its notification settings, so it is deleted rather than reused.
@@ -87,7 +87,7 @@ final class PhoneLink {
     var firstSyncDone = false
     var pings: [PingItem] = []
     var sessions: [SessionItem] = []
-    /// Service Mochi (GitHub, Stripe…) the Mac publishes, by pill ID.
+    /// Service Luna (GitHub, Stripe…) the Mac publishes, by pill ID.
     var services: [String: ServiceSnapshot] = [:]
     /// A service up close (figures, lists, actions), fetched by the Mac when its screen opens.
     var serviceDetails: [String: ServiceDetail] = [:]
@@ -176,7 +176,7 @@ final class PhoneLink {
                                             options: [.firesOnRecordCreation])
         approvals.zoneID = Self.zoneID
         let alert = CKSubscription.NotificationInfo()
-        alert.title = "Coucou"
+        alert.title = "Luna"
         alert.alertBody = "An agent is waiting for your OK"
         alert.soundName = mochi ? "approval.wav" : "default"
         alert.category = NotificationActions.approvalCategory

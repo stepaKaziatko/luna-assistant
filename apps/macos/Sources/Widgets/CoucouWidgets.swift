@@ -1,7 +1,7 @@
 import SwiftUI
 import WidgetKit
 
-// Coucou widgets: Solo, Team and List on the Home Screen, plus the Lock
+// Luna widgets: Solo, Team and List on the Home Screen, plus the Lock
 // Screen accessories. They show the sessions the iPhone app last saved to the
 // App Group; the app reloads them whenever a session changes.
 
@@ -22,7 +22,7 @@ struct CoucouWidgetBundle: WidgetBundle {
 struct SessionsEntry: TimelineEntry {
     let date: Date
     let sessions: [SharedSession]   // most urgent first
-    /// Changes every minute so idle Mochi look around (MochiPose).
+    /// Changes every minute so idle Luna look around (MochiPose).
     var tick: Int = 0
 }
 
@@ -38,7 +38,7 @@ struct SessionsProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SessionsEntry>) -> Void) {
         // The sessions come from the app, which calls reloadAllTimelines() on
-        // every change. The entries only give idle Mochi a new pose each
+        // every change. The entries only give idle Luna a new pose each
         // minute for an hour; no network, nothing read again.
         let sessions = SharedSessions.load()
         let start = Date.now
@@ -90,8 +90,8 @@ struct LockScreenWidget: Widget {
         StaticConfiguration(kind: "CoucouLock", provider: SessionsProvider()) { entry in
             LockScreenView(sessions: entry.sessions)
         }
-        .configurationDisplayName("Coucou")
-        .description("Mochi on your Lock Screen.")
+        .configurationDisplayName("Luna")
+        .description("Luna on your Lock Screen.")
         .supportedFamilies([.accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
@@ -171,7 +171,7 @@ struct SoloView: View {
 
 struct TeamView: View {
     let sessions: [SharedSession]
-    /// The Mochi picked for each spot in the widget's settings, nil = automatic.
+    /// The Luna picked for each spot in the widget's settings, nil = automatic.
     var picks: [String?] = [nil, nil, nil, nil]
     var tick: Int = 0
 
@@ -183,7 +183,7 @@ struct TeamView: View {
         .containerBackground(for: .widget) { Color(white: 0.08) }
     }
 
-    /// The picked Mochi in their spots, then the most urgent ones from the
+    /// The picked Luna in their spots, then the most urgent ones from the
     /// Mac, then the team's regulars, so the four spots are always taken.
     private var team: [SharedSession] {
         let chosen = Set(picks.compactMap { $0 })
@@ -208,7 +208,7 @@ struct TeamView: View {
         let team = team
         if team.indices.contains(index) {
             let member = team[index]
-            // A tap opens that Mochi in the app.
+            // A tap opens that Luna in the app.
             Link(destination: SharedSession.url(for: member.id)) {
                 TeamTile(session: member, tick: tick)
             }
@@ -218,12 +218,12 @@ struct TeamView: View {
     }
 }
 
-/// One Mochi of the team: his face, his name, and a dot for his state.
+/// One Luna of the team: his face, his name, and a dot for his state.
 struct TeamTile: View {
     let session: SharedSession
     var tick: Int = 0
 
-    /// Calm Mochi look around; one who needs you keeps his state's face.
+    /// Calm Luna look around; one who needs you keeps his state's face.
     private var pose: MochiPose {
         switch session.tone {
         case .idle, .done, .working, .info, .warning: MochiPose.idle(id: session.id, tick: tick)
@@ -233,7 +233,7 @@ struct TeamTile: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // In his own color, like the little Mochi in the Mac's notch.
+            // In his own color, like the little Luna in the Mac's notch.
             ZStack {
                 WidgetMochi(state: session.botState, bodyHex: session.color, pose: pose)
                     .id(session.state)
@@ -270,7 +270,7 @@ struct TeamTile: View {
     }
 }
 
-/// A free spot: Mochi asleep, faded, instead of an empty square.
+/// A free spot: Luna asleep, faded, instead of an empty square.
 struct EmptyTeamTile: View {
     var tick: Int = 0
     var slot: Int = 0
@@ -338,7 +338,7 @@ struct LockScreenView: View {
     var body: some View {
         switch family {
         case .accessoryCircular:
-            // The Lock Screen keeps only brightness: Mochi drawn like in the
+            // The Lock Screen keeps only brightness: Luna drawn like in the
             // tinted Home Screen, so his face shows.
             ZStack {
                 AccessoryWidgetBackground()
@@ -371,7 +371,7 @@ struct LockScreenView: View {
             .widgetURL(sessions.first.map { SharedSession.url(for: $0.id) })
             .containerBackground(for: .widget) { Color.clear }
         default:
-            Text(sessions.summary.map { "Coucou · \($0)" } ?? "Coucou · all quiet")
+            Text(sessions.summary.map { "Luna · \($0)" } ?? "Luna · all quiet")
                 .containerBackground(for: .widget) { Color.clear }
         }
     }
@@ -380,7 +380,7 @@ struct LockScreenView: View {
 // MARK: - Samples (widget gallery)
 
 extension SharedSession {
-    /// A calm Mochi from the catalog, for a free spot of the Team widget.
+    /// A calm Luna from the catalog, for a free spot of the Team widget.
     static func regular(id: String) -> SharedSession? {
         guard let pill = PillCatalog.definition(for: id) else { return nil }
         return SharedSession(id: pill.id, title: pill.name, agent: pill.name, color: pill.color,
@@ -406,8 +406,8 @@ extension SharedSession {
 
 // MARK: - Tinted Home Screen
 
-/// Mochi in a widget. In the tinted (and clear) Home Screen styles iOS keeps
-/// only each pixel's opacity, so a white Mochi with black eyes turns into a
+/// Luna in a widget. In the tinted (and clear) Home Screen styles iOS keeps
+/// only each pixel's opacity, so a white Luna with black eyes turns into a
 /// blank shape; on the Lock Screen it keeps only brightness. There he is drawn
 /// as a white shape with his eyes cut out, which reads in both.
 struct WidgetMochi: View {
@@ -421,7 +421,7 @@ struct WidgetMochi: View {
         if renderingMode == .fullColor {
             MochiStill(state: state, bodyHex: bodyHex, showBadge: showBadge, pose: pose)
         } else {
-            // White where Mochi is bright, see-through where he is dark (his
+            // White where Luna is bright, see-through where he is dark (his
             // eyes). The Lock Screen shows brightness, so the mask is filled
             // with white rather than left black.
             Color.white
@@ -434,7 +434,7 @@ struct WidgetMochi: View {
     }
 }
 
-/// A tile behind a Mochi: its color normally, a faint wash when tinted so it
+/// A tile behind a Luna: its color normally, a faint wash when tinted so it
 /// doesn't become a solid block that hides him.
 struct TileBackground: View {
     @Environment(\.widgetRenderingMode) private var renderingMode

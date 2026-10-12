@@ -29,7 +29,7 @@ final class AppState: ObservableObject {
     // Bot drag-attach state (hides original bot while ghost follows cursor)
     @Published var isDraggingBot: Bool = false
 
-    // Desktop Mochi: true while Mochi lives on the desktop instead of the notch
+    // Desktop Luna: true while Luna lives on the desktop instead of the notch
     @Published var mochiOnDesktop: Bool = false
 
     // Mouse tracking
@@ -69,11 +69,11 @@ final class AppState: ObservableObject {
         didSet { UserDefaults.standard.set(recapHideProjects, forKey: "recapHideProjects") }
     }
 
-    // Mochi outfit selection — persisted
+    // Luna outfit selection — persisted
     @Published var mochiOutfitSelection: Outfit = .auto {
         didSet { Outfit.stored = mochiOutfitSelection }
     }
-    // A colour of the user's own for each pill's Mochi (pill id → "#RRGGBB") — persisted.
+    // A colour of the user's own for each pill's Luna (pill id → "#RRGGBB") — persisted.
     // Empty means the catalog's colours. PillDefinition.color reads the stored value, so
     // what is built from the catalog follows on its own; the tasks already on the island
     // hold a copy of their colour and are repainted here.
@@ -91,14 +91,14 @@ final class AppState: ObservableObject {
             if changed { tasks = repainted }
         }
     }
-    /// Picks a colour for a pill's Mochi; nil, or the pill's own catalog colour, goes back to the default.
+    /// Picks a colour for a pill's Luna; nil, or the pill's own catalog colour, goes back to the default.
     func setPillColor(_ id: String, _ hex: String?) {
         guard let def = PillCatalog.definition(for: id) else { return }
         pillColors = PillColors.picking(hex, for: id, catalogColor: def.defaultColor, in: pillColors)
     }
     // Transient: outfit preview while hovering in wardrobe (overrides resolvedOutfit in BotCanvasView)
     var wardrobePreviewOutfit: Outfit? = nil
-    // Per-day seasonal cache — read on every Mochi frame: valid until the next midnight,
+    // Per-day seasonal cache — read on every Luna frame: valid until the next midnight,
     // so a frame costs one date comparison instead of calendar math.
     private var _seasonalCache: (validUntil: Date, outfit: Outfit)?
     var resolvedOutfit: Outfit {
@@ -252,7 +252,7 @@ final class AppState: ObservableObject {
 
     // Selected app language ("" = System, else BCP-47 code e.g. "fr")
     @Published var appLanguage: String = {
-        let bundleId = Bundle.main.bundleIdentifier ?? "fr.louisraille.NotchBuddy"
+        let bundleId = Bundle.main.bundleIdentifier ?? "dev.luna.Luna"
         let langs = UserDefaults.standard.persistentDomain(forName: bundleId)?["AppleLanguages"] as? [String]
         return langs?.first ?? ""
     }()
@@ -429,10 +429,10 @@ final class AppState: ObservableObject {
 
     // Voice command result (shown in VoiceResultView for ~2 s, then cleared by IWC)
     @Published var voiceResult: VoiceActionResult? = nil
-    /// True from "OK Coucou" until Coucou has finished answering (island stays compact).
-    /// Drives Mochi's single attentive pose for the whole exchange.
+    /// True from "OK Luna" until Luna has finished answering (island stays compact).
+    /// Drives Luna's single attentive pose for the whole exchange.
     @Published var voiceActive = false
-    /// Listening / thinking / speaking — drives per-frame Mochi animations.
+    /// Listening / thinking / speaking — drives per-frame Luna animations.
     /// Set by IslandWindowController; read by BotCanvasView each display frame.
     @Published var voiceSubState: BotVoiceSubState = .none
     #endif

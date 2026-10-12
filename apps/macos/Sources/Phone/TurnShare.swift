@@ -16,7 +16,7 @@ extension TurnSnapshot {
     }
 }
 
-/// A finished turn as a picture: Mochi, what you asked, what changed, the
+/// A finished turn as a picture: Luna, what you asked, what changed, the
 /// answer. Made on the iPhone when you tap Share; nothing is sent anywhere else.
 struct TurnShareCard: View {
     let turn: TurnSnapshot
@@ -84,7 +84,7 @@ struct TurnShareCard: View {
             HStack(spacing: 6) {
                 Spacer()
                 MochiStill(state: .idle, showBadge: false).frame(width: 18, height: 18)
-                Text("Coucou").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+                Text("Luna").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
             }
         }
         .padding(24)

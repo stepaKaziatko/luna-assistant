@@ -159,7 +159,7 @@ final class InstructionRunner {
         // Output goes to a file (a pipe could fill up and stall claude); its
         // end is logged if the run fails.
         let logURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Logs/NotchBuddy/instruction-last.log")
+            .appendingPathComponent("Library/Logs/Luna/instruction-last.log")
         try? FileManager.default.createDirectory(at: logURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         FileManager.default.createFile(atPath: logURL.path, contents: nil)
         let output = try? FileHandle(forWritingTo: logURL)

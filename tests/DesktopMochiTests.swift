@@ -93,17 +93,17 @@ enum DesktopMochiTests {
             // Same formula as BotCanvasView / DesktopMochi: x right +, y up +
             return (sign(tanh((m.x - b.x) / 260)), sign(-tanh((m.y - b.y) / 200)))
         }
-        // Mochi in the island at the top of the external screen above
+        // Luna in the island at the top of the external screen above
         let islandOnTop = CGPoint(x: 780, y: 2422 - 16)
         precondition(gaze(islandOnTop, CGPoint(x: 1400, y: 100)) == (1, -1), "cursor on the MacBook below-right")
         precondition(gaze(islandOnTop, CGPoint(x: -1000, y: 0)) == (-1, -1), "cursor on the portrait screen")
-        precondition(gaze(islandOnTop, CGPoint(x: 780, y: 2500)) == (0, 1), "cursor above Mochi")
-        // Mochi on the desktop of the portrait screen, cursor on the external screen above
+        precondition(gaze(islandOnTop, CGPoint(x: 780, y: 2500)) == (0, 1), "cursor above Luna")
+        // Luna on the desktop of the portrait screen, cursor on the external screen above
         let desktopOnLeft = DesktopMochiLogic.lookOrigin(panelMinX: -700, panelMinY: -200,
                                                           desktopTop: top, panelSize: 120)
         let mouseAbove = DesktopSpace.topDown(CGPoint(x: 1000, y: 2000), desktopTop: top)
         precondition(mouseAbove.x > desktopOnLeft.x && mouseAbove.y < desktopOnLeft.y,
-                     "desktop Mochi looks right and up at a cursor on another screen")
+                     "desktop Luna looks right and up at a cursor on another screen")
     }
 
     private static func sign(_ v: CGFloat) -> Int { v == 0 ? 0 : (v < 0 ? -1 : 1) }

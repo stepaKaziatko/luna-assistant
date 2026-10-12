@@ -29,7 +29,7 @@ final class SoundEngine {
     /// the same path inside the app's container).
     static var customFolder: URL? {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("NotchBuddy/Sounds", isDirectory: true)
+            .appendingPathComponent("Luna/Sounds", isDirectory: true)
     }
     private static let customExtensions = ["wav", "aiff", "aif", "caf", "m4a", "mp3"]
 

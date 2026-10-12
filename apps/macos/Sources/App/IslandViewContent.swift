@@ -4112,7 +4112,7 @@ struct MusicPill: View {
                 .stroke(Color(hex: task.color).opacity(isHovered ? 0.55 : 0.14), lineWidth: 1)
                 .allowsHitTesting(false)
 
-            // Mini Mochi at leading edge
+            // Mini Luna at leading edge
             HStack(spacing: 0) {
                 MiniBotCanvasView(task: task, isDancing: isPlaying)
                     .frame(width: 22 / 0.6, height: 22 / 0.6)
@@ -4216,7 +4216,7 @@ struct MusicCardView: View {
                 .padding(.leading, 108)
                 .padding(.trailing, 36)
 
-                Text("Allow Coucou to control Music")
+                Text("Allow Luna to control Music")
                     .font(.system(size: 11))
                     .foregroundColor(Color(hex: "#8E939C"))
                     .padding(.leading, 108)
@@ -4401,7 +4401,7 @@ struct WardrobeView: View {
                             onHover: { h in
                                 hoveredOutfit = h ? outfit : nil
                                 if h {
-                                    // Preview on main Mochi
+                                    // Preview on main Luna
                                     let preview: Outfit = outfit == .auto
                                         ? Outfit.seasonal(for: Date(), calendar: .current)
                                         : outfit
@@ -4552,7 +4552,7 @@ private func drawOutfitIcon(context: GraphicsContext, size: CGSize, outfit: Outf
         ctx.stroke(slash, with: .color(Color(hex: "#454850")), style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
 
     default:
-        // Small Mochi wearing the outfit
+        // Small Luna wearing the outfit
         let iconR: CGFloat = 10.0
         let rx = iconR * 1.14, ry = iconR * 0.88
         let mH = MochiH(R: iconR, yaw: 0, pitch: 0)

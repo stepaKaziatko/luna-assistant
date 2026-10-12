@@ -8,7 +8,7 @@ enum ClaudeHookDetectionTests {
     }
 
     static func main() {
-        // Installed: the hook Coucou writes, GitHub build
+        // Installed: the hook Luna writes, GitHub build
         precondition(coucouHooksPresent(inSettings: settings("""
         {"hooks":{"SessionStart":[{"hooks":[
           {"type":"command","command":"$HOME/.claude/coucou/nb-hook"}]}]}}

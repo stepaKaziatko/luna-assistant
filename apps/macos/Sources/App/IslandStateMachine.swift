@@ -10,7 +10,7 @@ final class IslandStateMachine {
         case petit     // compact island (notch + ears)
         case home      // expanded, overview
         case coucou    // expanded, greeting animation
-        case listening // expanded, voice listening («OK Coucou» detected)
+        case listening // expanded, voice listening («OK Luna» detected)
     }
 
     private(set) var state: State = .hidden
