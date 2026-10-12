@@ -38,7 +38,10 @@ enum DesktopMochiLogic {
     static let sleepTimeout:       TimeInterval = 120
     static let sleepMouseDistance: CGFloat      = 150
     static let clampMargin:        CGFloat      = 24
-    static let bodyRadiusFraction: CGFloat      = 0.24
+    /// Полуоси видимого тела в долях панели: R = 0.3·панель, тело — яйцо LunaLook.
+    /// Зона клика на 8 % меньше тела, чтобы промах у края не шлёпал Luna.
+    static let bodyHalfWidthFraction:  CGFloat  = LunaLook.rxK * 0.3 * 0.92
+    static let bodyHalfHeightFraction: CGFloat  = LunaLook.ryK * 0.3 * 0.92
 
     /// Whether Luna should enter sleeping state.
     static func shouldSleep(lastAgentActiveInterval: TimeInterval,
@@ -46,14 +49,17 @@ enum DesktopMochiLogic {
         lastAgentActiveInterval > sleepTimeout && mouseDistanceToPanelCenter >= sleepMouseDistance
     }
 
-    /// Hit-test the circular body inside a square panel (AppKit y-up local coords).
+    /// Hit-test the egg-shaped body inside a square panel (AppKit y-up local coords).
+    /// The body is a superellipse, the test is its inscribed ellipse: clicks land on the
+    /// visible body and not on the corners of the panel.
     static func isOverBody(localPoint: CGPoint, panelSize: CGFloat) -> Bool {
         let cx = panelSize / 2
         let cy = panelSize / 2
-        let r  = panelSize * bodyRadiusFraction
-        let dx = localPoint.x - cx
-        let dy = localPoint.y - cy
-        return dx * dx + dy * dy <= r * r
+        let a  = panelSize * bodyHalfWidthFraction
+        let b  = panelSize * bodyHalfHeightFraction
+        let dx = (localPoint.x - cx) / a
+        let dy = (localPoint.y - cy) / b
+        return dx * dx + dy * dy <= 1
     }
 
     /// Eye-tracking origin: panel center in `DesktopSpace`, the coordinate space of

@@ -43,28 +43,43 @@ enum DesktopMochiTests {
 
     static func testIsOverBody() {
         let s: CGFloat = 120
-        let r = s * DesktopMochiLogic.bodyRadiusFraction   // 28.8
+        // Видимое тело — яйцо: полуоси 0.258 и 0.312 панели; зона клика — 92 % от них.
+        let a = s * DesktopMochiLogic.bodyHalfWidthFraction    // ≈ 28.5
+        let b = s * DesktopMochiLogic.bodyHalfHeightFraction   // ≈ 34.5
+        precondition(abs(a - s * LunaLook.rxK * 0.3 * 0.92) < 0.001, "width follows LunaLook")
+        precondition(b > a, "the egg is taller than it is wide")
 
         // Center → inside
         precondition(DesktopMochiLogic.isOverBody(localPoint: CGPoint(x: 60, y: 60), panelSize: s),
                      "center must be inside body")
 
-        // Just inside radius
-        precondition(DesktopMochiLogic.isOverBody(localPoint: CGPoint(x: 60 + r - 0.5, y: 60), panelSize: s),
-                     "inside radius must hit")
+        // Sides: just inside / outside the half-width
+        precondition(DesktopMochiLogic.isOverBody(localPoint: CGPoint(x: 60 + a - 0.5, y: 60), panelSize: s),
+                     "inside half-width must hit")
+        precondition(!DesktopMochiLogic.isOverBody(localPoint: CGPoint(x: 60 + a + 0.5, y: 60), panelSize: s),
+                     "outside half-width must miss")
 
-        // Just outside radius
-        precondition(!DesktopMochiLogic.isOverBody(localPoint: CGPoint(x: 60 + r + 0.5, y: 60), panelSize: s),
-                     "outside radius must miss")
+        // Top and bottom reach further than the sides (the old circle missed the egg's ends)
+        precondition(DesktopMochiLogic.isOverBody(localPoint: CGPoint(x: 60, y: 60 + b - 0.5), panelSize: s),
+                     "inside half-height must hit")
+        precondition(DesktopMochiLogic.isOverBody(localPoint: CGPoint(x: 60, y: 60 - b + 0.5), panelSize: s),
+                     "bottom end must hit")
+        precondition(!DesktopMochiLogic.isOverBody(localPoint: CGPoint(x: 60, y: 60 + b + 0.5), panelSize: s),
+                     "outside half-height must miss")
 
-        // Corner → outside
+        // The hit zone stays inside the visible body: a point of the panel's box corner misses
         precondition(!DesktopMochiLogic.isOverBody(localPoint: CGPoint(x: 0, y: 0), panelSize: s),
                      "corner must miss")
-
-        // Diagonal at radius — distance = r/√2 from each axis
-        let diag = r / sqrt(2.0) - 0.5
-        precondition(DesktopMochiLogic.isOverBody(localPoint: CGPoint(x: 60 + diag, y: 60 + diag), panelSize: s),
+        // A point on the diagonal inside the ellipse hits
+        let k = 1 / sqrt(2.0) - 0.02
+        precondition(DesktopMochiLogic.isOverBody(localPoint: CGPoint(x: 60 + a * k, y: 60 + b * k), panelSize: s),
                      "diagonal inside must hit")
+        precondition(!DesktopMochiLogic.isOverBody(localPoint: CGPoint(x: 60 + a * 0.75, y: 60 + b * 0.75), panelSize: s),
+                     "diagonal outside must miss")
+
+        // Other panel sizes scale proportionally
+        precondition(DesktopMochiLogic.isOverBody(localPoint: CGPoint(x: 100, y: 100 + 0.3 * 200 * 0.5), panelSize: 200),
+                     "scales with the panel")
     }
 
     // MARK: - lookOrigin

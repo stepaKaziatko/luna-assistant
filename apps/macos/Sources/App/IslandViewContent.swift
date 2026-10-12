@@ -4476,6 +4476,64 @@ struct OutfitPillView: View {
     }
 }
 
+/// Тело Luna в значке гардероба: ночной градиент, тень по краю, лунный блик, глаза и (без
+/// шапки) полумесяц со звёздочкой. Форма и цвета те же, что у BotEngine (LunaLook).
+private func drawLunaIconBody(context: GraphicsContext, cx: CGFloat, cy: CGFloat, iconR: CGFloat,
+                              pumpkin: Bool = false, withCharm: Bool = true) {
+    let rx = iconR * LunaLook.rxK, ry = iconR * LunaLook.ryK
+    let mH = MochiH(R: iconR, yaw: 0, pitch: 0)
+    let bodyPath = mochiOutfitPath(rx, ry)
+
+    if withCharm && !pumpkin {
+        var cc = context
+        cc.translateBy(x: cx, y: cy)
+        let ch = LunaLook.charm(R: iconR)
+        let tone = Color(red: LunaLook.charm.r, green: LunaLook.charm.g, blue: LunaLook.charm.b)
+        cc.fill(Path(LunaLook.moonPath(ch)), with: .color(tone))
+        cc.fill(Path(LunaLook.starPath(ch)), with: .color(tone))
+    }
+
+    var ctx = context
+    ctx.translateBy(x: cx, y: cy)
+    let top = pumpkin ? Color(hex: "#FFA94D")
+        : Color(red: LunaLook.bodyTop.r, green: LunaLook.bodyTop.g, blue: LunaLook.bodyTop.b)
+    let bot = pumpkin ? Color(hex: "#E8590C")
+        : Color(red: LunaLook.bodyBottom.r, green: LunaLook.bodyBottom.g, blue: LunaLook.bodyBottom.b)
+    ctx.fill(bodyPath, with: .linearGradient(
+        Gradient(colors: [top, bot]),
+        startPoint: CGPoint(x: rx * 0.7, y: -ry * 0.85),
+        endPoint:   CGPoint(x: -rx * 0.8, y: ry * 0.9)
+    ))
+    ctx.fill(bodyPath, with: .radialGradient(
+        Gradient(stops: [
+            .init(color: .clear, location: 0),
+            .init(color: .clear, location: 0.6),
+            .init(color: Color.black.opacity(0.2), location: 1)
+        ]),
+        center: .zero, startRadius: iconR * 0.15, endRadius: iconR * 1.25
+    ))
+    ctx.fill(bodyPath, with: .radialGradient(
+        Gradient(stops: [
+            .init(color: Color(red: 0.86, green: 0.9, blue: 1).opacity(0.36), location: 0),
+            .init(color: .clear, location: 1)
+        ]),
+        center: CGPoint(x: -rx * 0.36, y: -ry * 0.5),
+        startRadius: 0, endRadius: iconR * 0.4
+    ))
+
+    var eyeCtx = ctx
+    eyeCtx.clip(to: bodyPath)
+    let ink = pumpkin ? Color(cgColor: MochiConst.ink) : Color(cgColor: MochiConst.glow)
+    for f in mEyeFrames(mH) {
+        guard f.visible else { continue }
+        var ec = eyeCtx
+        ec.translateBy(x: f.x, y: f.y)
+        ec.scaleBy(x: f.fx, y: f.fy)
+        let g = LunaFace.glyph(.pill, w: f.w, h: f.h)
+        LunaFace.render(g, in: &ec, ink: ink, halo: pumpkin ? 0 : f.w * 0.3)
+    }
+}
+
 private func drawOutfitIcon(context: GraphicsContext, size: CGSize, outfit: Outfit, seasonal: Outfit = .none) {
     let W = size.width, H = size.height
     let cx = W / 2, cy = H / 2
@@ -4484,45 +4542,21 @@ private func drawOutfitIcon(context: GraphicsContext, size: CGSize, outfit: Outf
     switch outfit {
     case .auto:
         let iconR: CGFloat = 10.0
-        let rx = iconR * 1.14, ry = iconR * 0.88
+        let ry = iconR * LunaLook.ryK
         let mH = MochiH(R: iconR, yaw: 0, pitch: 0)
-        let bodyPath = mochiOutfitPath(rx, ry)
         let iconCY = cy + iconR * 0.62
+        let hasSeasonal = seasonal != .none && seasonal != .auto
 
         // Draw the seasonal outfit behind body
-        if seasonal != .none && seasonal != .auto {
+        if hasSeasonal {
             drawOutfitBehindStatic(context: context, outfit: seasonal, H: mH,
                                    cx: cx, cy: iconCY, tilt: 0, sx: 1, sy: 1,
                                    roll: 0, morph: 0, isMini: false)
         }
-        // Body
-        var ctx = context
-        ctx.translateBy(x: cx, y: iconCY)
-        ctx.fill(bodyPath, with: .linearGradient(
-            Gradient(colors: [Color(red: 0.929, green: 0.929, blue: 0.937),
-                              Color(red: 0.769, green: 0.773, blue: 0.792)]),
-            startPoint: CGPoint(x: rx*0.7, y: -ry*0.85),
-            endPoint:   CGPoint(x: -rx*0.8, y: ry*0.9)
-        ))
-        ctx.fill(bodyPath, with: .radialGradient(
-            Gradient(stops: [.init(color: .clear, location: 0.6),
-                             .init(color: Color.black.opacity(0.2), location: 1)]),
-            center: .zero, startRadius: iconR*0.15, endRadius: iconR*1.25
-        ))
-        // Eyes
-        var eyeCtx = ctx; eyeCtx.clip(to: bodyPath)
-        let ink = Color(red: 0.102, green: 0.082, blue: 0.071)
-        for f in mEyeFrames(mH) {
-            guard f.visible else { continue }
-            var ec = eyeCtx; ec.translateBy(x: f.x, y: f.y); ec.scaleBy(x: f.fx, y: f.fy)
-            let hh = max(f.h, f.w*0.3)
-            var pill = Path()
-            pill.addRoundedRect(in: CGRect(x: -f.w/2, y: -hh/2, width: f.w, height: hh),
-                                cornerSize: CGSize(width: min(f.w/2,hh/2), height: min(f.w/2,hh/2)))
-            ec.fill(pill, with: .color(ink))
-        }
+        drawLunaIconBody(context: context, cx: cx, cy: iconCY, iconR: iconR,
+                         withCharm: !(hasSeasonal && seasonal.coversHead))
         // Front outfit
-        if seasonal != .none && seasonal != .auto {
+        if hasSeasonal {
             drawOutfitFrontStatic(context: context, outfit: seasonal, H: mH,
                                   cx: cx, cy: iconCY, tilt: 0, sx: 1, sy: 1,
                                   roll: 0, morph: 0, isMini: false)
@@ -4554,9 +4588,7 @@ private func drawOutfitIcon(context: GraphicsContext, size: CGSize, outfit: Outf
     default:
         // Small Luna wearing the outfit
         let iconR: CGFloat = 10.0
-        let rx = iconR * 1.14, ry = iconR * 0.88
         let mH = MochiH(R: iconR, yaw: 0, pitch: 0)
-        let bodyPath = mochiOutfitPath(rx, ry)
         let iconCY = cy + iconR * 0.62
 
         // Draw outfit behind
@@ -4564,51 +4596,8 @@ private func drawOutfitIcon(context: GraphicsContext, size: CGSize, outfit: Outf
                                cx: cx, cy: iconCY, tilt: 0, sx: 1, sy: 1,
                                roll: 0, morph: 0, isMini: false)
 
-        // Draw body
-        var ctx = context
-        ctx.translateBy(x: cx, y: iconCY)
-        let pumpkin = outfit == .pumpkin
-        let top = pumpkin ? Color(hex: "#FFA94D") : Color(red: 0.929, green: 0.929, blue: 0.937)
-        let bot = pumpkin ? Color(hex: "#E8590C") : Color(red: 0.769, green: 0.773, blue: 0.792)
-        ctx.fill(bodyPath, with: .linearGradient(
-            Gradient(colors: [top, bot]),
-            startPoint: CGPoint(x: rx * 0.7, y: -ry * 0.85),
-            endPoint:   CGPoint(x: -rx * 0.8, y: ry * 0.9)
-        ))
-        ctx.fill(bodyPath, with: .radialGradient(
-            Gradient(stops: [
-                .init(color: .clear, location: 0),
-                .init(color: .clear, location: 0.6),
-                .init(color: Color.black.opacity(0.2), location: 1)
-            ]),
-            center: .zero, startRadius: iconR * 0.15, endRadius: iconR * 1.25
-        ))
-        ctx.fill(bodyPath, with: .radialGradient(
-            Gradient(stops: [
-                .init(color: Color.white.opacity(0.55), location: 0),
-                .init(color: .clear, location: 1)
-            ]),
-            center: CGPoint(x: rx * 0.34, y: -ry * 0.46),
-            startRadius: 0, endRadius: iconR * 0.42
-        ))
-
-        // Draw eyes
-        var eyeCtx = ctx
-        eyeCtx.clip(to: bodyPath)
-        let ink = Color(red: 0.102, green: 0.082, blue: 0.071)
-        for f in mEyeFrames(mH) {
-            guard f.visible else { continue }
-            var ec = eyeCtx
-            ec.translateBy(x: f.x, y: f.y)
-            ec.scaleBy(x: f.fx, y: f.fy)
-            let hh = max(f.h, f.w * 0.3)
-            var pill = Path()
-            pill.addRoundedRect(
-                in: CGRect(x: -f.w / 2, y: -hh / 2, width: f.w, height: hh),
-                cornerSize: CGSize(width: min(f.w / 2, hh / 2), height: min(f.w / 2, hh / 2))
-            )
-            ec.fill(pill, with: .color(ink))
-        }
+        drawLunaIconBody(context: context, cx: cx, cy: iconCY, iconR: iconR,
+                         pumpkin: outfit == .pumpkin, withCharm: !outfit.coversHead)
 
         // Draw outfit front
         drawOutfitFrontStatic(context: context, outfit: outfit, H: mH,

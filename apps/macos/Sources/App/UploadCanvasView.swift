@@ -304,10 +304,20 @@ struct UploadCanvasView: View {
 
         let (bp, rx, ry) = usBodyPath(m: m, R: R)
 
+        // ── Moon and star over the head (fade out as the body turns into the box) ──
+        if mc < 0.3 {
+            var cc = c
+            cc.opacity = 1 - Double(mc / 0.3)
+            let ch = LunaLook.charm(R: CGFloat(ry / LunaLook.ryK))
+            let tone = Color(red: LunaLook.charm.r, green: LunaLook.charm.g, blue: LunaLook.charm.b)
+            cc.fill(Path(LunaLook.moonPath(ch)), with: .color(tone))
+            cc.fill(Path(LunaLook.starPath(ch)), with: .color(tone))
+        }
+
         // ── Body gradient ──────────────────────────────────────────
         let bodyGrad = Gradient(stops:[
-            .init(color: Color(hex:"#EDEDEF"), location:0),
-            .init(color: Color(hex:"#C4C5CA"), location:1)
+            .init(color: Color(red: LunaLook.bodyTop.r, green: LunaLook.bodyTop.g, blue: LunaLook.bodyTop.b), location:0),
+            .init(color: Color(red: LunaLook.bodyBottom.r, green: LunaLook.bodyBottom.g, blue: LunaLook.bodyBottom.b), location:1)
         ])
         c.fill(bp, with: .linearGradient(bodyGrad,
             startPoint:  CGPoint(x:  rx*0.7, y: -ry*0.9),
@@ -362,12 +372,12 @@ struct UploadCanvasView: View {
         }
 
         // ── Eyes ───────────────────────────────────────────────────
-        let ew = R * 0.25
-        let eh = R * (0.62 - 0.16*mc)
-        let ey = R * (0.02 + 0.28*mc)
+        let ew = R * 0.28
+        let eh = R * (0.56 - 0.14*mc)
+        let ey = R * (0.12 + 0.18*mc)
         let sp = R * 0.30
-        let lx = f.lookX * R * (0.34 - 0.08*mc)
-        let ly = f.lookY * R * (0.16 - 0.09*mc)
+        let lx = f.lookX * R * (0.26 - 0.06*mc)
+        let ly = f.lookY * R * (0.14 - 0.08*mc)
 
         var eCtx = c
         eCtx.clip(to: bp)
@@ -381,33 +391,17 @@ struct UploadCanvasView: View {
     // MARK: - Eye shapes
 
     private func drawEyeShape(ctx: inout GraphicsContext, shape: USEyeShape, w: CGFloat, h: CGFloat) {
-        let ink = Color(red:0.055,green:0.059,blue:0.071)
+        // Те же очертания и цвет, что у BotEngine (LunaFace): остров, приветствие и загрузка
+        // рисуют одно лицо.
+        let face: EyeShape
         switch shape {
-        case .pill:
-            var p = Path()
-            p.addRoundedRect(in: CGRect(x:-w/2, y:-h/2, width:w, height:h),
-                             cornerSize: CGSize(width:w/2, height:w/2))
-            ctx.fill(p, with: .color(ink))
-
-        case .cup:
-            // Flat top + semicircle bottom (cup shape)
-            let hh = h * 0.55
-            var p = Path()
-            p.move(to: CGPoint(x:-w/2, y:-hh/2))
-            p.addLine(to: CGPoint(x: w/2, y:-hh/2))
-            p.addLine(to: CGPoint(x: w/2, y: hh/2-w/2))
-            p.addArc(center: CGPoint(x:0, y:hh/2-w/2), radius:w/2, startAngle:.degrees(0), endAngle:.degrees(180), clockwise:false)
-            p.closeSubpath()
-            ctx.fill(p, with: .color(ink))
-
-        case .content:
-            // Upward arc (content / happy)
-            var p = Path()
-            p.addArc(center: CGPoint(x:0, y:-h*0.12), radius:w*0.85,
-                     startAngle:.degrees(180*0.15), endAngle:.degrees(180*0.85), clockwise:false)
-            ctx.stroke(p, with: .color(ink),
-                       style: StrokeStyle(lineWidth:w*0.5, lineCap:.round))
+        case .pill:    face = .pill
+        case .cup:     face = .cup
+        case .content: face = .closed
         }
+        let glow = Color(red: LunaLook.glow.r, green: LunaLook.glow.g, blue: LunaLook.glow.b)
+        let g = LunaFace.glyph(face, w: w, h: face == .cup ? h * 0.55 : h)
+        LunaFace.render(g, in: &ctx, ink: glow, halo: w * 0.3)
     }
 
     // MARK: - File / suction (drawFile port)
@@ -554,11 +548,19 @@ private func drawDocCG(cg: CGContext, cx: Double, cy: Double, wsc: Double, hsc: 
 
 // MARK: - Superellipse body path (port of reference bodyPath(m, R))
 
+/// Полуоси тела при превращении в ящик: яйцо Luna в покое, прежний размер ящика в конце.
+func usBodyRadii(m: Double, R: Double) -> (rx: Double, ry: Double) {
+    let mc = max(0, min(m, 1.0))
+    let ry0 = 0.97, rx0 = ry0 * Double(LunaLook.aspect)
+    return (R * (rx0 + (1.0 - rx0)*mc), R * (ry0 - 0.03*mc))
+}
+
 func usBodyPath(m: Double, R: Double) -> (path: Path, rx: Double, ry: Double) {
     let mc = max(0, min(m, 1.0))
-    let n  = 2.15 + (5.5-2.15)*mc
-    let rx = R * (1.04 - 0.04*mc)
-    let ry = R * (0.97 - 0.03*mc)
+    // Яйцо Luna (LunaLook) превращается в ящик: форма в покое общая с остальным персонажем,
+    // ящик по размеру прежний (rx 1.0R, ry 0.94R, показатель 5.5).
+    let n  = Double(LunaLook.exponent) + (5.5 - Double(LunaLook.exponent))*mc
+    let (rx, ry) = usBodyRadii(m: mc, R: R)
     var path = Path()
     for i in 0...96 {
         let a  = Double(i)/96 * .pi*2

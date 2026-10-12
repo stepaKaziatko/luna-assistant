@@ -23,7 +23,6 @@ private enum GT {
 
 private let GC0     = CGPoint(x: 320, y: 90)
 private let GHB:    CGFloat = 58
-private let GASP:   CGFloat = 1.34
 private let GEAR_X: CGFloat = 40
 private let GEAR_HB:CGFloat = 17
 private let GCARD   = CGRect(x: 10, y: 36, width: 620, height: 104)
@@ -324,26 +323,17 @@ private func gRR(_ ctx: CGContext, _ x: CGFloat, _ y: CGFloat,
     ctx.closePath()
 }
 
+/// Тело Luna: та же форма, что у BotEngine (LunaLook), по заданной полувысоте.
 private func mochiPath(hw: CGFloat, hh: CGFloat) -> CGPath {
-    let n: CGFloat = 3.2
-    let path = CGMutablePath()
-    let steps = 96
-    for i in 0...steps {
-        let a = CGFloat(i)/CGFloat(steps)*2 * .pi
-        let ca = cos(a), sa = sin(a)
-        let px = hw * (ca < 0 ? -1 : 1) * pow(abs(ca), 2/n)
-        let py = hh * (sa < 0 ? -1 : 1) * pow(abs(sa), 2/n)
-        if i == 0 { path.move(to: CGPoint(x: px, y: py)) }
-        else { path.addLine(to: CGPoint(x: px, y: py)) }
-    }
-    path.closeSubpath(); return path
+    LunaLook.superellipse(rx: hw, ry: hh)
 }
 
-private func whiteFill(_ ctx: CGContext, _ path: CGPath,
-                       x0: CGFloat, y0: CGFloat, x1: CGFloat, y1: CGFloat) {
+/// Заливка тела и ручек: ночной градиент персонажа.
+private func bodyFill(_ ctx: CGContext, _ path: CGPath,
+                      x0: CGFloat, y0: CGFloat, x1: CGFloat, y1: CGFloat) {
     let cs = CGColorSpaceCreateDeviceRGB()
-    let c0 = CGColor(red: 251/255, green: 251/255, blue: 252/255, alpha: 1)
-    let c1 = CGColor(red: 231/255, green: 233/255, blue: 236/255, alpha: 1)
+    let c0 = CGColor(red: LunaLook.bodyTop.r, green: LunaLook.bodyTop.g, blue: LunaLook.bodyTop.b, alpha: 1)
+    let c1 = CGColor(red: LunaLook.bodyBottom.r, green: LunaLook.bodyBottom.g, blue: LunaLook.bodyBottom.b, alpha: 1)
     guard let g = CGGradient(colorsSpace: cs, colors: [c0,c1] as CFArray, locations: [0,1]) else { return }
     ctx.saveGState()
     ctx.addPath(path); ctx.clip()
@@ -372,10 +362,11 @@ private func drawHandL(_ ctx: CGContext, hw: CGFloat, hh: CGFloat, p: GreetPose)
     }
     ctx.saveGState()
     ctx.translateBy(x: rx, y: CGFloat(ry))
-    let circ = CGPath(ellipseIn: CGRect(x: -r, y: -r, width: r*2, height: r*2), transform: nil)
-    whiteFill(ctx, circ, x0: r, y0: -r, x1: -r, y1: r)
-    ctx.addEllipse(in: CGRect(x: -r, y: -r, width: r*2, height: r*2))
-    ctx.setStrokeColor(CGColor(red: 0, green: 0, blue: 0, alpha: 0.08))
+    // Варежка: скруглённый квадрат с контуром света, как у BotEngine
+    let mitt = LunaLook.superellipse(rx: r * 0.9, ry: r * 1.1, exponent: 3.2, steps: 40)
+    bodyFill(ctx, mitt, x0: r, y0: -r, x1: -r, y1: r)
+    ctx.addPath(mitt)
+    ctx.setStrokeColor(gHex("#FFF2C4", alpha: 0.55))
     ctx.setLineWidth(0.8); ctx.strokePath()
     ctx.restoreGState()
 }
@@ -397,15 +388,28 @@ private func drawHandR(_ ctx: CGContext, hw: CGFloat, hh: CGFloat, p: GreetPose)
     gRR(ctx, -L/2, -T2/2, L, T2, T2/2)
     cap.addPath(ctx.path!)
     ctx.beginPath()
-    whiteFill(ctx, cap, x0: L/2, y0: -T2/2, x1: -L/2, y1: T2/2)
+    bodyFill(ctx, cap, x0: L/2, y0: -T2/2, x1: -L/2, y1: T2/2)
     gRR(ctx, -L/2, -T2/2, L, T2, T2/2)
-    ctx.setStrokeColor(CGColor(red: 0, green: 0, blue: 0, alpha: 0.08))
+    ctx.setStrokeColor(gHex("#FFF2C4", alpha: 0.55))
     ctx.setLineWidth(0.8); ctx.strokePath()
     ctx.restoreGState()
 }
 
+/// Полумесяц и звёздочка над головой (до тела, в его системе координат с началом в центре).
+private func drawCharm(_ ctx: CGContext, hh: CGFloat, p: GreetPose) {
+    guard hh > 6 else { return }
+    // Положение считаем от того же R, что у BotEngine: полувысота тела = ryK·R
+    let ch = LunaLook.charm(R: hh / LunaLook.ryK)
+    let c = CGColor(red: LunaLook.charm.r, green: LunaLook.charm.g, blue: LunaLook.charm.b, alpha: 1)
+    ctx.saveGState()
+    ctx.setFillColor(c)
+    ctx.addPath(LunaLook.moonPath(ch)); ctx.fillPath()
+    ctx.addPath(LunaLook.starPath(ch)); ctx.fillPath()
+    ctx.restoreGState()
+}
+
 private func drawMochi(_ ctx: CGContext, p: GreetPose) {
-    let hh = CGFloat(p.hb/2), hw = hh*GASP; guard hh > 0.4 else { return }
+    let hh = CGFloat(p.hb/2), hw = hh*LunaLook.aspect; guard hh > 0.4 else { return }
 
     // Halo (golden → blue)
     if p.halo > 0 {
@@ -447,50 +451,47 @@ private func drawMochi(_ ctx: CGContext, p: GreetPose) {
     drawHandL(ctx, hw: hw, hh: hh, p: p)
     drawHandR(ctx, hw: hw, hh: hh, p: p)
 
+    // Украшения над головой рисуются до тела: макушка закрывает их основание
+    drawCharm(ctx, hh: hh, p: p)
+
     let mpath = mochiPath(hw: hw, hh: hh)
-    whiteFill(ctx, mpath, x0: hw*0.6, y0: -hh, x1: -hw*0.6, y1: hh)
+    bodyFill(ctx, mpath, x0: hw*0.6, y0: -hh, x1: -hw*0.6, y1: hh)
 
     if p.tint > 0 {
         let cs = CGColorSpaceCreateDeviceRGB()
-        let c0 = CGColor(red: 127/255, green: 180/255, blue: 234/255, alpha: CGFloat(p.tint))
-        let c1 = CGColor(red: 127/255, green: 180/255, blue: 234/255, alpha: 0)
-        if let g = CGGradient(colorsSpace: cs, colors: [c0,c1] as CFArray, locations: [0,1]) {
+        // Состояние светится по краю, середина с глазами остаётся тёмной
+        let edge = CGColor(red: 59/255, green: 158/255, blue: 255/255, alpha: min(1, CGFloat(p.tint) * 1.25))
+        let clear = CGColor(red: 59/255, green: 158/255, blue: 255/255, alpha: 0)
+        if let g = CGGradient(colorsSpace: cs, colors: [clear, clear, edge] as CFArray,
+                              locations: [0, 0.4, 1]) {
             ctx.saveGState()
             ctx.addPath(mpath); ctx.clip()
-            ctx.drawLinearGradient(g, start: CGPoint(x: 0, y: hh),
-                                      end:   CGPoint(x: 0, y: -hh*0.1), options: [])
+            ctx.drawRadialGradient(g, startCenter: .zero, startRadius: 0,
+                                   endCenter: .zero, endRadius: hh * 1.02, options: [])
             ctx.restoreGState()
         }
     }
 
     ctx.saveGState()
     ctx.addPath(mpath); ctx.clip()
-    ctx.setFillColor(gHex("#16171A"))
-    ctx.setStrokeColor(gHex("#16171A"))
     let er = CGFloat(p.hb*0.06)
     let sp = CGFloat(p.hb*0.19)
     let lx = CGFloat(p.lookX)*hw*0.42
-    let ly = CGFloat(p.lookY)*hh*0.28 + hh*0.12 + CGFloat(p.eyeRoll)*hh*1.25
+    // Глаза малыша сидят ниже середины тела
+    let ly = CGFloat(p.lookY)*hh*0.28 + hh*0.2 + CGFloat(p.eyeRoll)*hh*1.25
+    let glow = CGColor(red: LunaLook.glow.r, green: LunaLook.glow.g, blue: LunaLook.glow.b, alpha: 1)
     for sd: CGFloat in [-1, 1] {
         ctx.saveGState()
         ctx.translateBy(x: sd*sp+lx, y: ly)
-        if p.eye == .happy {
-            ctx.setLineWidth(er*0.95); ctx.setLineCap(.round)
-            ctx.beginPath()
-            ctx.addArc(center: CGPoint(x: 0, y: er*0.6), radius: er*1.25,
-                       startAngle: .pi*1.15, endAngle: .pi*1.85, clockwise: false)
-            ctx.strokePath()
-        } else if p.eye == .content {
-            ctx.setLineWidth(er*0.95); ctx.setLineCap(.round)
-            ctx.beginPath()
-            ctx.addArc(center: CGPoint(x: 0, y: -er*0.5), radius: er*1.25,
-                       startAngle: .pi*0.15, endAngle: .pi*0.85, clockwise: false)
-            ctx.strokePath()
-        } else {
-            ctx.scaleBy(x: 1, y: max(0.12, CGFloat(p.open)))
-            ctx.addEllipse(in: CGRect(x: -er, y: -er, width: er*2, height: er*2))
-            ctx.fillPath()
+        let shape: EyeShape
+        switch p.eye {
+        case .happy:   shape = .happy
+        case .content: shape = .closed
+        case .dot:     shape = .pill
         }
+        // те же очертания, что у BotEngine; морганием по вертикали управляет `open`
+        let g = LunaFace.glyph(shape, w: er*2.2, h: er*2.5, open: max(0.12, CGFloat(p.open)), sd: sd)
+        LunaFace.render(g, in: ctx, ink: glow, halo: er*0.9)
         ctx.restoreGState()
     }
     ctx.restoreGState()
@@ -596,7 +597,8 @@ private func drawMinis(_ ctx: CGContext, alpha: Double, compact: IslandRestingLa
         let scale = CGFloat(alpha) * compact.miniGridScale
         ctx.scaleBy(x: scale, y: scale)
         ctx.setFillColor(gHex(miniColors[i]))
-        ctx.addPath(mochiPath(hw: 5.3, hh: 4)); ctx.fillPath()
+        // та же форма, что у главного персонажа, по высоте 10 pt
+        ctx.addPath(mochiPath(hw: 5 * LunaLook.aspect, hh: 5)); ctx.fillPath()
         ctx.restoreGState()
     }
 }

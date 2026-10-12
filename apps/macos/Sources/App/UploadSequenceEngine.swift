@@ -420,8 +420,7 @@ final class UploadSequenceEngine {
         // Mouth rect in island coords (used by drawFile for clipping)
         let R  = d / 2 / 1.04
         let mc = max(0, min(morph, 1.0))
-        let rx = R * (1.04 - 0.04*mc)
-        let ry = R * (0.97 - 0.03*mc)
+        let (rx, ry) = usBodyRadii(m: mc, R: R)
         let mh = f.mouth * R * mc
         let mw = 2*rx - 0.24*R
         let mxOff = -mw/2
