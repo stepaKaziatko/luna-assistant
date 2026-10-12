@@ -36,14 +36,14 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAccessibilityUsageDescription</key>
-	<string>Pour lire le titre de la fenêtre active et l'attacher comme contexte.</string>
+	<string>Luna reads the title of the active window when you ask it to attach it as context.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Pour sauter au terminal, envoyer des mails et piloter Musique et Spotify.</string>
+	<string>Luna controls Terminal, Mail, Music and Spotify when you ask it to jump to a terminal, send an email or play music.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Luna looks up an email address when you ask it, by voice, to prepare an email.</string>
 	<key>NSHighResolutionCapable</key>

@@ -134,10 +134,10 @@ targets:
         LSUIElement: YES
         NSHighResolutionCapable: YES
         NSSupportsAutomaticGraphicsSwitching: YES
-        NSAppleEventsUsageDescription: "Pour sauter au terminal, envoyer des mails et piloter Musique et Spotify."
+        NSAppleEventsUsageDescription: "Luna controls Terminal, Mail, Music and Spotify when you ask it to jump to a terminal, send an email or play music."
         NSMicrophoneUsageDescription: "Luna uses the microphone when you dictate a message in the chat."
         NSSpeechRecognitionUsageDescription: "Luna turns your voice into the text of a chat message."
-        NSAccessibilityUsageDescription: "Pour lire le titre de la fenêtre active et l'attacher comme contexte."
+        NSAccessibilityUsageDescription: "Luna reads the title of the active window when you ask it to attach it as context."
         NSContactsUsageDescription: "Luna looks up an email address when you ask it, by voice, to prepare an email."
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
