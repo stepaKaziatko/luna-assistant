@@ -203,7 +203,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                                name: .openFullSettings, object: nil)
         // After the greeting ends, fly Luna back to the desktop if it was there at last quit
         NotificationCenter.default.addObserver(forName: .greetComplete, object: nil, queue: .main) { [weak self] _ in
-            DesktopMochiController.shared.launchFlyIfNeeded()
+            DesktopLunaController.shared.launchFlyIfNeeded()
             self?.checkMondayRecap()
         }
         // Check for Monday recap on wake and when a new session/prompt arrives

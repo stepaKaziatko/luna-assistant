@@ -274,7 +274,7 @@ final class IslandWindowController: NSWindowController {
                 self.setMode(.hidden)
 
             case .petit:
-                if from == .coucou {
+                if from == .luna {
                     // Fire interrupt first so canvas collapse starts before mode change
                     NotificationCenter.default.post(name: .greetingInterrupt, object: nil)
                 } else if from == .hidden {
@@ -292,9 +292,9 @@ final class IslandWindowController: NSWindowController {
                 // setMode BEFORE changing view: onChange(of: state.view) guards on .expanded,
                 // so setting view while already compact won't trigger a spurious open animation.
                 self.setMode(.compact)
-                // Reset view when leaving .coucou or .listening so stale views
+                // Reset view when leaving .luna or .listening so stale views
                 // (e.g. .voiceResult) never linger on a collapsed island.
-                if from == .coucou || from == .listening { self.state.view = self.defaultView() }
+                if from == .luna || from == .listening { self.state.view = self.defaultView() }
                 // Start 60s hide timer if mouse is not currently over the island
                 if !self.wasInIsland { self.fsm.mouseLeft() }
 
@@ -305,7 +305,7 @@ final class IslandWindowController: NSWindowController {
                     self.fsm.mouseLeft()
                 }
 
-            case .coucou:
+            case .luna:
                 self.expand(to: .greeting)
 
             case .listening:
@@ -424,7 +424,7 @@ final class IslandWindowController: NSWindowController {
         // pointer itself every frame, so only hover and clicks need this poll, and those
         // only near the island. 60 Hz while open, dragging or close to it.
         let busy = state.mode == .expanded || inAttachDrag || attachDragStart != nil
-            || fsm.state == .home || fsm.state == .coucou || fsm.state == .listening || nearIsland
+            || fsm.state == .home || fsm.state == .luna || fsm.state == .listening || nearIsland
         let wanted = busy ? Self.fastPoll : inBand ? Self.nearPoll : Self.idlePoll
         if wanted != pollInterval { startPolling(interval: wanted) }
     }
@@ -474,7 +474,7 @@ final class IslandWindowController: NSWindowController {
         if inIsland && !previouslyInIsland {
             guard !inAttachDrag else { return }
             // If in coucou: tell greeting to stay open (tc → infinity)
-            if fsm.state == .coucou {
+            if fsm.state == .luna {
                 NotificationCenter.default.post(name: .greetingHover, object: nil)
             }
             fsm.mouseEntered()
@@ -694,7 +694,7 @@ final class IslandWindowController: NSWindowController {
                 object: state.soundEnabled ? BotEmote.happy : BotEmote.annoyed)
 
         case .desktopToggle:
-            DesktopMochiController.shared.flyOutOrHome()
+            DesktopLunaController.shared.flyOutOrHome()
 
         case .wardrobeToggle:
             if state.mode == .expanded && state.view == .wardrobe {
@@ -704,7 +704,7 @@ final class IslandWindowController: NSWindowController {
                 expand(to: .wardrobe)
             }
 
-        case .talkToCoucou:
+        case .talkToLuna:
             #if !APPSTORE
             VoiceSpeaker.shared.stop()
             VoiceEngine.shared.startListeningDirectly()
@@ -930,7 +930,7 @@ final class IslandWindowController: NSWindowController {
                 // Drag only starts when clicking directly on the bot head
                 guard self.isBotHit(event.locationInWindow) else { return }
                 // Notch Luna is invisible when on desktop — no drag, no slap
-                guard !self.state.mochiOnDesktop else { return }
+                guard !self.state.lunaOnDesktop else { return }
                 self.attachDragStart = NSEvent.mouseLocation
                 // Post slap only when expanded
                 guard self.state.mode == .expanded else { return }
@@ -977,7 +977,7 @@ final class IslandWindowController: NSWindowController {
                     let ghost = self.dragGhostPanel
                     self.dragGhostPanel = nil   // nil first so hideDragGhost skips close
                     self.hideDragGhost()        // resets isDraggingBot, closes highlight panel
-                    DesktopMochiController.shared.install(ghostPanel: ghost, at: mouse)
+                    DesktopLunaController.shared.install(ghostPanel: ghost, at: mouse)
                 } else {
                     // Drop back in notch zone → Luna returns to notch
                     self.hideDragGhost()
@@ -988,7 +988,7 @@ final class IslandWindowController: NSWindowController {
                     let ghost = self.dragGhostPanel
                     self.dragGhostPanel = nil
                     self.hideDragGhost()
-                    DesktopMochiController.shared.install(ghostPanel: ghost, at: mouse)
+                    DesktopLunaController.shared.install(ghostPanel: ghost, at: mouse)
                 } else {
                     self.hideDragGhost()
                 }
@@ -1025,7 +1025,7 @@ final class IslandWindowController: NSWindowController {
             guard let self else { return event }
             MainActor.assumeIsolated {
                 guard self.wasInIsland, self.isBotHit(event.locationInWindow) else { return }
-                guard !self.state.mochiOnDesktop else { return }
+                guard !self.state.lunaOnDesktop else { return }
                 if self.state.mode == .expanded && self.state.view == .wardrobe {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         self.state.view = .overview
@@ -1346,7 +1346,7 @@ final class IslandWindowController: NSWindowController {
     /// Luna's look target from the current mouse position (see the mouse-moved monitors).
     static func trackMouseLook() {
         let app = AppState.shared
-        guard app.mode != .hidden || app.mochiOnDesktop else { return }
+        guard app.mode != .hidden || app.lunaOnDesktop else { return }
         let pos = DesktopSpace.topDown(NSEvent.mouseLocation, desktopTop: desktopTop)
         let cur = app.mousePosition
         if abs(pos.x - cur.x) > 1 || abs(pos.y - cur.y) > 1 { app.mousePosition = pos }
@@ -1994,32 +1994,32 @@ extension IslandWindowController {
 // MARK: - Notification names
 
 extension Notification.Name {
-    static let triggerEmote     = Notification.Name("notchBuddy.triggerEmote")
-    static let triggerSlap      = Notification.Name("notchBuddy.triggerSlap")
-    static let botDizzy         = Notification.Name("notchBuddy.botDizzy")
-    static let botGreet         = Notification.Name("notchBuddy.botGreet")
-    static let botBlink         = Notification.Name("notchBuddy.botBlink")
-    static let botSetTgEs       = Notification.Name("notchBuddy.botSetTgEs")
-    static let botGulp          = Notification.Name("notchBuddy.botGulp")
-    static let botMorphTo       = Notification.Name("notchBuddy.botMorphTo")
-    static let islandAction     = Notification.Name("notchBuddy.islandAction")
-    static let islandCollapse      = Notification.Name("notchBuddy.islandCollapse")
-    static let voiceShowMailCard   = Notification.Name("notchBuddy.voiceShowMailCard")
-    static let islandSendMessage   = Notification.Name("notchBuddy.islandSendMessage")
-    static let islandNewConversation = Notification.Name("notchBuddy.islandNewConversation")
-    static let islandToggleDiff           = Notification.Name("notchBuddy.islandToggleDiff")
-    static let islandActivateCardSelection = Notification.Name("notchBuddy.islandActivateCardSelection")
-    static let openFullSettings    = Notification.Name("notchBuddy.openFullSettings")
-    static let hookReveal       = Notification.Name("notchBuddy.hookReveal")
-    static let musicReveal      = Notification.Name("notchBuddy.musicReveal")
+    static let triggerEmote     = Notification.Name("luna.triggerEmote")
+    static let triggerSlap      = Notification.Name("luna.triggerSlap")
+    static let botDizzy         = Notification.Name("luna.botDizzy")
+    static let botGreet         = Notification.Name("luna.botGreet")
+    static let botBlink         = Notification.Name("luna.botBlink")
+    static let botSetTgEs       = Notification.Name("luna.botSetTgEs")
+    static let botGulp          = Notification.Name("luna.botGulp")
+    static let botMorphTo       = Notification.Name("luna.botMorphTo")
+    static let islandAction     = Notification.Name("luna.islandAction")
+    static let islandCollapse      = Notification.Name("luna.islandCollapse")
+    static let voiceShowMailCard   = Notification.Name("luna.voiceShowMailCard")
+    static let islandSendMessage   = Notification.Name("luna.islandSendMessage")
+    static let islandNewConversation = Notification.Name("luna.islandNewConversation")
+    static let islandToggleDiff           = Notification.Name("luna.islandToggleDiff")
+    static let islandActivateCardSelection = Notification.Name("luna.islandActivateCardSelection")
+    static let openFullSettings    = Notification.Name("luna.openFullSettings")
+    static let hookReveal       = Notification.Name("luna.hookReveal")
+    static let musicReveal      = Notification.Name("luna.musicReveal")
     // Greeting ↔ IslandWindowController
-    static let greetComplete    = Notification.Name("notchBuddy.greetComplete")
-    static let checkMondayRecap = Notification.Name("notchBuddy.checkMondayRecap")
-    static let greetingHover    = Notification.Name("notchBuddy.greetingHover")
-    static let greetingInterrupt = Notification.Name("notchBuddy.greetingInterrupt")
-    static let openWardrobeFromDesktop = Notification.Name("notchBuddy.openWardrobeFromDesktop")
+    static let greetComplete    = Notification.Name("luna.greetComplete")
+    static let checkMondayRecap = Notification.Name("luna.checkMondayRecap")
+    static let greetingHover    = Notification.Name("luna.greetingHover")
+    static let greetingInterrupt = Notification.Name("luna.greetingInterrupt")
+    static let openWardrobeFromDesktop = Notification.Name("luna.openWardrobeFromDesktop")
     // Island moved to another screen (resting size may differ: notch vs bar)
-    static let islandScreenChanged = Notification.Name("notchBuddy.islandScreenChanged")
+    static let islandScreenChanged = Notification.Name("luna.islandScreenChanged")
 }
 
 // MARK: - islandSize (takes real notch dimensions)

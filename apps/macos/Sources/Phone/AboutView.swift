@@ -7,7 +7,7 @@ struct AboutView: View {
     let link: PhoneLink
     @State private var showGuide = false
     @AppStorage(PhoneSettings.notifyDoneKey) private var notifyDone = true
-    @AppStorage(PhoneSettings.mochiSoundsKey) private var mochiSounds = true
+    @AppStorage(PhoneSettings.lunaSoundsKey) private var lunaSounds = true
     @AppStorage(PhoneSettings.quietHoursKey) private var quietHours = false
     @AppStorage(PhoneSettings.quietFromKey) private var quietFrom = 22 * 60
     @AppStorage(PhoneSettings.quietToKey) private var quietTo = 8 * 60
@@ -25,7 +25,7 @@ struct AboutView: View {
         List {
             Section {
                 HStack(spacing: 14) {
-                    MochiLive(state: .idle)
+                    LunaLive(state: .idle)
                         .padding(6)
                         .frame(width: 64, height: 64)
                         .background(Color(white: 0.16), in: RoundedRectangle(cornerRadius: 16))
@@ -60,8 +60,8 @@ struct AboutView: View {
 
             Section {
                 Toggle("When an agent finishes or fails", isOn: $notifyDone)
-                Toggle("Luna's sounds", isOn: $mochiSounds)
-                    .onChange(of: mochiSounds) { link.soundsChanged() }
+                Toggle("Luna's sounds", isOn: $lunaSounds)
+                    .onChange(of: lunaSounds) { link.soundsChanged() }
                 Toggle("Quiet hours", isOn: $quietHours)
                 if quietHours {
                     DatePicker("From", selection: time($quietFrom), displayedComponents: .hourAndMinute)
@@ -147,7 +147,7 @@ struct OnboardingView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
                 VStack(alignment: .leading, spacing: 12) {
-                    MochiLive(state: .finished)
+                    LunaLive(state: .finished)
                         .frame(width: 88, height: 88)
                     Text("Your agents, in your pocket")
                         .font(.largeTitle.weight(.bold))

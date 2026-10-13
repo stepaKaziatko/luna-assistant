@@ -18,7 +18,7 @@ enum ShortcutAction: String, CaseIterable, Sendable {
     case muteToggle        = "muteToggle"         // ⌃⌥M — mute / unmute sounds
     case desktopToggle     = "desktopToggle"      // ⌃⌥D — send Luna to desktop / bring back
     case wardrobeToggle    = "wardrobeToggle"     // ⌃⌥G — open / close wardrobe
-    case talkToCoucou      = "talkToCoucou"       // (unset) — start listening without wake phrase (non-AppStore)
+    case talkToLuna      = "talkToLuna"       // (unset) — start listening without wake phrase (non-AppStore)
 
     // MARK: UserDefaults keys
 
@@ -49,17 +49,17 @@ enum ShortcutAction: String, CaseIterable, Sendable {
         case .muteToggle:        return String(localized: "shortcut.mute-toggle")
         case .desktopToggle:     return String(localized: "shortcut.desktop-toggle")
         case .wardrobeToggle:    return String(localized: "shortcut.wardrobe")
-        case .talkToCoucou:      return String(localized: "shortcut.talk-to-coucou")
+        case .talkToLuna:      return String(localized: "shortcut.talk-to-coucou")
         }
     }
 
     /// Whether this action should be omitted from App Store builds.
     var isAppStoreOnly: Bool { false }
-    var isNonAppStore: Bool  { self == .attachFrontWindow || self == .talkToCoucou }
+    var isNonAppStore: Bool  { self == .attachFrontWindow || self == .talkToLuna }
 
     /// Whether the shortcut is enabled by default.
-    /// `toggleIsland` and `talkToCoucou` are off by default; all others are on.
-    var enabledByDefault: Bool { self != .toggleIsland && self != .talkToCoucou }
+    /// `toggleIsland` and `talkToLuna` are off by default; all others are on.
+    var enabledByDefault: Bool { self != .toggleIsland && self != .talkToLuna }
 }
 
 // MARK: - Shortcut Spec
@@ -106,7 +106,7 @@ enum ShortcutLogic {
         .muteToggle:        ShortcutSpec(keyCode: 46, nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥M
         .desktopToggle:     ShortcutSpec(keyCode: 2,  nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥D
         .wardrobeToggle:    ShortcutSpec(keyCode: 5,  nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥G
-        .talkToCoucou:      ShortcutSpec(keyCode: 9,  nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥V (disabled by default)
+        .talkToLuna:      ShortcutSpec(keyCode: 9,  nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥V (disabled by default)
     ]
 
     // MARK: - Load / save (UserDefaults)

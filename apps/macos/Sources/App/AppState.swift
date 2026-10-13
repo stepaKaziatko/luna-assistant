@@ -30,7 +30,7 @@ final class AppState: ObservableObject {
     @Published var isDraggingBot: Bool = false
 
     // Desktop Luna: true while Luna lives on the desktop instead of the notch
-    @Published var mochiOnDesktop: Bool = false
+    @Published var lunaOnDesktop: Bool = false
 
     // Mouse tracking
     var mousePosition: CGPoint = .zero
@@ -70,8 +70,8 @@ final class AppState: ObservableObject {
     }
 
     // Luna outfit selection — persisted
-    @Published var mochiOutfitSelection: Outfit = .auto {
-        didSet { Outfit.stored = mochiOutfitSelection }
+    @Published var lunaOutfitSelection: Outfit = .auto {
+        didSet { Outfit.stored = lunaOutfitSelection }
     }
     // A colour of the user's own for each pill's Luna (pill id → "#RRGGBB") — persisted.
     // Empty means the catalog's colours. PillDefinition.color reads the stored value, so
@@ -103,7 +103,7 @@ final class AppState: ObservableObject {
     private var _seasonalCache: (validUntil: Date, outfit: Outfit)?
     var resolvedOutfit: Outfit {
         if let preview = wardrobePreviewOutfit { return preview }
-        guard mochiOutfitSelection == .auto else { return mochiOutfitSelection }
+        guard lunaOutfitSelection == .auto else { return lunaOutfitSelection }
         let now = Date()
         if let c = _seasonalCache, now < c.validUntil { return c.outfit }
         let cal = Calendar.current
@@ -495,7 +495,7 @@ final class AppState: ObservableObject {
 
         if let v = ud.object(forKey: "soundEnabled") as? Bool   { soundEnabled = v }
         if let v = ud.object(forKey: "soundVolume")  as? Double { soundVolume  = v }
-        mochiOutfitSelection = Outfit.stored
+        lunaOutfitSelection = Outfit.stored
         pillColors = PillColors.stored
         if let v = ud.string(forKey: "claudeModel"),
            !v.trimmingCharacters(in: .whitespaces).isEmpty { claudeModel = v }

@@ -170,22 +170,22 @@ final class PhoneLink {
     /// silent subscription so a failure here never stops the sessions.
     private func subscribeToApprovals() async {
         // A saved subscription keeps its sound: one ID per sound, the other one is deleted.
-        let mochi = PhoneSettings.mochiSounds
+        let luna = PhoneSettings.lunaSounds
         let approvals = CKQuerySubscription(recordType: "ApprovalRequest", predicate: NSPredicate(value: true),
-                                            subscriptionID: mochi ? "coucou-approvals-mochi" : "coucou-approvals",
+                                            subscriptionID: luna ? "coucou-approvals-luna" : "coucou-approvals",
                                             options: [.firesOnRecordCreation])
         approvals.zoneID = Self.zoneID
         let alert = CKSubscription.NotificationInfo()
         alert.title = "Luna"
         alert.alertBody = "An agent is waiting for your OK"
-        alert.soundName = mochi ? "approval.wav" : "default"
+        alert.soundName = luna ? "approval.wav" : "default"
         alert.category = NotificationActions.approvalCategory
         alert.shouldSendContentAvailable = true
         alert.desiredKeys = ["fingerprint", "pillId"]
         approvals.notificationInfo = alert
         do {
             _ = try await database.modifySubscriptions(saving: [approvals], deleting: [])
-            _ = try? await database.modifySubscriptions(saving: [], deleting: [mochi ? "coucou-approvals" : "coucou-approvals-mochi"])
+            _ = try? await database.modifySubscriptions(saving: [], deleting: [luna ? "coucou-approvals" : "coucou-approvals-luna"])
             approvalsSubscribed = true
             approvalsStatus = "On"
         } catch {

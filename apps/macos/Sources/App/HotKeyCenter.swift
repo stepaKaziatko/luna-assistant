@@ -11,7 +11,7 @@ private nonisolated(unsafe) var gHotKeyHandler: EventHandlerRef? = nil
 private nonisolated(unsafe) var gHotKeyTable: [UInt32: ShortcutAction] = [:]
 private nonisolated(unsafe) var gOnAction: ((ShortcutAction) -> Void)? = nil
 
-private func coucouHotKeyEventHandler(
+private func lunaHotKeyEventHandler(
     _: EventHandlerCallRef?,
     _ event: EventRef?,
     _: UnsafeMutableRawPointer?
@@ -70,7 +70,7 @@ final class HotKeyCenter {
             )
             InstallEventHandler(
                 GetApplicationEventTarget(),
-                coucouHotKeyEventHandler,
+                lunaHotKeyEventHandler,
                 1, &spec,
                 nil, &gHotKeyHandler
             )

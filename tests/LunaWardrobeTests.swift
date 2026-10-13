@@ -1,7 +1,7 @@
 import Foundation
 
 @main
-enum MochiWardrobeTests {
+enum LunaWardrobeTests {
 
     static var failures = 0
 
@@ -94,14 +94,14 @@ enum MochiWardrobeTests {
 
         print("Outfit.stored — removed rawValues → auto")
         for removed in ["topHat", "cap", "heartsHeadband", "strawHat"] {
-            UserDefaults.standard.set(removed, forKey: "mochiOutfit")
+            UserDefaults.standard.set(removed, forKey: "lunaOutfit")
             check("'\(removed)' stored → .auto", Outfit.stored == .auto)
         }
 
         print("Outfit.stored unknown → auto")
-        UserDefaults.standard.set("totallyUnknown", forKey: "mochiOutfit")
+        UserDefaults.standard.set("totallyUnknown", forKey: "lunaOutfit")
         check("unknown → .auto", Outfit.stored == .auto)
-        UserDefaults.standard.removeObject(forKey: "mochiOutfit")
+        UserDefaults.standard.removeObject(forKey: "lunaOutfit")
         check("missing → .auto", Outfit.stored == .auto)
 
         if failures == 0 { print("\nAll tests passed.") }

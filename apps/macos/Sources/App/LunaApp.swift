@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 
 @main
-struct NotchBuddyApp: App {
+struct LunaApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
     var body: some Scene {

@@ -200,7 +200,7 @@ struct RecapShareImageView: View {
     let hideProjects: Bool
 
     // Static BotEngine for the Luna snapshot — idle state, no animation needed.
-    @StateObject private var mochiEngine = BotEngine()
+    @StateObject private var lunaEngine = BotEngine()
 
     var body: some View {
         ZStack {
@@ -219,7 +219,7 @@ struct RecapShareImageView: View {
 
                 // Luna character
                 Canvas { context, size in
-                    mochiEngine.draw(context: context, size: size)
+                    lunaEngine.draw(context: context, size: size)
                 }
                 .frame(width: 200, height: 200)
                 .padding(.bottom, 20)

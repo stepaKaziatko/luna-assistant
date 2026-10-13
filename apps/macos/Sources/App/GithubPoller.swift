@@ -122,7 +122,7 @@ final class GithubPoller: @unchecked Sendable {
             guard let self else { return }
             let code = (response as? HTTPURLResponse)?.statusCode ?? 0
             guard let data, code == 200 else {
-                self.nbLog("pulse HTTP \(code)")
+                self.lunaLog("pulse HTTP \(code)")
                 self.finishPulse(hasPending: false)
                 return
             }
@@ -130,7 +130,7 @@ final class GithubPoller: @unchecked Sendable {
             // Only discard if "data" is absent or null.
             if let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let errors = root["errors"] as? [[String: Any]], !errors.isEmpty {
-                    self.nbLog("pulse GraphQL errors: \(errors.count)")
+                    self.lunaLog("pulse GraphQL errors: \(errors.count)")
                 }
                 guard root["data"] is [String: Any] else {
                     self.finishPulse(hasPending: false); return
@@ -183,7 +183,7 @@ final class GithubPoller: @unchecked Sendable {
         }
     }
 
-    private func nbLog(_ message: String) {
+    private func lunaLog(_ message: String) {
         appendAppLog("github.log", message)
     }
 
@@ -240,13 +240,13 @@ final class GithubPoller: @unchecked Sendable {
             guard let self else { return }
             let code = (response as? HTTPURLResponse)?.statusCode ?? 0
             guard let data, code == 200 else {
-                self.nbLog("activity HTTP \(code)")
+                self.lunaLog("activity HTTP \(code)")
                 self.finishActivity()
                 return
             }
             if let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let errors = root["errors"] as? [[String: Any]], !errors.isEmpty {
-                    self.nbLog("activity GraphQL errors: \(errors.count)")
+                    self.lunaLog("activity GraphQL errors: \(errors.count)")
                 }
                 guard root["data"] is [String: Any] else {
                     self.finishActivity(); return

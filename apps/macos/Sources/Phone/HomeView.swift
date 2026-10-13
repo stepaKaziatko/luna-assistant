@@ -3,11 +3,11 @@ import UIKit
 
 /// The tabs, in glass on iOS 26: the agents, the services, the decisions you
 /// took, and a search through every turn.
-enum CoucouTab: Hashable { case agents, services, history, search }
+enum LunaTab: Hashable { case agents, services, history, search }
 
 struct HomeView: View {
     let link: PhoneLink
-    @State private var tab: CoucouTab = .agents
+    @State private var tab: LunaTab = .agents
     @State private var agentsPath: [String] = []
     @State private var servicesPath: [String] = []
     @State private var introDone = false
@@ -15,16 +15,16 @@ struct HomeView: View {
 
     var body: some View {
         TabView(selection: $tab) {
-            Tab("Agents", systemImage: "sparkles", value: CoucouTab.agents) {
+            Tab("Agents", systemImage: "sparkles", value: LunaTab.agents) {
                 AgentsTab(link: link, path: $agentsPath)
             }
-            Tab("Services", systemImage: "square.grid.2x2", value: CoucouTab.services) {
+            Tab("Services", systemImage: "square.grid.2x2", value: LunaTab.services) {
                 ServicesTab(link: link, path: $servicesPath)
             }
-            Tab("History", systemImage: "clock.arrow.circlepath", value: CoucouTab.history) {
+            Tab("History", systemImage: "clock.arrow.circlepath", value: LunaTab.history) {
                 NavigationStack { HistoryView(link: link) }
             }
-            Tab(value: CoucouTab.search, role: .search) {
+            Tab(value: LunaTab.search, role: .search) {
                 SearchTab(link: link)
             }
         }
@@ -273,10 +273,10 @@ struct SessionPeek: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                MochiStill(state: session.state, bodyHex: session.color)
+                LunaStill(state: session.state, bodyHex: session.color)
                     .padding(6)
                     .frame(width: 48, height: 48)
-                    .background(Color.mochiTile(hex: session.color), in: RoundedRectangle(cornerRadius: 13))
+                    .background(Color.lunaTile(hex: session.color), in: RoundedRectangle(cornerRadius: 13))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(session.title).font(.headline)
                     Text(session.statusText).font(.subheadline.weight(.semibold)).foregroundStyle(session.statusColor)
@@ -395,7 +395,7 @@ struct NotchHeader: View {
 
     private var summary: some View {
         HStack(spacing: 14) {
-            MochiLive(state: sessions.leadState)
+            LunaLive(state: sessions.leadState)
                 .frame(width: 52, height: 52)
                 .introLanding(.header)
             VStack(alignment: .leading, spacing: 3) {
@@ -470,10 +470,10 @@ struct SessionRow: View {
     }
 
     @ViewBuilder private var tile: some View {
-        let base = mochi
+        let base = luna
             .padding(4)
             .frame(width: 40, height: 40)
-            .background(Color.mochiTile(hex: session.color), in: RoundedRectangle(cornerRadius: 11))
+            .background(Color.lunaTile(hex: session.color), in: RoundedRectangle(cornerRadius: 11))
         if let zoom {
             base.matchedTransitionSource(id: session.id, in: zoom)
         } else {
@@ -482,11 +482,11 @@ struct SessionRow: View {
     }
 
     /// VS Code's Luna is where the intro's Luna lands.
-    @ViewBuilder private var mochi: some View {
+    @ViewBuilder private var luna: some View {
         if session.id == "integration_claude" {
-            MochiLive(state: session.state, fps: 60).introLanding(.tile)
+            LunaLive(state: session.state, fps: 60).introLanding(.tile)
         } else {
-            MochiLive(state: session.state, fps: 60)
+            LunaLive(state: session.state, fps: 60)
         }
     }
 }

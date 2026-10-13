@@ -28,10 +28,10 @@ struct TurnShareCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 14) {
-                MochiStill(state: .finished, bodyHex: color, showBadge: false)
+                LunaStill(state: .finished, bodyHex: color, showBadge: false)
                     .padding(8)
                     .frame(width: 64, height: 64)
-                    .background(Color.mochiTile(hex: color), in: RoundedRectangle(cornerRadius: 16))
+                    .background(Color.lunaTile(hex: color), in: RoundedRectangle(cornerRadius: 16))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(turn.project.isEmpty ? "Claude Code" : turn.project)
                         .font(.title3.weight(.bold))
@@ -83,7 +83,7 @@ struct TurnShareCard: View {
             }
             HStack(spacing: 6) {
                 Spacer()
-                MochiStill(state: .idle, showBadge: false).frame(width: 18, height: 18)
+                LunaStill(state: .idle, showBadge: false).frame(width: 18, height: 18)
                 Text("Luna").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
             }
         }

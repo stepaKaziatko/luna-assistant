@@ -11,7 +11,7 @@ import AppKit
 // Лист рисует тем же кодом, что и приложение (`BotEngine.draw` и проходы нарядов), а не
 // своей копией тела: если облик в приложении меняется, лист меняется вместе с ним.
 
-struct MochiCell: View {
+struct LunaCell: View {
     var outfit: Outfit = .none
     var state: BotState = .idle
     var yaw: CGFloat = 0
@@ -137,7 +137,7 @@ struct OutfitGrid: View {
                         .frame(width: labelW, alignment: .trailing)
                     ForEach(poses.indices, id: \.self) { pi in
                         let p = poses[pi]
-                        MochiCell(outfit: outfit, yaw: p.yaw, pitch: p.pitch,
+                        LunaCell(outfit: outfit, yaw: p.yaw, pitch: p.pitch,
                                   tilt: p.tilt, phys: p.phys, cellSize: p.size)
                             .background(pi == poses.count - 1
                                         ? Color.black
@@ -182,7 +182,7 @@ struct RollGrid: View {
                         .foregroundColor(.white)
                         .frame(width: labelW, alignment: .trailing)
                     ForEach(rollValues.indices, id: \.self) { ri in
-                        MochiCell(outfit: outfit, yaw: 0, pitch: 0, tilt: 0, phys: (0, 0),
+                        LunaCell(outfit: outfit, yaw: 0, pitch: 0, tilt: 0, phys: (0, 0),
                                   cellSize: 120, roll: rollValues[ri])
                             .background(Color(red: 0.083, green: 0.090, blue: 0.106))
                             .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -221,7 +221,7 @@ struct TransitionGrid: View {
                         .foregroundColor(.white)
                         .frame(width: labelW, alignment: .trailing)
                     ForEach(presenceValues.indices, id: \.self) { pi in
-                        MochiCell(outfit: outfit, yaw: 0, pitch: 0, tilt: 0, phys: (0, 0),
+                        LunaCell(outfit: outfit, yaw: 0, pitch: 0, tilt: 0, phys: (0, 0),
                                   cellSize: 120, presence: presenceValues[pi])
                             .background(Color(red: 0.083, green: 0.090, blue: 0.106))
                             .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -249,7 +249,7 @@ struct StateGrid: View {
         VStack(alignment: .leading, spacing: gap) {
             HStack(spacing: gap) {
                 ForEach(stateRows.indices, id: \.self) { i in
-                    MochiCell(state: stateRows[i], cellSize: 120, hands: i == 0 ? 1 : 0,
+                    LunaCell(state: stateRows[i], cellSize: 120, hands: i == 0 ? 1 : 0,
                               blush: stateRows[i] == .finished ? 0.8 : 0)
                         .background(Color(red: 0.083, green: 0.090, blue: 0.106))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -257,27 +257,27 @@ struct StateGrid: View {
             }
             HStack(spacing: gap) {
                 ForEach(stateRows.indices, id: \.self) { i in
-                    MochiCell(state: stateRows[i], yaw: 0.55, pitch: -0.2, cellSize: 120)
+                    LunaCell(state: stateRows[i], yaw: 0.55, pitch: -0.2, cellSize: 120)
                         .background(Color(red: 0.083, green: 0.090, blue: 0.106))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
             HStack(spacing: gap) {
                 ForEach(emoteEyes.indices, id: \.self) { i in
-                    MochiCell(cellSize: 100, eye: emoteEyes[i])
+                    LunaCell(cellSize: 100, eye: emoteEyes[i])
                         .background(Color(red: 0.083, green: 0.090, blue: 0.106))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
             HStack(spacing: gap) {
                 ForEach(miniColors, id: \.self) { hx in
-                    MochiCell(state: .working, cellSize: 64, mini: true, miniHex: hx)
+                    LunaCell(state: .working, cellSize: 64, mini: true, miniHex: hx)
                         .background(Color.black)
                 }
-                MochiCell(state: .idle, cellSize: 28, mini: true, miniHex: "#E86A6A").background(Color.black)
-                MochiCell(state: .idle, cellSize: 20, mini: true, miniHex: "#3E86E0").background(Color.black)
-                MochiCell(state: .idle, cellSize: 60).background(Color.black)
-                MochiCell(state: .working, cellSize: 33).background(Color.black)
+                LunaCell(state: .idle, cellSize: 28, mini: true, miniHex: "#E86A6A").background(Color.black)
+                LunaCell(state: .idle, cellSize: 20, mini: true, miniHex: "#3E86E0").background(Color.black)
+                LunaCell(state: .idle, cellSize: 60).background(Color.black)
+                LunaCell(state: .working, cellSize: 33).background(Color.black)
             }
         }
         .padding(12)

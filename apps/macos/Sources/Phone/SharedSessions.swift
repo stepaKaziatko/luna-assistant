@@ -28,12 +28,12 @@ struct SharedSession: Codable, Identifiable, Hashable, Sendable {
 
     /// Opens one Luna in the app, a session or a service (widgets link here).
     static func url(for id: String) -> URL {
-        URL(string: "luna://mochi/\(id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)")!
+        URL(string: "luna://luna/\(id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)")!
     }
 
-    /// The pill id in a luna://mochi/<id> link (luna://session/<id> from builds before).
+    /// The pill id in a luna://luna/<id> link (luna://session/<id> from builds before).
     static func sessionId(from url: URL) -> String? {
-        guard url.scheme == "luna", url.host == "mochi" || url.host == "session" else { return nil }
+        guard url.scheme == "luna", url.host == "luna" || url.host == "session" else { return nil }
         let id = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         return id.isEmpty ? nil : id
     }

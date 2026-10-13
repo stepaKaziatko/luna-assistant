@@ -1,5 +1,5 @@
 // CompareFrame.swift — один кадр BotEngine в PNG с прозрачным фоном.
-// Собирается дважды (upstream Mochi и рабочая копия) скриптом compare-with-upstream.sh.
+// Собирается дважды (персонаж upstream и рабочая копия) скриптом compare-with-upstream.sh.
 // Запуск: compare-frame <out.png> <state>
 
 import Foundation

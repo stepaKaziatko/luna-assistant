@@ -63,10 +63,10 @@ struct SearchTab: View {
     private func row(_ hit: Hit) -> some View {
         let pill = PillCatalog.definition(for: hit.turn.pillId)
         return HStack(alignment: .top, spacing: 12) {
-            MochiStill(state: .idle, bodyHex: pill?.color ?? LunaLook.bodyMidHex)
+            LunaStill(state: .idle, bodyHex: pill?.color ?? LunaLook.bodyMidHex)
                 .padding(4)
                 .frame(width: 34, height: 34)
-                .background(Color.mochiTile(hex: pill?.color ?? "#3B4A6B"), in: RoundedRectangle(cornerRadius: 9))
+                .background(Color.lunaTile(hex: pill?.color ?? "#3B4A6B"), in: RoundedRectangle(cornerRadius: 9))
             VStack(alignment: .leading, spacing: 3) {
                 HStack {
                     Text(hit.turn.project.isEmpty ? hit.agent : "\(hit.turn.project) · \(hit.agent)")

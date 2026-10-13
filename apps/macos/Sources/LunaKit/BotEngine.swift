@@ -72,9 +72,9 @@ enum BadgeType {
     case dot(CGColor)
 }
 
-// MARK: - Luna track constants (from PISTES.mochi)
+// MARK: - Luna track constants (from PISTES.luna)
 
-enum MochiConst {
+enum LunaConst {
     // Глаза малыша: крупнее, шире расставлены и сидят ниже середины тела.
     static let eyeW: CGFloat  = 0.28
     static let eyeH: CGFloat  = 0.34
@@ -1221,7 +1221,7 @@ final class BotEngine: ObservableObject {
         drawCharm(ctx: ctx, R: R)
 
         // Body path (superellipse for Luna, morph to rect for upload)
-        let bodyPath = mochiPath(rx: rx, ry: ry, morph: morph, R: R)
+        let bodyPath = lunaPath(rx: rx, ry: ry, morph: morph, R: R)
 
         // Body fill
         drawBody(ctx: &ctx, path: bodyPath, R: R, rx: rx, ry: ry,
@@ -1369,8 +1369,8 @@ final class BotEngine: ObservableObject {
                 c0 = colorFromTuple(mix3(cgColorToTuple(bc), (1, 1, 1), 0.35))
                 c1 = colorFromTuple(cgColorToTuple(bc))
             } else {
-                c0 = colorFromTuple(cgColorToTuple(MochiConst.baseTop))
-                c1 = colorFromTuple(cgColorToTuple(MochiConst.baseBottom))
+                c0 = colorFromTuple(cgColorToTuple(LunaConst.baseTop))
+                c1 = colorFromTuple(cgColorToTuple(LunaConst.baseBottom))
             }
             handCtx.fill(handPath, with: .linearGradient(
                 Gradient(colors: [c0, c1]),
@@ -1416,7 +1416,7 @@ final class BotEngine: ObservableObject {
         let cy = H / 2 + particleOverhang / 2 + oy * R + R * 0.06
         // Rigid roll: accessories see roll=0 (they rotate with the body via context transform)
         let outfitRoll: CGFloat = outfitPresence > 0.05 ? 0 : roll
-        let mH = MochiH(R: R, yaw: yaw, pitch: pitch, physDx: physDx, physDy: physDy, roll: outfitRoll)
+        let mH = LunaH(R: R, yaw: yaw, pitch: pitch, physDx: physDx, physDy: physDy, roll: outfitRoll)
         drawOutfitBehindStatic(context: context, outfit: outfit, H: mH,
                                cx: cx, cy: cy, tilt: tilt, sx: sx, sy: sy,
                                roll: outfitRoll, morph: morph, isMini: isMini,
@@ -1430,7 +1430,7 @@ final class BotEngine: ObservableObject {
         let cy = H / 2 + particleOverhang / 2 + oy * R + R * 0.06
         // Rigid roll: accessories see roll=0 (they rotate with the body via context transform)
         let outfitRoll: CGFloat = outfitPresence > 0.05 ? 0 : roll
-        let mH = MochiH(R: R, yaw: yaw, pitch: pitch, physDx: physDx, physDy: physDy, roll: outfitRoll)
+        let mH = LunaH(R: R, yaw: yaw, pitch: pitch, physDx: physDx, physDy: physDy, roll: outfitRoll)
         drawOutfitFrontStatic(context: context, outfit: outfit, H: mH,
                               cx: cx, cy: cy, tilt: tilt, sx: sx, sy: sy,
                               roll: outfitRoll, morph: morph, isMini: isMini,
@@ -1454,7 +1454,7 @@ final class BotEngine: ObservableObject {
 
     // MARK: - Private draw helpers
 
-    private func mochiPath(rx: CGFloat, ry: CGFloat, morph: CGFloat, R: CGFloat) -> Path {
+    private func lunaPath(rx: CGFloat, ry: CGFloat, morph: CGFloat, R: CGFloat) -> Path {
         let n = 72
         let expN: CGFloat = 2.0 / LunaLook.exponent
         // Target mailbox dims (spec: 1.0R wide, 0.94R tall, 0.42R corner radius)
@@ -1658,8 +1658,8 @@ final class BotEngine: ObservableObject {
 
     /// Каким цветом рисовать глаза на текущем теле и светятся ли они.
     private var eyeInk: (color: Color, glows: Bool) {
-        let dark = Color(cgColor: isMini ? MochiConst.miniInk : MochiConst.ink)
-        let glow = Color(cgColor: MochiConst.glow)
+        let dark = Color(cgColor: isMini ? LunaConst.miniInk : LunaConst.ink)
+        let glow = Color(cgColor: LunaConst.glow)
         if outfit == .pumpkin && !isMini { return (dark, false) }
         if let bc = bodyColor {
             let c = cgColorToTuple(bc)
@@ -1685,14 +1685,14 @@ final class BotEngine: ObservableObject {
         // Build eye frames: use mEyeFrames for position/foreshortening, but keep roll in eyePitch
         // When an outfit is rigidly rotating, the whole body turns — eyes do NOT add roll
         let rigidRoll = outfit != .none && outfitPresence > 0.05
-        let mH = MochiH(R: R, yaw: yaw, pitch: pitch)
+        let mH = LunaH(R: R, yaw: yaw, pitch: pitch)
         let (ink, glows) = eyeInk
         for f in mEyeFrames(mH) {
             // Re-derive pitch with roll for the roll-through effect (illusion, outfit=none only)
-            var eyePitch = MochiConst.eyeP + pitch + (rigidRoll ? 0 : roll)
+            var eyePitch = LunaConst.eyeP + pitch + (rigidRoll ? 0 : roll)
             eyePitch = ((eyePitch + .pi).truncatingRemainder(dividingBy: .pi*2) + .pi*2).truncatingRemainder(dividingBy: .pi*2) - .pi
             let cp = cos(eyePitch)
-            let eyeYaw = f.sd * MochiConst.eyeSp + yaw
+            let eyeYaw = f.sd * LunaConst.eyeSp + yaw
             guard cos(eyeYaw) * cp > 0.04 else { continue }
 
             let ey = f.y + (morph > 0 ? ry * 0.14 * morph : 0)
@@ -1700,8 +1700,8 @@ final class BotEngine: ObservableObject {
             let fy = lerp(f.fy, 1, morph * 0.7)
 
             let eyeMult: CGFloat = isMini ? 1.7 : 1.0
-            let ew = R * MochiConst.eyeW * es * eyeMult
-            let eh = R * MochiConst.eyeH * es * eyeMult
+            let ew = R * LunaConst.eyeW * es * eyeMult
+            let eh = R * LunaConst.eyeH * es * eyeMult
 
             var eyeCtx = ctx
             eyeCtx.translateBy(x: f.x, y: ey)

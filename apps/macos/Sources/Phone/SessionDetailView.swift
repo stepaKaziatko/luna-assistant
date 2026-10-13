@@ -154,10 +154,10 @@ struct SessionDetailView: View {
 
     private func header(_ session: SessionItem) -> some View {
         HStack(spacing: 16) {
-            MochiLive(state: session.state)
+            LunaLive(state: session.state)
                 .padding(10)
                 .frame(width: 84, height: 84)
-                .background(Color.mochiTile(hex: session.color), in: RoundedRectangle(cornerRadius: 22))
+                .background(Color.lunaTile(hex: session.color), in: RoundedRectangle(cornerRadius: 22))
             VStack(alignment: .leading, spacing: 4) {
                 // "VS Code · coucou", or just "VS Code" when there's no project name.
                 Text(session.title == session.pillName ? session.pillName : "\(session.pillName) · \(session.title)")

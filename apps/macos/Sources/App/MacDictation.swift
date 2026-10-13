@@ -294,7 +294,7 @@ final class MacDictation: @unchecked Sendable {
 // Defined here so both MacDictation and VoiceEngine can reference them without
 // cross-file ordering issues in SourceKit.
 extension Notification.Name {
-    static let dictationDidStart = Notification.Name("notchBuddy.dictationDidStart")
-    static let dictationDidEnd   = Notification.Name("notchBuddy.dictationDidEnd")
+    static let dictationDidStart = Notification.Name("luna.dictationDidStart")
+    static let dictationDidEnd   = Notification.Name("luna.dictationDidEnd")
 }
 #endif

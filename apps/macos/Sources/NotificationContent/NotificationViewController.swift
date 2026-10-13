@@ -58,10 +58,10 @@ struct ApprovalNotificationView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 14) {
-                MochiLive(state: .approval, bodyHex: color)
+                LunaLive(state: .approval, bodyHex: color)
                     .padding(7)
                     .frame(width: 60, height: 60)
-                    .background(Color.mochiTile(hex: color), in: RoundedRectangle(cornerRadius: 16))
+                    .background(Color.lunaTile(hex: color), in: RoundedRectangle(cornerRadius: 16))
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title.isEmpty || title == "Luna" ? (pill?.name ?? "Luna") : title)
                         .font(.headline)

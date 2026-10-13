@@ -4,7 +4,7 @@ import WidgetKit
 // The Team widget's settings: which Luna sits in each of the four spots.
 // "Automatic" fills a spot with the most urgent Luna not already shown.
 
-enum MochiChoice: String, AppEnum {
+enum LunaChoice: String, AppEnum {
     case automatic
     case vscode = "integration_claude"
     case cursor = "agent_cursor"
@@ -21,7 +21,7 @@ enum MochiChoice: String, AppEnum {
 
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Luna"
 
-    static let caseDisplayRepresentations: [MochiChoice: DisplayRepresentation] = [
+    static let caseDisplayRepresentations: [LunaChoice: DisplayRepresentation] = [
         .automatic: "Automatic",
         .vscode: "VS Code",
         .cursor: "Cursor",
@@ -45,10 +45,10 @@ struct TeamConfiguration: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Team"
     static let description = IntentDescription("Pick the Luna in each spot.")
 
-    @Parameter(title: "Top left", default: .automatic) var spot1: MochiChoice
-    @Parameter(title: "Top right", default: .automatic) var spot2: MochiChoice
-    @Parameter(title: "Bottom left", default: .automatic) var spot3: MochiChoice
-    @Parameter(title: "Bottom right", default: .automatic) var spot4: MochiChoice
+    @Parameter(title: "Top left", default: .automatic) var spot1: LunaChoice
+    @Parameter(title: "Top right", default: .automatic) var spot2: LunaChoice
+    @Parameter(title: "Bottom left", default: .automatic) var spot3: LunaChoice
+    @Parameter(title: "Bottom right", default: .automatic) var spot4: LunaChoice
 
     var picks: [String?] { [spot1.pillId, spot2.pillId, spot3.pillId, spot4.pillId] }
 }

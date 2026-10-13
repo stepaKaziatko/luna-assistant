@@ -780,7 +780,7 @@ final class VoiceEngine: ObservableObject {
 // MARK: - Voice notification names
 
 extension Notification.Name {
-    static let voiceWoke     = Notification.Name("notchBuddy.voiceWoke")
-    static let voiceFinished = Notification.Name("notchBuddy.voiceFinished")
+    static let voiceWoke     = Notification.Name("luna.voiceWoke")
+    static let voiceFinished = Notification.Name("luna.voiceFinished")
 }
 #endif

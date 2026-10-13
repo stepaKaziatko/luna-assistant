@@ -7,7 +7,7 @@ import Foundation
 // service, so it holds no project name, step text, command or path: only the
 // agent, its state and counts.
 
-struct MochiActivityState: Codable, Hashable, Sendable {
+struct LunaActivityState: Codable, Hashable, Sendable {
     var pillId: String
     var agent: String       // "VS Code", "Codex"…
     var color: String       // agent color, hex
@@ -62,7 +62,7 @@ struct MochiActivityState: Codable, Hashable, Sendable {
         }
     }
 
-    static let placeholder = MochiActivityState(
+    static let placeholder = LunaActivityState(
         pillId: "integration_claude", agent: "VS Code", color: "#4A86E8",
         state: "working", statusText: "working · 3/7", tone: "working",
         stepIndex: 2, stepCount: 7, others: 1)

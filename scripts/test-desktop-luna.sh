@@ -5,5 +5,5 @@ TEST_DIR="$(mktemp -d "${TMPDIR:-/tmp}/coucou-desktop.XXXXXX")"
 trap 'rm -rf "$TEST_DIR"' EXIT
 swiftc apps/macos/Sources/LunaKit/LunaLook.swift \
     apps/macos/Sources/App/DesktopLunaLogic.swift \
-    tests/DesktopLunaTests.swift -o "$TEST_DIR/desktop-mochi-tests"
-"$TEST_DIR/desktop-mochi-tests"
+    tests/DesktopLunaTests.swift -o "$TEST_DIR/desktop-luna-tests"
+"$TEST_DIR/desktop-luna-tests"

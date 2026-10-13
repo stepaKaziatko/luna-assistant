@@ -148,7 +148,7 @@ struct UploadCanvasView: View {
         }
 
         // ── Luna ─────────────────────────────────────────────────
-        drawMochi(ctx: &c, f: f)
+        drawLuna(ctx: &c, f: f)
 
         // ── File / suction ────────────────────────────────────────
         if f.fileVisible { drawFile(ctx: &c, f: f) }
@@ -292,7 +292,7 @@ struct UploadCanvasView: View {
 
     // MARK: - Luna (superellipse body + eyes + mouth)
 
-    private func drawMochi(ctx: inout GraphicsContext, f: USFrame) {
+    private func drawLuna(ctx: inout GraphicsContext, f: USFrame) {
         let R  = f.d / 2 / 1.04
         let m  = f.morph
         let mc = max(0, min(m, 1.0))

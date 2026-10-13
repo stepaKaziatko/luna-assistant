@@ -6,14 +6,14 @@ import WidgetKit
 // App Group; the app reloads them whenever a session changes.
 
 @main
-struct CoucouWidgetBundle: WidgetBundle {
+struct LunaWidgetBundle: WidgetBundle {
     var body: some Widget {
         SoloWidget()
         TeamWidget()
         ListWidget()
         LockScreenWidget()
-        MochiLiveActivity()
-        CoucouControl()
+        LunaLiveActivity()
+        LunaControl()
     }
 }
 
@@ -22,7 +22,7 @@ struct CoucouWidgetBundle: WidgetBundle {
 struct SessionsEntry: TimelineEntry {
     let date: Date
     let sessions: [SharedSession]   // most urgent first
-    /// Changes every minute so idle Luna look around (MochiPose).
+    /// Changes every minute so idle Luna look around (LunaPose).
     var tick: Int = 0
 }
 
@@ -131,9 +131,9 @@ struct SoloView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             ZStack {
-                WidgetMochi(state: session?.botState ?? .sleeping)
+                WidgetLuna(state: session?.botState ?? .sleeping)
                     .id(session?.state ?? "sleeping")
-                    .transition(.mochiSwap)
+                    .transition(.lunaSwap)
             }
             .frame(width: 56, height: 56)
             Spacer(minLength: 0)
@@ -224,9 +224,9 @@ struct TeamTile: View {
     var tick: Int = 0
 
     /// Calm Luna look around; one who needs you keeps his state's face.
-    private var pose: MochiPose {
+    private var pose: LunaPose {
         switch session.tone {
-        case .idle, .done, .working, .info, .warning: MochiPose.idle(id: session.id, tick: tick)
+        case .idle, .done, .working, .info, .warning: LunaPose.idle(id: session.id, tick: tick)
         default: .neutral
         }
     }
@@ -235,9 +235,9 @@ struct TeamTile: View {
         VStack(spacing: 0) {
             // In his own color, like the little Luna in the Mac's notch.
             ZStack {
-                WidgetMochi(state: session.botState, bodyHex: session.color, pose: pose)
+                WidgetLuna(state: session.botState, bodyHex: session.color, pose: pose)
                     .id(session.state)
-                    .transition(.mochiSwap)
+                    .transition(.lunaSwap)
             }
             .padding(.horizontal, 4)
             .padding(.top, 2)
@@ -276,8 +276,8 @@ struct EmptyTeamTile: View {
     var slot: Int = 0
 
     var body: some View {
-        WidgetMochi(state: .sleeping, showBadge: false,
-                   pose: MochiPose(tilt: (tick + slot) % 2 == 0 ? -0.06 : 0.06))
+        WidgetLuna(state: .sleeping, showBadge: false,
+                   pose: LunaPose(tilt: (tick + slot) % 2 == 0 ? -0.06 : 0.06))
             .padding(14)
             .opacity(0.18)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -292,17 +292,17 @@ struct ListView: View {
         VStack(alignment: .leading, spacing: 6) {
             if sessions.isEmpty {
                 HStack(spacing: 10) {
-                    WidgetMochi(state: .sleeping).frame(width: 34, height: 34)
+                    WidgetLuna(state: .sleeping).frame(width: 34, height: 34)
                     Text("All quiet: no agent session").font(.subheadline).opacity(0.7)
                 }
                 .frame(maxHeight: .infinity)
             }
             ForEach(sessions) { session in
                 HStack(spacing: 8) {
-                    WidgetMochi(state: session.botState)
+                    WidgetLuna(state: session.botState)
                         .padding(2)
                         .frame(width: 24, height: 24)
-                        .background { TileBackground(color: Color.mochiTile(hex: session.color)).clipShape(RoundedRectangle(cornerRadius: 7)) }
+                        .background { TileBackground(color: Color.lunaTile(hex: session.color)).clipShape(RoundedRectangle(cornerRadius: 7)) }
                     Text(session.title)
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
@@ -346,13 +346,13 @@ struct LockScreenView: View {
                     Gauge(value: progress) { EmptyView() }
                         .gaugeStyle(.accessoryCircularCapacity)
                 }
-                WidgetMochi(state: sessions.leadState, showBadge: false).padding(progress == nil ? 7 : 10)
+                WidgetLuna(state: sessions.leadState, showBadge: false).padding(progress == nil ? 7 : 10)
             }
             .widgetURL(sessions.first.map { SharedSession.url(for: $0.id) })
             .containerBackground(for: .widget) { Color.clear }
         case .accessoryRectangular:
             HStack(spacing: 6) {
-                WidgetMochi(state: sessions.leadState, showBadge: false).frame(width: 32, height: 32)
+                WidgetLuna(state: sessions.leadState, showBadge: false).frame(width: 32, height: 32)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(sessions.summary ?? "All quiet")
                         .font(.headline)
@@ -410,23 +410,23 @@ extension SharedSession {
 /// only each pixel's opacity, so a white Luna with black eyes turns into a
 /// blank shape; on the Lock Screen it keeps only brightness. There he is drawn
 /// as a white shape with his eyes cut out, which reads in both.
-struct WidgetMochi: View {
+struct WidgetLuna: View {
     @Environment(\.widgetRenderingMode) private var renderingMode
     var state: BotState = .idle
     var bodyHex: String = LunaLook.bodyMidHex
     var showBadge: Bool = true
-    var pose: MochiPose = .neutral
+    var pose: LunaPose = .neutral
 
     var body: some View {
         if renderingMode == .fullColor {
-            MochiStill(state: state, bodyHex: bodyHex, showBadge: showBadge, pose: pose)
+            LunaStill(state: state, bodyHex: bodyHex, showBadge: showBadge, pose: pose)
         } else {
             // White where Luna is bright, see-through where he is dark (his
             // eyes). The Lock Screen shows brightness, so the mask is filled
             // with white rather than left black.
             Color.white
                 .mask {
-                    MochiStill(state: state, bodyHex: LunaLook.bodyMidHex, showBadge: showBadge, pose: pose)
+                    LunaStill(state: state, bodyHex: LunaLook.bodyMidHex, showBadge: showBadge, pose: pose)
                         .luminanceToAlpha()
                 }
                 .widgetAccentable()

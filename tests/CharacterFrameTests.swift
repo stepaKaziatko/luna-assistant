@@ -176,11 +176,11 @@ private func runChecks() {
     check(allEyes.count == 13, "форм глаз должно быть 13")
     // Поворот головы до 0.25 рад: дальше глаз уходит за край и обрезается телом по замыслу.
     for (yaw, pitch) in [(CGFloat(0), CGFloat(0)), (0.25, -0.15), (-0.25, 0.2)] {
-        let frames = mEyeFrames(MochiH(R: R, yaw: yaw, pitch: pitch)).filter { $0.visible }
+        let frames = mEyeFrames(LunaH(R: R, yaw: yaw, pitch: pitch)).filter { $0.visible }
         check(!frames.isEmpty, "ни одного видимого глаза при yaw \(yaw)")
         for f in frames {
             for shape in allEyes {
-                let ew = R * MochiConst.eyeW, eh = R * MochiConst.eyeH
+                let ew = R * LunaConst.eyeW, eh = R * LunaConst.eyeH
                 let g = LunaFace.glyph(shape, w: ew, h: eh, open: 1, sd: f.sd, time: 0.4)
                 var box = CGRect.null
                 for p in g.fills { box = box.union(p.boundingBoxOfPath) }

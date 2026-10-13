@@ -40,21 +40,21 @@ final class LiveActivityLink {
         guard !started else { return }
         started = true
         Task {
-            for await data in Activity<MochiActivityAttributes>.pushToStartTokenUpdates {
+            for await data in Activity<LunaActivityAttributes>.pushToStartTokenUpdates {
                 startToken = data.hexString
                 await save()
             }
         }
         Task {
-            for await activity in Activity<MochiActivityAttributes>.activityUpdates {
+            for await activity in Activity<LunaActivityAttributes>.activityUpdates {
                 watch(activity)
             }
         }
         // Activities already running when the app launches.
-        for activity in Activity<MochiActivityAttributes>.activities { watch(activity) }
+        for activity in Activity<LunaActivityAttributes>.activities { watch(activity) }
     }
 
-    private func watch(_ activity: Activity<MochiActivityAttributes>) {
+    private func watch(_ activity: Activity<LunaActivityAttributes>) {
         guard watched.insert(activity.id).inserted else { return }
         Task {
             for await data in activity.pushTokenUpdates {

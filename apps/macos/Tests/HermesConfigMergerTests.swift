@@ -92,7 +92,7 @@ func mergedHermesConfig(_ base: String, enableApprovals: Bool) -> String? {
         }
     }
 
-    func ensureCoucouPlugin() {
+    func ensureLunaPlugin() {
         if let pluginsIdx = topLevelIndex(key: "plugins") {
             let pluginsRange = sectionRange(from: pluginsIdx)
             if let enabledIdx = (pluginsRange.lowerBound + 1 ..< pluginsRange.upperBound)
@@ -128,7 +128,7 @@ func mergedHermesConfig(_ base: String, enableApprovals: Bool) -> String? {
         }
     }
 
-    func removeCoucouPlugin() {
+    func removeLunaPlugin() {
         guard let pluginsIdx = topLevelIndex(key: "plugins") else { return }
         let pluginsRange = sectionRange(from: pluginsIdx)
         guard let enabledIdx = (pluginsRange.lowerBound + 1 ..< pluginsRange.upperBound)
@@ -151,7 +151,7 @@ func mergedHermesConfig(_ base: String, enableApprovals: Bool) -> String? {
         }
     }
 
-    ensureCoucouPlugin()
+    ensureLunaPlugin()
     if enableApprovals { ensureApprovalTransport() } else { removeApprovalTransport() }
     return lines.joined(separator: "\n")
 }

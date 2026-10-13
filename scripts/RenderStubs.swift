@@ -15,22 +15,22 @@ final class SoundEngine {
 }
 
 extension Notification.Name {
-    static let botDizzy          = Notification.Name("notchBuddy.botDizzy")
-    static let botGreet          = Notification.Name("notchBuddy.botGreet")
-    static let botBlink          = Notification.Name("notchBuddy.botBlink")
-    static let botSetTgEs        = Notification.Name("notchBuddy.botSetTgEs")
-    static let botGulp           = Notification.Name("notchBuddy.botGulp")
-    static let botMorphTo        = Notification.Name("notchBuddy.botMorphTo")
-    static let triggerEmote      = Notification.Name("notchBuddy.triggerEmote")
-    static let triggerSlap       = Notification.Name("notchBuddy.triggerSlap")
-    static let greetComplete     = Notification.Name("notchBuddy.greetComplete")
-    static let greetingHover     = Notification.Name("notchBuddy.greetingHover")
-    static let greetingInterrupt = Notification.Name("notchBuddy.greetingInterrupt")
-    static let islandAction      = Notification.Name("notchBuddy.islandAction")
-    static let islandCollapse    = Notification.Name("notchBuddy.islandCollapse")
-    static let hookReveal        = Notification.Name("notchBuddy.hookReveal")
-    static let musicReveal       = Notification.Name("notchBuddy.musicReveal")
-    static let openFullSettings  = Notification.Name("notchBuddy.openFullSettings")
+    static let botDizzy          = Notification.Name("luna.botDizzy")
+    static let botGreet          = Notification.Name("luna.botGreet")
+    static let botBlink          = Notification.Name("luna.botBlink")
+    static let botSetTgEs        = Notification.Name("luna.botSetTgEs")
+    static let botGulp           = Notification.Name("luna.botGulp")
+    static let botMorphTo        = Notification.Name("luna.botMorphTo")
+    static let triggerEmote      = Notification.Name("luna.triggerEmote")
+    static let triggerSlap       = Notification.Name("luna.triggerSlap")
+    static let greetComplete     = Notification.Name("luna.greetComplete")
+    static let greetingHover     = Notification.Name("luna.greetingHover")
+    static let greetingInterrupt = Notification.Name("luna.greetingInterrupt")
+    static let islandAction      = Notification.Name("luna.islandAction")
+    static let islandCollapse    = Notification.Name("luna.islandCollapse")
+    static let hookReveal        = Notification.Name("luna.hookReveal")
+    static let musicReveal       = Notification.Name("luna.musicReveal")
+    static let openFullSettings  = Notification.Name("luna.openFullSettings")
 }
 
 extension Color {

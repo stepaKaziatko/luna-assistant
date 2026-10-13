@@ -3,20 +3,20 @@ import CoreGraphics
 
 // MARK: - Constants
 //
-// Форма тела и положение глаз берутся из LunaLook и MochiConst: наряды садятся на ту же
+// Форма тела и положение глаз берутся из LunaLook и LunaConst: наряды садятся на ту же
 // «яичную» голову, что рисует BotEngine, и не расходятся с ним.
 
 private let kEXP: CGFloat = LunaLook.exponent
 private let kVIEW_TILT: CGFloat = -0.30
 private let kACC_PITCH: CGFloat = 0.4
-private let kEYE_W: CGFloat = MochiConst.eyeW
-private let kEYE_H: CGFloat = MochiConst.eyeH
-private let kEYE_SP: CGFloat = MochiConst.eyeSp
-private let kEYE_P: CGFloat = MochiConst.eyeP
+private let kEYE_W: CGFloat = LunaConst.eyeW
+private let kEYE_H: CGFloat = LunaConst.eyeH
+private let kEYE_SP: CGFloat = LunaConst.eyeSp
+private let kEYE_P: CGFloat = LunaConst.eyeP
 
-// MARK: - MochiH  (head geometry + physics)
+// MARK: - LunaH  (head geometry + physics)
 
-struct MochiH {
+struct LunaH {
     let R, rx, ry: CGFloat
     let yaw, pitch: CGFloat
     let view: CGFloat      // = VIEW_TILT (-0.30)
@@ -37,7 +37,7 @@ struct MochiH {
     }
 }
 
-// MARK: - EyeFrame  (replaces mochiEyePositions)
+// MARK: - EyeFrame  (replaces lunaEyePositions)
 
 struct EyeFrame {
     let sd: CGFloat   // -1 left, +1 right
@@ -47,7 +47,7 @@ struct EyeFrame {
     let w, h: CGFloat
 }
 
-func mEyeFrames(_ H: MochiH) -> [EyeFrame] {
+func mEyeFrames(_ H: LunaH) -> [EyeFrame] {
     var out: [EyeFrame] = []
     for sdD: Double in [-1.0, 1.0] {
         let sd = CGFloat(sdD)
@@ -70,9 +70,9 @@ func mEyeFrames(_ H: MochiH) -> [EyeFrame] {
 }
 
 /// Backward-compat shim (used by existing callers that haven't been updated yet).
-func mochiEyePositions(yaw: CGFloat, pitch: CGFloat, rx: CGFloat, ry: CGFloat)
+func lunaEyePositions(yaw: CGFloat, pitch: CGFloat, rx: CGFloat, ry: CGFloat)
     -> [(ex: CGFloat, ey: CGFloat, fx: CGFloat, fy: CGFloat)] {
-    let H = MochiH(R: rx / LunaLook.rxK, yaw: yaw, pitch: pitch)
+    let H = LunaH(R: rx / LunaLook.rxK, yaw: yaw, pitch: pitch)
     return mEyeFrames(H).filter { $0.visible }.map { (ex: $0.x, ey: $0.y, fx: $0.fx, fy: $0.fy) }
 }
 
@@ -104,7 +104,7 @@ private func mRot3(_ p: (CGFloat, CGFloat, CGFloat), yaw: CGFloat, pitch: CGFloa
 }
 
 // proj(H, p) — head-local -> screen (body space)
-private func mProj(_ H: MochiH, _ p: (CGFloat, CGFloat, CGFloat)) -> P3 {
+private func mProj(_ H: LunaH, _ p: (CGFloat, CGFloat, CGFloat)) -> P3 {
     let r = mRot3(p, yaw: H.yaw, pitch: H.view + H.pitch * kACC_PITCH)
     return P3(x: r.0 * H.rx, y: -r.1 * H.ry, z: r.2)
 }
@@ -134,7 +134,7 @@ private func frontSilhouetteArc(_ pts: [P3]) -> [P3] {
 }
 
 // frontArc(H, y, s) — front arc of ring at height y, ordered left→right (silhouette tangent method)
-private func mFrontArc(_ H: MochiH, y: CGFloat, s: CGFloat) -> [P3] {
+private func mFrontArc(_ H: LunaH, y: CGFloat, s: CGFloat) -> [P3] {
     let n = 120
     let pts: [P3] = (0..<n).map { i in
         let lon = -.pi + CGFloat(i) / CGFloat(n) * 2 * .pi
@@ -144,13 +144,13 @@ private func mFrontArc(_ H: MochiH, y: CGFloat, s: CGFloat) -> [P3] {
 }
 
 // proj with roll applied (for roll-following accessories)
-private func mProjRoll(_ H: MochiH, _ p: (CGFloat, CGFloat, CGFloat)) -> P3 {
+private func mProjRoll(_ H: LunaH, _ p: (CGFloat, CGFloat, CGFloat)) -> P3 {
     let r = mRot3(p, yaw: H.yaw, pitch: H.view + H.pitch * kACC_PITCH + H.roll)
     return P3(x: r.0 * H.rx, y: -r.1 * H.ry, z: r.2)
 }
 
 // frontArc using roll projection (for scarf)
-private func mFrontArcRoll(_ H: MochiH, y: CGFloat, s: CGFloat) -> [P3] {
+private func mFrontArcRoll(_ H: LunaH, y: CGFloat, s: CGFloat) -> [P3] {
     let n = 120
     let pts: [P3] = (0..<n).map { i in
         let lon = -.pi + CGFloat(i) / CGFloat(n) * 2 * .pi
@@ -160,7 +160,7 @@ private func mFrontArcRoll(_ H: MochiH, y: CGFloat, s: CGFloat) -> [P3] {
 }
 
 // capClip(H, y, s) — path of the region ABOVE the front arc of ring y (what a cap covers)
-private func mCapClip(_ H: MochiH, y: CGFloat, s: CGFloat, extraTop: CGFloat = 3) -> Path {
+private func mCapClip(_ H: LunaH, y: CGFloat, s: CGFloat, extraTop: CGFloat = 3) -> Path {
     let arc = mFrontArc(H, y: y, s: s)
     guard !arc.isEmpty else { return Path() }
     var p = Path()
@@ -179,15 +179,15 @@ private func mFrontRun(_ ring: [P3]) -> [P3] {
 }
 
 // invert(p, H) — complement of path p inside a large rect, with evenodd fill
-private func mInvert(_ p: Path, H: MochiH) -> Path {
+private func mInvert(_ p: Path, H: LunaH) -> Path {
     var q = Path()
     q.addRect(CGRect(x: -H.rx * 4, y: -H.ry * 4, width: H.rx * 8, height: H.ry * 8))
     q.addPath(p)
     return q
 }
 
-// mochiOutfitPath — clean superellipse (n=96), same exponent as JS mochiPath
-func mochiOutfitPath(_ rx: CGFloat, _ ry: CGFloat) -> Path {
+// lunaOutfitPath — clean superellipse (n=96), same exponent as JS lunaPath
+func lunaOutfitPath(_ rx: CGFloat, _ ry: CGFloat) -> Path {
     let n = 96
     let e: CGFloat = 2.0 / kEXP
     var p = Path()
@@ -204,7 +204,7 @@ func mochiOutfitPath(_ rx: CGFloat, _ ry: CGFloat) -> Path {
 }
 
 // ringPoints — all 120+1 projected points on ring (full circle, for frontRun)
-private func mRingPoints(_ H: MochiH, y: CGFloat, s: CGFloat, n: Int = 72) -> [P3] {
+private func mRingPoints(_ H: LunaH, y: CGFloat, s: CGFloat, n: Int = 72) -> [P3] {
     (0...n).map { i -> P3 in
         let lon = -.pi + CGFloat(i) / CGFloat(n) * 2 * .pi
         return mProj(H, mSurf(y, lon, s))
@@ -292,7 +292,7 @@ func outfitBodyTransform(context: GraphicsContext, cx: CGFloat, cy: CGFloat,
 
 func drawOutfitFrontStatic(
     context: GraphicsContext,
-    outfit: Outfit, H: MochiH,
+    outfit: Outfit, H: LunaH,
     cx: CGFloat, cy: CGFloat, tilt: CGFloat, sx: CGFloat, sy: CGFloat,
     roll: CGFloat, morph: CGFloat, isMini: Bool,
     presence: CGFloat = 1, rollTurns: CGFloat = 1
@@ -317,7 +317,7 @@ func drawOutfitFrontStatic(
 
     let simplified = H.R < 16
     let baseCtx = outfitBodyTransform(context: context, cx: cx, cy: cy, tilt: tilt, sx: sx, sy: sy)
-    let bodyPath = mochiOutfitPath(H.rx, H.ry)
+    let bodyPath = lunaOutfitPath(H.rx, H.ry)
 
     // ── Hat fly-off during roll (beanie, santaHat, partyHat, crown, witchHat) ──────────────────
     let isHatType: Bool
@@ -429,7 +429,7 @@ func drawOutfitFrontStatic(
 
 func drawOutfitBehindStatic(
     context: GraphicsContext,
-    outfit: Outfit, H: MochiH,
+    outfit: Outfit, H: LunaH,
     cx: CGFloat, cy: CGFloat, tilt: CGFloat, sx: CGFloat, sy: CGFloat,
     roll: CGFloat, morph: CGFloat, isMini: Bool,
     presence: CGFloat = 1, rollTurns: CGFloat = 1
@@ -443,7 +443,7 @@ func drawOutfitBehindStatic(
 
     let simplified = H.R < 16
     var ctx = outfitBodyTransform(context: context, cx: cx, cy: cy, tilt: tilt, sx: sx, sy: sy)
-    let bodyPath = mochiOutfitPath(H.rx, H.ry)
+    let bodyPath = lunaOutfitPath(H.rx, H.ry)
 
     // Roll-following accessories (glasses, bow, scarf, pumpkin — not bunnyEars): behind when z < 0
     switch outfit {
@@ -512,12 +512,12 @@ func drawOutfitBehindStatic(
 
 // MARK: - Crown geometry helper
 
-private func crownYb(_ H: MochiH) -> CGFloat { 0.46 }
+private func crownYb(_ H: LunaH) -> CGFloat { 0.46 }
 
 // MARK: - Bunny ears (behind body)
 
 // rollProgress: 0 = upright, 1 = max roll (ears fully flattened). Drawn with mProj (no 3D roll).
-private func drawBunnyEarsBack(ctx: inout GraphicsContext, H: MochiH, rollProgress: CGFloat = 0) {
+private func drawBunnyEarsBack(ctx: inout GraphicsContext, H: LunaH, rollProgress: CGFloat = 0) {
     let R = H.R
     let earH = R * 0.85
 
@@ -553,9 +553,9 @@ private func drawBunnyEarsBack(ctx: inout GraphicsContext, H: MochiH, rollProgre
 
 // MARK: - Beanie
 
-private func drawBeaniesFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: Path, simplified: Bool = false) {
+private func drawBeaniesFront(ctx: inout GraphicsContext, H: LunaH, bodyPath: Path, simplified: Bool = false) {
     let s: CGFloat = 1.035, yEdge: CGFloat = 0.42, yCuff: CGFloat = 0.58
-    let head = mochiOutfitPath(H.rx * s, H.ry * s)
+    let head = lunaOutfitPath(H.rx * s, H.ry * s)
 
     // shadow on head under the cuff
     var shadow = ctx
@@ -601,7 +601,7 @@ private func drawBeaniesFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: P
     var cuffCtx = ctx
     cuffCtx.clip(to: mCapClip(H, y: yEdge, s: s * 1.04))
     cuffCtx.clip(to: mInvert(mCapClip(H, y: yCuff, s: s * 1.04), H: H), style: FillStyle(eoFill: true))
-    let cuffHead = mochiOutfitPath(H.rx * s * 1.04, H.ry * s * 1.04)
+    let cuffHead = lunaOutfitPath(H.rx * s * 1.04, H.ry * s * 1.04)
     cuffCtx.fill(cuffHead, with: .linearGradient(
         Gradient(stops: [
             .init(color: Color(hex: "#7C6CF0"), location: 0),
@@ -648,7 +648,7 @@ private func drawBeaniesFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: P
 
 // MARK: - Santa hat
 
-private func drawSantaHatFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: Path) {
+private func drawSantaHatFront(ctx: inout GraphicsContext, H: LunaH, bodyPath: Path) {
     let s: CGFloat = 1.05, yEdge: CGFloat = 0.52
     let arc = mFrontArc(H, y: yEdge, s: s)
     guard !arc.isEmpty else { return }
@@ -741,7 +741,7 @@ private func drawSantaHatFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: 
 
 // MARK: - Party hat
 
-private func drawPartyHatFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: Path, simplified: Bool = false) {
+private func drawPartyHatFront(ctx: inout GraphicsContext, H: LunaH, bodyPath: Path, simplified: Bool = false) {
     let baseY: CGFloat = 0.82, baseR: CGFloat = 0.42
     let lean: CGFloat = -0.24 + H.physDx * 0.12
     let c = mProj(H, (0.16, baseY + 0.06, 0))
@@ -829,7 +829,7 @@ private func drawPartyHatFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: 
 
 // MARK: - Crown
 
-private func drawCrownPart(ctx: inout GraphicsContext, H: MochiH, side: CGFloat, simplified: Bool = false) {
+private func drawCrownPart(ctx: inout GraphicsContext, H: LunaH, side: CGFloat, simplified: Bool = false) {
     let s: CGFloat = 1.06, yb: CGFloat = 0.46, yt: CGFloat = 0.66
     let n = 8, spikeH: CGFloat = 0.42
     let N = 120
@@ -927,7 +927,7 @@ private func drawCrownPart(ctx: inout GraphicsContext, H: MochiH, side: CGFloat,
 
 // MARK: - Witch hat
 
-private func drawWitchHatBack(ctx: inout GraphicsContext, H: MochiH) {
+private func drawWitchHatBack(ctx: inout GraphicsContext, H: LunaH) {
     let pts = witchBrimPts(H)
     let back = pts.filter { $0.z < 0.05 }.sorted { $0.x < $1.x }
     guard !back.isEmpty else { return }
@@ -945,7 +945,7 @@ private func drawWitchHatBack(ctx: inout GraphicsContext, H: MochiH) {
     ))
 }
 
-private func witchBrimPts(_ H: MochiH) -> [P3] {
+private func witchBrimPts(_ H: LunaH) -> [P3] {
     let y: CGFloat = 0.70, rr: CGFloat = 1.42
     return (0...120).map { i -> P3 in
         let a = -.pi + CGFloat(i) / 120 * 2 * .pi
@@ -955,7 +955,7 @@ private func witchBrimPts(_ H: MochiH) -> [P3] {
     }
 }
 
-private func drawWitchHatFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: Path) {
+private func drawWitchHatFront(ctx: inout GraphicsContext, H: LunaH, bodyPath: Path) {
     let all = witchBrimPts(H)
     var brim = Path()
     brim.move(to: CGPoint(x: all[0].x, y: all[0].y))
@@ -1098,8 +1098,8 @@ private func drawWitchHatFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: 
 
 // MARK: - Sunglasses
 
-private func drawSunglassesFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: Path) {
-    let rollH = MochiH(R: H.R, yaw: H.yaw, pitch: H.pitch + H.roll, physDx: H.physDx, physDy: H.physDy)
+private func drawSunglassesFront(ctx: inout GraphicsContext, H: LunaH, bodyPath: Path) {
+    let rollH = LunaH(R: H.R, yaw: H.yaw, pitch: H.pitch + H.roll, physDx: H.physDx, physDy: H.physDy)
     let eyes = mEyeFrames(rollH)
     let w = H.R * 0.62, h = H.R * 0.46
 
@@ -1156,8 +1156,8 @@ private func drawSunglassesFront(ctx: inout GraphicsContext, H: MochiH, bodyPath
 
 // MARK: - Round glasses
 
-private func drawRoundGlassesFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: Path) {
-    let rollH = MochiH(R: H.R, yaw: H.yaw, pitch: H.pitch + H.roll, physDx: H.physDx, physDy: H.physDy)
+private func drawRoundGlassesFront(ctx: inout GraphicsContext, H: LunaH, bodyPath: Path) {
+    let rollH = LunaH(R: H.R, yaw: H.yaw, pitch: H.pitch + H.roll, physDx: H.physDx, physDy: H.physDy)
     let eyes = mEyeFrames(rollH)
     let d = H.R * 0.56
 
@@ -1205,7 +1205,7 @@ private func drawRoundGlassesFront(ctx: inout GraphicsContext, H: MochiH, bodyPa
 
 // MARK: - Scarf
 
-private func drawScarfFront(ctx: inout GraphicsContext, H: MochiH) {
+private func drawScarfFront(ctx: inout GraphicsContext, H: LunaH) {
     let s: CGFloat = 1.05, y0: CGFloat = -0.34, y1: CGFloat = -0.66
     let top = mFrontArcRoll(H, y: y0, s: s)
     let bot = mFrontArcRoll(H, y: y1, s: s)
@@ -1220,7 +1220,7 @@ private func drawScarfFront(ctx: inout GraphicsContext, H: MochiH) {
     band.closeSubpath()
 
     var g = ctx
-    g.clip(to: mochiOutfitPath(H.rx * s, H.ry * s))
+    g.clip(to: lunaOutfitPath(H.rx * s, H.ry * s))
     g.fill(band, with: .linearGradient(
         Gradient(stops: [
             .init(color: Color(hex: "#FFE08A"), location: 0),
@@ -1315,7 +1315,7 @@ private func drawScarfFront(ctx: inout GraphicsContext, H: MochiH) {
 
 // MARK: - Pumpkin
 
-private func drawPumpkinFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: Path, simplified: Bool = false) {
+private func drawPumpkinFront(ctx: inout GraphicsContext, H: LunaH, bodyPath: Path, simplified: Bool = false) {
     // ribs only — body recolor is done in BotEngine.drawBody(pumpkinColors:)
     if !simplified {
         var g = ctx
@@ -1413,7 +1413,7 @@ private func drawPumpkinFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: P
 
 // MARK: - Bow
 
-private func drawBowFront(ctx: inout GraphicsContext, H: MochiH, bodyPath: Path) {
+private func drawBowFront(ctx: inout GraphicsContext, H: LunaH, bodyPath: Path) {
     let a = mProjRoll(H, mSurf(0.86, 0.55, 1.02))
     guard a.z >= -0.2 else { return }
     let s = H.R * 0.26

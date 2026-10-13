@@ -320,17 +320,17 @@ struct BotPlacement: View {
                     let t = min(1.0, max(0, elapsed / state.uploadDuration))
                     // cx = 36 + 526*t: bot center at fill right edge (bar left=36, width=526)
                     let uploadCx = 36 + CGFloat(t * (2 - t)) * 526
-                    BotCanvasView(state: state, particleOverhang: 0, paused: state.mochiOnDesktop)
+                    BotCanvasView(state: state, particleOverhang: 0, paused: state.lunaOnDesktop)
                         .frame(width: canvasSize, height: canvasSize)
-                        .opacity(state.isDraggingBot || state.mochiOnDesktop ? 0 : opacity)
+                        .opacity(state.isDraggingBot || state.lunaOnDesktop ? 0 : opacity)
                         .position(x: uploadCx, y: cy)
                 }
                 .transition(.scale(scale: 0.01, anchor: .center).combined(with: .opacity))
             } else {
                 // Invisible while Luna lives on the desktop: no drawing either.
-                BotCanvasView(state: state, particleOverhang: overhang, paused: state.mochiOnDesktop)
+                BotCanvasView(state: state, particleOverhang: overhang, paused: state.lunaOnDesktop)
                     .frame(width: canvasSize, height: canvasSize + overhang)
-                    .opacity(state.isDraggingBot || state.mochiOnDesktop ? 0 : opacity)
+                    .opacity(state.isDraggingBot || state.lunaOnDesktop ? 0 : opacity)
                     .position(x: cx, y: cy - overhang / 2)
                     .animation(.spring(response: 0.5, dampingFraction: 0.72), value: cx)
                     .animation(.spring(response: 0.5, dampingFraction: 0.72), value: cy)
@@ -700,7 +700,7 @@ struct ClaudePlanHeaderPill: View {
 }
 #endif
 
-// MARK: - Compact mini mochi grid (2×2 to the right of the notch)
+// MARK: - Compact mini Luna grid (2×2 to the right of the notch)
 
 struct CompactMiniGrid: View {
     @ObservedObject var state: AppState

@@ -4363,7 +4363,7 @@ struct WardrobeView: View {
             return h.displayName
         }
         // Fall back to current selection
-        let sel = state.mochiOutfitSelection
+        let sel = state.lunaOutfitSelection
         if sel == .auto {
             let seasonal = Outfit.seasonal(for: Date(), calendar: .current)
             let name = seasonal == .none ? "None" : seasonal.displayName
@@ -4396,7 +4396,7 @@ struct WardrobeView: View {
                     ForEach(withAuto, id: \.rawValue) { outfit in
                         OutfitPillView(
                             outfit: outfit,
-                            isSelected: state.mochiOutfitSelection == outfit,
+                            isSelected: state.lunaOutfitSelection == outfit,
                             isHovered: hoveredOutfit == outfit,
                             onHover: { h in
                                 hoveredOutfit = h ? outfit : nil
@@ -4411,8 +4411,8 @@ struct WardrobeView: View {
                                 }
                             },
                             onTap: {
-                                guard state.mochiOutfitSelection != outfit else { return }
-                                state.mochiOutfitSelection = outfit
+                                guard state.lunaOutfitSelection != outfit else { return }
+                                state.lunaOutfitSelection = outfit
                                 SoundEngine.shared.play("pop")
                                 NotificationCenter.default.post(name: .triggerEmote, object: BotEmote.proud)
                             },
@@ -4481,8 +4481,8 @@ struct OutfitPillView: View {
 private func drawLunaIconBody(context: GraphicsContext, cx: CGFloat, cy: CGFloat, iconR: CGFloat,
                               pumpkin: Bool = false, withCharm: Bool = true) {
     let rx = iconR * LunaLook.rxK, ry = iconR * LunaLook.ryK
-    let mH = MochiH(R: iconR, yaw: 0, pitch: 0)
-    let bodyPath = mochiOutfitPath(rx, ry)
+    let mH = LunaH(R: iconR, yaw: 0, pitch: 0)
+    let bodyPath = lunaOutfitPath(rx, ry)
 
     if withCharm && !pumpkin {
         var cc = context
@@ -4523,7 +4523,7 @@ private func drawLunaIconBody(context: GraphicsContext, cx: CGFloat, cy: CGFloat
 
     var eyeCtx = ctx
     eyeCtx.clip(to: bodyPath)
-    let ink = pumpkin ? Color(cgColor: MochiConst.ink) : Color(cgColor: MochiConst.glow)
+    let ink = pumpkin ? Color(cgColor: LunaConst.ink) : Color(cgColor: LunaConst.glow)
     for f in mEyeFrames(mH) {
         guard f.visible else { continue }
         var ec = eyeCtx
@@ -4543,7 +4543,7 @@ private func drawOutfitIcon(context: GraphicsContext, size: CGSize, outfit: Outf
     case .auto:
         let iconR: CGFloat = 10.0
         let ry = iconR * LunaLook.ryK
-        let mH = MochiH(R: iconR, yaw: 0, pitch: 0)
+        let mH = LunaH(R: iconR, yaw: 0, pitch: 0)
         let iconCY = cy + iconR * 0.62
         let hasSeasonal = seasonal != .none && seasonal != .auto
 
@@ -4588,7 +4588,7 @@ private func drawOutfitIcon(context: GraphicsContext, size: CGSize, outfit: Outf
     default:
         // Small Luna wearing the outfit
         let iconR: CGFloat = 10.0
-        let mH = MochiH(R: iconR, yaw: 0, pitch: 0)
+        let mH = LunaH(R: iconR, yaw: 0, pitch: 0)
         let iconCY = cy + iconR * 0.62
 
         // Draw outfit behind

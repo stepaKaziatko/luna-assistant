@@ -51,7 +51,7 @@ struct AskClaudeIntent: AppIntent {
     }
 }
 
-struct CoucouShortcuts: AppShortcutsProvider {
+struct LunaShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: AskClaudeIntent(),
                     phrases: ["Ask Claude in \(.applicationName)",
@@ -70,7 +70,7 @@ struct CoucouShortcuts: AppShortcutsProvider {
 
 /// A Focus filter: in a Focus (Sleep, Work…), Luna can keep quiet about
 /// finished and failed agents and only notify what waits on you.
-struct CoucouFocusFilter: SetFocusFilterIntent {
+struct LunaFocusFilter: SetFocusFilterIntent {
     static let title: LocalizedStringResource = "Luna"
     static var description: IntentDescription {
         IntentDescription("Choose what Luna notifies during this Focus.")

@@ -25,7 +25,7 @@ struct KitPreviewView: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 72))], spacing: 12) {
                     ForEach(Array(poses.enumerated()), id: \.offset) { index, pose in
                         VStack(spacing: 4) {
-                            MochiStill(state: pose.0, eye: pose.1)
+                            LunaStill(state: pose.0, eye: pose.1)
                                 .padding(6)
                                 .frame(width: 64, height: 64)
                                 .background(tileColor(index), in: RoundedRectangle(cornerRadius: 14))
@@ -40,10 +40,10 @@ struct KitPreviewView: View {
                 Section(category.title) {
                     ForEach(PillCatalog.all.filter { $0.category == category }, id: \.id) { pill in
                         HStack(spacing: 12) {
-                            MochiStill()
+                            LunaStill()
                                 .padding(3)
                                 .frame(width: 30, height: 30)
-                                .background(Color.mochiTile(hex: pill.color), in: RoundedRectangle(cornerRadius: 8))
+                                .background(Color.lunaTile(hex: pill.color), in: RoundedRectangle(cornerRadius: 8))
                             VStack(alignment: .leading) {
                                 Text(pill.name)
                                 Text(pill.id).font(.caption2.monospaced()).foregroundStyle(.secondary)

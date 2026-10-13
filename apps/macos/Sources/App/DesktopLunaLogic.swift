@@ -16,7 +16,7 @@ enum DesktopSpace {
 
 /// Phase of the desktop Luna lifecycle.
 enum DesktopPhase: Equatable {
-    /// No panel on screen; `UserDefaults["mochiOnDesktop"]` is `false`.
+    /// No panel on screen; `UserDefaults["lunaOnDesktop"]` is `false`.
     case home
     /// Panel animating from notch to saved desktop position.
     case flyingOut
@@ -32,8 +32,8 @@ enum DesktopPhase: Equatable {
 
 // MARK: - Pure geometry / logic (no AppKit — fully unit-testable)
 
-/// Stateless helpers for `DesktopMochiController`.
-enum DesktopMochiLogic {
+/// Stateless helpers for `DesktopLunaController`.
+enum DesktopLunaLogic {
     static let panelSize:          CGFloat      = 120
     static let sleepTimeout:       TimeInterval = 120
     static let sleepMouseDistance: CGFloat      = 150

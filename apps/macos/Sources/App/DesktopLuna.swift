@@ -4,7 +4,7 @@ import Combine
 
 // MARK: - Desktop bot view state
 
-/// Observable bridge so DesktopMochiController can update view-level state without
+/// Observable bridge so DesktopLunaController can update view-level state without
 /// coupling to SwiftUI @State.
 @MainActor
 final class DesktopBotViewState: ObservableObject {
@@ -22,7 +22,7 @@ final class DesktopBotViewState: ObservableObject {
 /// Full Luna character rendered inside the desktop floating panel.
 struct DesktopBotView: View {
     @ObservedObject var appState: AppState
-    /// Engine owned by DesktopMochiController; controller calls methods on it directly.
+    /// Engine owned by DesktopLunaController; controller calls methods on it directly.
     let engine: BotEngine
     @ObservedObject var viewState: DesktopBotViewState
 
@@ -52,7 +52,7 @@ struct DesktopBotView: View {
                     #endif
                 }()
                 engine.setDancing(dancing)
-                MochiFrameClock.advance(engine)
+                LunaFrameClock.advance(engine)
 
                 var c = ctx
                 engine.applyDance(&c, size: size)
@@ -98,8 +98,8 @@ struct DesktopBotView: View {
 ///   `retractForAlert()` (panel gone, flag stays true) → both nil → `launchFlyIfNeeded()`.
 /// - **User flies home**: double-click → `flyHome()` → full teardown.
 @MainActor
-final class DesktopMochiController {
-    static let shared = DesktopMochiController()
+final class DesktopLunaController {
+    static let shared = DesktopLunaController()
     private init() {
         observeScreenSleep()
         observeScreenLock()
@@ -142,18 +142,18 @@ final class DesktopMochiController {
     private var rightClickMonitor:   Any?
 
     // UserDefaults keys
-    private static let posXKey    = "desktopMochiX"
-    private static let posYKey    = "desktopMochiY"
-    private static let enabledKey = "mochiOnDesktop"
+    private static let posXKey    = "desktopLunaX"
+    private static let posYKey    = "desktopLunaY"
+    private static let enabledKey = "lunaOnDesktop"
 
-    static let panelSize: CGFloat = DesktopMochiLogic.panelSize
+    static let panelSize: CGFloat = DesktopLunaLogic.panelSize
 
     // MARK: - Keyboard shortcut toggle (⌃⌥D)
 
     /// Fly Luna to the desktop if not there, or bring him back if he is.
     func flyOutOrHome() {
         if phase == .home {
-            UserDefaults.standard.set(true, forKey: DesktopMochiController.enabledKey)
+            UserDefaults.standard.set(true, forKey: DesktopLunaController.enabledKey)
             launchFlyIfNeeded()
         } else if phase == .onDesktop {
             flyHome()
@@ -166,7 +166,7 @@ final class DesktopMochiController {
     /// centered on `screenPoint`. Called by `IslandWindowController.finishDrag`.
     func install(ghostPanel: NSPanel?, at screenPoint: NSPoint) {
         guard panel == nil, phase == .home else { ghostPanel?.close(); return }
-        let s = DesktopMochiController.panelSize
+        let s = DesktopLunaController.panelSize
 
         let p: NSPanel
         if let ghost = ghostPanel {
@@ -214,12 +214,12 @@ final class DesktopMochiController {
             Task { @MainActor in
                 self.panel = p
                 self.phase = .onDesktop
-                AppState.shared.mochiOnDesktop = true
-                UserDefaults.standard.set(true, forKey: DesktopMochiController.enabledKey)
+                AppState.shared.lunaOnDesktop = true
+                UserDefaults.standard.set(true, forKey: DesktopLunaController.enabledKey)
                 self.persistPosition()
                 // Alert may have fired during the animation (observeAlerts skipped: phase wasn't .onDesktop)
                 let alertNow = AppState.shared.pendingApproval != nil || AppState.shared.pendingQuestion != nil
-                if DesktopMochiLogic.shouldRetractOnLanding(alertActive: alertNow) {
+                if DesktopLunaLogic.shouldRetractOnLanding(alertActive: alertNow) {
                     self.engine?.triggerEmote(.surprised)
                     self.phase = .retracting
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
@@ -244,7 +244,7 @@ final class DesktopMochiController {
     /// Fly a new panel from the notch to the saved desktop position.
     /// Called by AppDelegate after `.greetComplete`, and by the alert-return path.
     func launchFlyIfNeeded() {
-        guard UserDefaults.standard.bool(forKey: DesktopMochiController.enabledKey) else { return }
+        guard UserDefaults.standard.bool(forKey: DesktopLunaController.enabledKey) else { return }
         guard phase == .home else { return }
         guard panel == nil else { return }
         // Alert active: don't fly yet — park in .atNotchForAlert so observeAlerts restores us when it clears
@@ -254,7 +254,7 @@ final class DesktopMochiController {
         }
 
         phase = .flyingOut
-        let s = DesktopMochiController.panelSize
+        let s = DesktopLunaController.panelSize
         let screen = IslandWindowController.islandScreen()
         let startOrigin = NSPoint(x: screen.frame.midX - s/2, y: screen.frame.maxY - s)
         let target = loadSavedPosition()
@@ -280,7 +280,7 @@ final class DesktopMochiController {
         p.alphaValue = 0
         p.orderFront(nil)
 
-        AppState.shared.mochiOnDesktop = true
+        AppState.shared.lunaOnDesktop = true
 
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.45
@@ -291,11 +291,11 @@ final class DesktopMochiController {
             Task { @MainActor in
                 self.panel = p
                 self.phase = .onDesktop
-                UserDefaults.standard.set(true, forKey: DesktopMochiController.enabledKey)
+                UserDefaults.standard.set(true, forKey: DesktopLunaController.enabledKey)
                 self.persistPosition()
                 // Alert may have fired during the flight (observeAlerts skipped: phase was .flyingOut)
                 let alertNow = AppState.shared.pendingApproval != nil || AppState.shared.pendingQuestion != nil
-                if DesktopMochiLogic.shouldRetractOnLanding(alertActive: alertNow) {
+                if DesktopLunaLogic.shouldRetractOnLanding(alertActive: alertNow) {
                     self.engine?.triggerEmote(.surprised)
                     self.phase = .retracting
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
@@ -326,7 +326,7 @@ final class DesktopMochiController {
         removeEventMonitors()
         cancellables.removeAll()
         isSleeping = false
-        let s = DesktopMochiController.panelSize
+        let s = DesktopLunaController.panelSize
         let screen = IslandWindowController.islandScreen()
         let targetOrigin = NSPoint(x: screen.frame.midX - s/2, y: screen.frame.maxY - s)
         NSAnimationContext.runAnimationGroup({ ctx in
@@ -354,7 +354,7 @@ final class DesktopMochiController {
         pendingSlapWorkItem?.cancel()
         isSleeping = false
 
-        let s = DesktopMochiController.panelSize
+        let s = DesktopLunaController.panelSize
         let screen = IslandWindowController.islandScreen()
         let targetOrigin = NSPoint(x: screen.frame.midX - s/2, y: screen.frame.maxY - s)
         NSAnimationContext.runAnimationGroup({ ctx in
@@ -369,7 +369,7 @@ final class DesktopMochiController {
                 self.engine = nil
                 self.viewState = nil
                 self.isDragging = false
-                AppState.shared.mochiOnDesktop = false
+                AppState.shared.lunaOnDesktop = false
                 // UserDefaults flag stays TRUE so launchFlyIfNeeded works
                 if self.phase == .alertResolvedDuringRetract {
                     self.phase = .home
@@ -399,8 +399,8 @@ final class DesktopMochiController {
         viewState = nil
         isDragging = false
         isSleeping = false
-        AppState.shared.mochiOnDesktop = false
-        UserDefaults.standard.set(false, forKey: DesktopMochiController.enabledKey)
+        AppState.shared.lunaOnDesktop = false
+        UserDefaults.standard.set(false, forKey: DesktopLunaController.enabledKey)
     }
 
     // MARK: - Panel factory
@@ -526,10 +526,10 @@ final class DesktopMochiController {
         let mouse = NSEvent.mouseLocation
         let pf    = p.frame
         let local = CGPoint(x: mouse.x - pf.minX, y: mouse.y - pf.minY)
-        let s     = DesktopMochiController.panelSize
+        let s     = DesktopLunaController.panelSize
 
         // Toggle click-through
-        let overBody   = DesktopMochiLogic.isOverBody(localPoint: local, panelSize: s)
+        let overBody   = DesktopLunaLogic.isOverBody(localPoint: local, panelSize: s)
         let needsMouse = overBody || isDragging
         if p.ignoresMouseEvents == needsMouse {
             p.ignoresMouseEvents = !needsMouse
@@ -547,7 +547,7 @@ final class DesktopMochiController {
         if agentActive { lastAgentActive = .now }
         let dist     = hypot(mouse.x - pf.midX, mouse.y - pf.midY)
         let interval = Date.now.timeIntervalSince(lastAgentActive)
-        let shouldSleep = DesktopMochiLogic.shouldSleep(lastAgentActiveInterval: interval,
+        let shouldSleep = DesktopLunaLogic.shouldSleep(lastAgentActiveInterval: interval,
                                                          mouseDistanceToPanelCenter: dist)
         if shouldSleep != isSleeping {
             isSleeping = shouldSleep
@@ -722,11 +722,11 @@ final class DesktopMochiController {
     // MARK: - Position helpers
 
     private func lookOriginFor(panel: NSPanel) -> CGPoint {
-        DesktopMochiLogic.lookOrigin(
+        DesktopLunaLogic.lookOrigin(
             panelMinX:  panel.frame.minX,
             panelMinY:  panel.frame.minY,
             desktopTop: IslandWindowController.desktopTop,
-            panelSize:  DesktopMochiController.panelSize)
+            panelSize:  DesktopLunaController.panelSize)
     }
 
     private func clampToVisibleFrame(_ origin: NSPoint) -> NSPoint {
@@ -735,27 +735,27 @@ final class DesktopMochiController {
             let db = hypot(origin.x - $1.visibleFrame.midX, origin.y - $1.visibleFrame.midY)
             return da < db
         }) ?? NSScreen.main!
-        let pt = DesktopMochiLogic.clampOrigin(
+        let pt = DesktopLunaLogic.clampOrigin(
             CGPoint(x: origin.x, y: origin.y),
-            panelSize:    DesktopMochiController.panelSize,
+            panelSize:    DesktopLunaController.panelSize,
             visibleFrame: screen.visibleFrame,
-            margin:       DesktopMochiLogic.clampMargin)
+            margin:       DesktopLunaLogic.clampMargin)
         return NSPoint(x: pt.x, y: pt.y)
     }
 
     private func loadSavedPosition() -> NSPoint {
         let ud = UserDefaults.standard
-        guard ud.object(forKey: DesktopMochiController.posXKey) != nil else {
+        guard ud.object(forKey: DesktopLunaController.posXKey) != nil else {
             return defaultPosition()
         }
-        let x = CGFloat(ud.double(forKey: DesktopMochiController.posXKey))
-        let y = CGFloat(ud.double(forKey: DesktopMochiController.posYKey))
+        let x = CGFloat(ud.double(forKey: DesktopLunaController.posXKey))
+        let y = CGFloat(ud.double(forKey: DesktopLunaController.posYKey))
         return clampToVisibleFrame(NSPoint(x: x, y: y))
     }
 
     private func defaultPosition() -> NSPoint {
-        let s      = DesktopMochiController.panelSize
-        let margin = DesktopMochiLogic.clampMargin
+        let s      = DesktopLunaController.panelSize
+        let margin = DesktopLunaLogic.clampMargin
         let vf     = (NSScreen.main ?? NSScreen.screens[0]).visibleFrame
         return NSPoint(x: vf.maxX - s - margin, y: vf.minY + margin)
     }
@@ -763,7 +763,7 @@ final class DesktopMochiController {
     private func persistPosition() {
         guard let p = panel else { return }
         let o = p.frame.origin
-        UserDefaults.standard.set(Double(o.x), forKey: DesktopMochiController.posXKey)
-        UserDefaults.standard.set(Double(o.y), forKey: DesktopMochiController.posYKey)
+        UserDefaults.standard.set(Double(o.x), forKey: DesktopLunaController.posXKey)
+        UserDefaults.standard.set(Double(o.y), forKey: DesktopLunaController.posYKey)
     }
 }

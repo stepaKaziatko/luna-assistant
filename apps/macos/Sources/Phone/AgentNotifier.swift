@@ -5,7 +5,7 @@ import UserNotifications
 /// The iPhone's notification settings (Settings → Notifications), kept on the iPhone.
 enum PhoneSettings {
     static let notifyDoneKey = "notifyDone"
-    static let mochiSoundsKey = "mochiSounds"
+    static let lunaSoundsKey = "lunaSounds"
     static let quietHoursKey = "quietHours"
     static let quietFromKey = "quietFrom"   // minutes after midnight
     static let quietToKey = "quietTo"
@@ -18,7 +18,7 @@ enum PhoneSettings {
     /// A notification when an agent finishes or fails (on by default).
     static var notifyDone: Bool { defaults.object(forKey: notifyDoneKey) as? Bool ?? true }
     /// Luna's own sounds instead of the iPhone's default one (on by default).
-    static var mochiSounds: Bool { defaults.object(forKey: mochiSoundsKey) as? Bool ?? true }
+    static var lunaSounds: Bool { defaults.object(forKey: lunaSoundsKey) as? Bool ?? true }
     static var quietHours: Bool { defaults.bool(forKey: quietHoursKey) }
     static var quietFrom: Int { defaults.object(forKey: quietFromKey) as? Int ?? 22 * 60 }
     static var quietTo: Int { defaults.object(forKey: quietToKey) as? Int ?? 8 * 60 }
@@ -35,7 +35,7 @@ enum PhoneSettings {
 
     /// One of Luna's sounds (bundled WAV), or the iPhone's default.
     static func sound(_ name: String) -> UNNotificationSound {
-        mochiSounds ? UNNotificationSound(named: UNNotificationSoundName("\(name).wav")) : .default
+        lunaSounds ? UNNotificationSound(named: UNNotificationSoundName("\(name).wav")) : .default
     }
 }
 

@@ -3,7 +3,7 @@ import SwiftUI
 /// Luna in a fixed pose: one frame of BotEngine, no animation, no timer.
 /// For surfaces that can't animate (widgets, lists on the iPhone). The Mac
 /// island keeps its animated BotCanvasView / MiniBotCanvasView.
-struct MochiStill: View {
+struct LunaStill: View {
     var state: BotState = .idle
     /// Overrides the state's eyes (e.g. .closed for a sleeping agent).
     var eye: EyeShape? = nil
@@ -12,7 +12,7 @@ struct MochiStill: View {
     var bodyHex: String = LunaLook.bodyMidHex
     var showBadge: Bool = true
     /// Where he looks and how his eyes are, for a still that isn't always the same.
-    var pose: MochiPose = .neutral
+    var pose: LunaPose = .neutral
 
     var body: some View {
         Canvas { context, size in
@@ -44,31 +44,31 @@ struct MochiStill: View {
 /// One frame of the little life the Mac's mini Luna have: looking around,
 /// blinking, a happy squint. Widgets can't animate, so each refresh of the
 /// timeline picks a new pose per Luna; the system cross-fades between them.
-struct MochiPose: Equatable, Sendable {
+struct LunaPose: Equatable, Sendable {
     var yaw: CGFloat = 0
     var pitch: CGFloat = 0
     var tilt: CGFloat = 0
     var open: CGFloat = 1
     var eye: EyeShape? = nil
 
-    static let neutral = MochiPose()
+    static let neutral = LunaPose()
 
-    static let idlePoses: [MochiPose] = [
-        MochiPose(),
-        MochiPose(yaw: -0.45),
-        MochiPose(yaw: 0.45),
-        MochiPose(yaw: -0.3, pitch: -0.25),
-        MochiPose(yaw: 0.35, pitch: 0.2, tilt: 0.08),
-        MochiPose(pitch: -0.3, tilt: -0.06),
-        MochiPose(eye: .closed),                 // blink
-        MochiPose(yaw: 0.2, eye: .happy),
-        MochiPose(yaw: -0.5, tilt: -0.1),
-        MochiPose(yaw: 0.15, pitch: 0.25),
+    static let idlePoses: [LunaPose] = [
+        LunaPose(),
+        LunaPose(yaw: -0.45),
+        LunaPose(yaw: 0.45),
+        LunaPose(yaw: -0.3, pitch: -0.25),
+        LunaPose(yaw: 0.35, pitch: 0.2, tilt: 0.08),
+        LunaPose(pitch: -0.3, tilt: -0.06),
+        LunaPose(eye: .closed),                 // blink
+        LunaPose(yaw: 0.2, eye: .happy),
+        LunaPose(yaw: -0.5, tilt: -0.1),
+        LunaPose(yaw: 0.15, pitch: 0.25),
     ]
 
     /// A pose that differs per Luna and per tick, the same every time for a
     /// given pair (so a widget redraw doesn't jump).
-    static func idle(id: String, tick: Int) -> MochiPose {
+    static func idle(id: String, tick: Int) -> LunaPose {
         var hash: UInt64 = 5381
         for byte in id.utf8 { hash = (hash &* 33) &+ UInt64(byte) }
         hash = (hash &* 31) &+ UInt64(truncatingIfNeeded: tick &* 7919)
@@ -80,7 +80,7 @@ struct MochiPose: Equatable, Sendable {
 extension Color {
     /// Background for the night-blue Luna on an agent's color. Very dark colors
     /// would hide him (he is dark himself), so they get a light gray tile.
-    static func mochiTile(hex: String) -> Color {
+    static func lunaTile(hex: String) -> Color {
         guard let c = cgColorFromHex(hex), let comps = c.components, comps.count >= 3 else {
             return Color(hex: hex)
         }

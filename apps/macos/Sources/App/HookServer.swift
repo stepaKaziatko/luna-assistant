@@ -366,10 +366,10 @@ final class HookServer: @unchecked Sendable {
             return
         }
 
-        let coucouKind = payload["coucou_kind"] as? String ?? ""
+        let lunaKind = payload["coucou_kind"] as? String ?? ""
 
         // statusline payloads are handled separately — no session, no reveal, no sound
-        if coucouKind == "statusline" {
+        if lunaKind == "statusline" {
             Task { @MainActor in self.processStatusLine(payload: payload) }
             sendLine(fd: fd, text: #"{"ok":true}"#)
             close(fd)
@@ -377,7 +377,7 @@ final class HookServer: @unchecked Sendable {
         }
 
         // AskUserQuestion via --ask PreToolUse hook — hold fd open like PermissionRequest
-        if coucouKind == "ask_user_question" {
+        if lunaKind == "ask_user_question" {
             let toolInput = payload["tool_input"] as? [String: Any] ?? [:]
             if let parsed = AskQuestion.parse(toolInput: toolInput) {
                 Task { @MainActor in self.processQuestionRequest(fd: fd, parsed: parsed, payload: payload) }
@@ -464,7 +464,7 @@ final class HookServer: @unchecked Sendable {
             isExternalAgent = false
             hostApp = host.bundleId
         } else {
-            nbLog("Ignored \(name) from \(termProgram.isEmpty ? bundleId : termProgram) (\(projectName))")
+            lunaLog("Ignored \(name) from \(termProgram.isEmpty ? bundleId : termProgram) (\(projectName))")
             return
         }
 
@@ -515,7 +515,7 @@ final class HookServer: @unchecked Sendable {
             upsertTask(pill: agentId, display: display, working: false,
                        externalAgent: isExternalAgent ? validAgent : nil)
             if let idx = state.tasks.firstIndex(where: { $0.id == agentId }) { state.tasks[idx].finalLine = nil }
-            nbLog("SessionStart \(isExternalAgent ? agentId : projectName) (\(sessionId.prefix(8)))")
+            lunaLog("SessionStart \(isExternalAgent ? agentId : projectName) (\(sessionId.prefix(8)))")
             NotificationCenter.default.post(name: .checkMondayRecap, object: nil)
             if state.isPresent { expandIfNeeded(to: .overview) }
             SoundEngine.shared.play("work")
@@ -552,7 +552,7 @@ final class HookServer: @unchecked Sendable {
             let input = payload["tool_input"] as? [String: Any] ?? [:]
             let step = localizedStep(tool: tool, input: input)
             appendStep(id: agentId, step: step)
-            nbLog("PreToolUse \(tool)")
+            lunaLog("PreToolUse \(tool)")
 
         case "PostToolUse":
             sessions.note(pill: agentId, display: display, working: true)
@@ -595,7 +595,7 @@ final class HookServer: @unchecked Sendable {
             // Another session is still mid-turn behind this pill: the finished state, the
             // sound and the idle reset below would land on its work. Its own Stop comes later.
             guard scope == .pill else {
-                nbLog("Stop \(sessionId.prefix(8)) — \(sessions.workingCount(pill: agentId)) session(s) still working on \(agentId)")
+                lunaLog("Stop \(sessionId.prefix(8)) — \(sessions.workingCount(pill: agentId)) session(s) still working on \(agentId)")
                 break
             }
             state.updateTask(id: agentId, state: .finished)
@@ -642,7 +642,7 @@ final class HookServer: @unchecked Sendable {
             // Only the last session behind the pill may take the card and its diffs down.
             guard sessions.endSession(pill: agentId, session: sessionId) == .pill else {
                 RecapStore.shared.sessionEnd(sessionId: recapSessionId)
-                nbLog("SessionEnd \(sessionId.prefix(8)) — \(sessions.liveCount(pill: agentId)) session(s) left on \(agentId)")
+                lunaLog("SessionEnd \(sessionId.prefix(8)) — \(sessions.liveCount(pill: agentId)) session(s) left on \(agentId)")
                 applyDisplayOwner(pill: agentId)
                 break
             }
@@ -820,7 +820,7 @@ final class HookServer: @unchecked Sendable {
         let tool = payload["tool_name"] as? String ?? "Tool"
         let toolInput = payload["tool_input"] as? [String: Any] ?? [:]
         let inputKey = Self.approvalInputKey(toolInput)
-        nbLog("PermissionRequest \(tool) [\(pillId)]")
+        lunaLog("PermissionRequest \(tool) [\(pillId)]")
 
         // AskUserQuestion is now handled via the dedicated --ask PreToolUse hook.
         // If it still arrives here as a PermissionRequest, reply "ask" so Claude Code
@@ -842,7 +842,7 @@ final class HookServer: @unchecked Sendable {
                                    command: command, inputKey: inputKey,
                                    hostApp: terminalHost?.bundleId, bundleId: bundleId)
         guard approvals.enqueue(entry) == .accepted else {
-            nbLog("PermissionRequest \(tool): \(ApprovalQueue.maxPending) already waiting, asked in the terminal")
+            lunaLog("PermissionRequest \(tool): \(ApprovalQueue.maxPending) already waiting, asked in the terminal")
             Task.detached { [weak self] in
                 self?.sendLine(fd: fd, text: #"{"permissionDecision":"ask"}"#)
                 close(fd)
@@ -909,7 +909,7 @@ final class HookServer: @unchecked Sendable {
             return
         }
         if let id, id != head.id {
-            nbLog("Approval decision for a request no longer on the card, ignored")
+            lunaLog("Approval decision for a request no longer on the card, ignored")
             return
         }
 
@@ -1254,7 +1254,7 @@ final class HookServer: @unchecked Sendable {
 
     // MARK: - Logging
 
-    private func nbLog(_ message: String) {
+    private func lunaLog(_ message: String) {
         appendAppLog("nb.log", message)
     }
 
@@ -1282,11 +1282,11 @@ final class HookServer: @unchecked Sendable {
         try? FileManager.default.setAttributes([.posixPermissions: 0o700 as NSNumber], ofItemAtPath: dir.path)
         // nb-hook: shell wrapper (always exits 0, calls nb-hook.py via python3)
         let wrapperURL = URL(fileURLWithPath: Self.hookScriptPath)
-        try? nbHookShellWrapper.write(to: wrapperURL, atomically: true, encoding: .utf8)
+        try? lunaHookShellWrapper.write(to: wrapperURL, atomically: true, encoding: .utf8)
         _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755 as NSNumber], ofItemAtPath: wrapperURL.path)
         // nb-hook.py: Python relay
         let pyURL = wrapperURL.deletingLastPathComponent().appendingPathComponent("nb-hook.py")
-        try? nbHookPythonGitHub.write(to: pyURL, atomically: true, encoding: .utf8)
+        try? lunaHookPythonGitHub.write(to: pyURL, atomically: true, encoding: .utf8)
         _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755 as NSNumber], ofItemAtPath: pyURL.path)
         #endif
     }
@@ -1305,7 +1305,7 @@ final class HookServer: @unchecked Sendable {
             return false
         }
         // Track whether any Luna hook is installed at all
-        var hasCoucouHooks = false
+        var hasLunaHooks = false
 
         if let permReqHooks = hooks["PermissionRequest"] as? [[String: Any]] {
             for matcher in permReqHooks {
@@ -1313,7 +1313,7 @@ final class HookServer: @unchecked Sendable {
                     for hook in hookList {
                         if let cmd = hook["command"] as? String,
                            cmd.contains("NotchBuddy") || cmd.contains("coucou") {
-                            hasCoucouHooks = true
+                            hasLunaHooks = true
                             if let timeout = hook["timeout"] as? Int, timeout < 120 { return true }
                         }
                     }
@@ -1322,7 +1322,7 @@ final class HookServer: @unchecked Sendable {
         }
 
         // Check that the AskUserQuestion PreToolUse entry exists
-        if hasCoucouHooks {
+        if hasLunaHooks {
             let preToolHooks = hooks["PreToolUse"] as? [[String: Any]] ?? []
             let hasAskEntry = preToolHooks.contains { m in
                 (m["matcher"] as? String) == "AskUserQuestion"
@@ -1566,13 +1566,13 @@ final class HookServer: @unchecked Sendable {
         let (data, original) = try buildHooksData(claudeURL: claudeURL)
 
         // Write nb-hook (shell wrapper) + nb-hook.py (Python relay) into ~/.claude/coucou/
-        let coucouDir = claudeURL.appendingPathComponent("coucou")
-        try FileManager.default.createDirectory(at: coucouDir, withIntermediateDirectories: true)
-        let wrapperURL = coucouDir.appendingPathComponent("nb-hook")
-        try nbHookShellWrapper.write(to: wrapperURL, atomically: true, encoding: .utf8)
+        let lunaDir = claudeURL.appendingPathComponent("coucou")
+        try FileManager.default.createDirectory(at: lunaDir, withIntermediateDirectories: true)
+        let wrapperURL = lunaDir.appendingPathComponent("nb-hook")
+        try lunaHookShellWrapper.write(to: wrapperURL, atomically: true, encoding: .utf8)
         _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755 as NSNumber], ofItemAtPath: wrapperURL.path)
-        let pyURL = coucouDir.appendingPathComponent("nb-hook.py")
-        try nbHookPythonAppStore.write(to: pyURL, atomically: true, encoding: .utf8)
+        let pyURL = lunaDir.appendingPathComponent("nb-hook.py")
+        try lunaHookPythonAppStore.write(to: pyURL, atomically: true, encoding: .utf8)
         _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755 as NSNumber], ofItemAtPath: pyURL.path)
 
         // Write settings.json (with backup)
@@ -1659,7 +1659,7 @@ final class HookServer: @unchecked Sendable {
         guard let data = try? Data(contentsOf: url),
               let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         else { return false }
-        return coucouHooksPresent(inSettings: json)
+        return lunaHooksPresent(inSettings: json)
         #endif
     }
 
@@ -2915,7 +2915,7 @@ description: Luna notch integration — generated by Luna.app
         // Note: actual plugin enable/disable is done via `hermes plugins enable/disable coucou`
         // CLI after writing/removing the plugin files. This block ensures the preview
         // shows the complete intended state of config.yaml.
-        func ensureCoucouPlugin() {
+        func ensureLunaPlugin() {
             // "Already present" = coucou in the plugins.enabled list specifically.
             // Check by finding plugins: section first, then enabled: sub-key within it.
             if let pluginsIdx = topLevelIndex(key: "plugins") {
@@ -2960,7 +2960,7 @@ description: Luna notch integration — generated by Luna.app
             }
         }
 
-        func removeCoucouPlugin() {
+        func removeLunaPlugin() {
             // Remove the `- coucou` entry from plugins.enabled only.
             // If that leaves enabled: with no entries, leave the key in place (don't remove it).
             guard let pluginsIdx = topLevelIndex(key: "plugins") else { return }
@@ -2988,7 +2988,7 @@ description: Luna notch integration — generated by Luna.app
             }
         }
 
-        ensureCoucouPlugin()
+        ensureLunaPlugin()
         if enableApprovals { ensureApprovalTransport() } else { removeApprovalTransport() }
         return lines.joined(separator: "\n")
     }
@@ -3134,7 +3134,7 @@ description: Luna notch integration — generated by Luna.app
 // MARK: - Notification names for hook server → controller communication
 
 extension Notification.Name {
-    static let hookExpand = Notification.Name("notchBuddy.hookExpand")
+    static let hookExpand = Notification.Name("luna.hookExpand")
 }
 
 // MARK: - nb-hook shell wrapper (same for both GitHub and App Store)
@@ -3143,7 +3143,7 @@ extension Notification.Name {
 // Checks xcode-select before running python3 to avoid triggering the
 // "install developer tools" dialog on machines without Xcode CLI tools.
 
-private let nbHookShellWrapper = """
+private let lunaHookShellWrapper = """
 #!/bin/sh
 # Luna hook relay — always exits 0, never blocks Claude Code
 HOOK_DIR="$(dirname "$0")"
@@ -3179,7 +3179,7 @@ exit 0
 
 // MARK: - nb-hook Python relay (GitHub / non-sandboxed version)
 
-private let nbHookPythonGitHub = """
+private let lunaHookPythonGitHub = """
 #!/usr/bin/env python3
 # nb-hook.py — Luna hook relay for Claude Code and third-party agents (GitHub version)
 # Reads JSON from stdin, forwards to Luna via Unix socket, translates response.
@@ -3486,7 +3486,7 @@ sys.exit(0)
 
 // MARK: - nb-hook Python relay (App Store — socket in sandboxed container)
 
-private let nbHookPythonAppStore = """
+private let lunaHookPythonAppStore = """
 #!/usr/bin/env python3
 # nb-hook.py — Luna (App Store) hook relay for Claude Code and third-party agents
 # Socket lives inside the sandboxed container; script runs outside the sandbox.

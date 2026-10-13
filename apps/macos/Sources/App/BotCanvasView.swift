@@ -17,7 +17,7 @@ struct BotCanvasView: View {
 
     var body: some View {
         // Display refresh rate — every frame on a 60 Hz screen, every frame on ProMotion.
-        // MochiFrameClock.advance accumulates the step debt so Luna's speed never changes.
+        // LunaFrameClock.advance accumulates the step debt so Luna's speed never changes.
         TimelineView(.animation(paused: state.mode == .hidden || paused)) { timeline in
             // The Canvas must capture the frame's date: a closure that doesn't change from
             // one tick to the next is not redrawn, and Luna froze.
@@ -96,7 +96,7 @@ struct BotCanvasView: View {
                 else if engine.voiceSubState != .none { engine.voiceSubState = .none }
                 #endif
 
-                MochiFrameClock.advance(engine)
+                LunaFrameClock.advance(engine)
                 var ctx = context
                 engine.applyDance(&ctx, size: size)
                 // Rigid-roll: when Luna wears an outfit (presence > 0.05) and is rolling,
@@ -251,7 +251,7 @@ struct MiniBotCanvasView: View {
             Canvas { context, size in
                 _ = frame
                 engine.setDancing(isDancing)
-                MochiFrameClock.advance(engine)
+                LunaFrameClock.advance(engine)
                 var ctx = context
                 engine.applyDance(&ctx, size: size)
                 engine.draw(context: ctx, size: size)
@@ -286,7 +286,7 @@ struct MiniBotCanvasView: View {
 /// colour, springs and particles are tuned to that). Drawing slower than the display must
 /// not slow Luna down: each drawn frame runs the steps of the display frames it skipped.
 @MainActor
-enum MochiFrameClock {
+enum LunaFrameClock {
     /// The island screen's refresh rate, looked up at most every 2 s.
     private static var fpsCache: (value: Double, at: CFTimeInterval) = (60, -10)
     static var displayFPS: Double {

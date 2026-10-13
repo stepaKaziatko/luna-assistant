@@ -5,10 +5,10 @@ import WidgetKit
 // A Control Center button: the agent that needs you most and what it does;
 // a tap opens it in Luna. The app reloads it with the widgets.
 
-struct CoucouControl: ControlWidget {
+struct LunaControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "dev.luna.LunaPhone.lead", provider: LeadProvider()) { lead in
-            ControlWidgetButton(action: OpenLeadMochiIntent()) {
+            ControlWidgetButton(action: OpenLeadLunaIntent()) {
                 Label(lead.text, systemImage: lead.symbol)
             }
         }

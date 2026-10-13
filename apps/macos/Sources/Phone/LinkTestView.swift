@@ -29,10 +29,10 @@ struct LinkTestView: View {
                     }
                     ForEach(link.sessions) { session in
                         HStack(alignment: .top, spacing: 12) {
-                            MochiStill(state: session.state)
+                            LunaStill(state: session.state)
                                 .padding(4)
                                 .frame(width: 40, height: 40)
-                                .background(Color.mochiTile(hex: session.color), in: RoundedRectangle(cornerRadius: 10))
+                                .background(Color.lunaTile(hex: session.color), in: RoundedRectangle(cornerRadius: 10))
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(session.name.isEmpty ? session.pillName : session.name)
                                 Text("\(session.pillName) · \(session.state.rawValue)" +

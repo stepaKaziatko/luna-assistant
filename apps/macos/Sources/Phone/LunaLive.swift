@@ -5,7 +5,7 @@ import SwiftUI
 /// his state (a hop when a task finishes). Same BotEngine as the Mac. Draws
 /// only while on screen, at the screen's own rate (up to 120 Hz on ProMotion)
 /// unless capped.
-struct MochiLive: View {
+struct LunaLive: View {
     let state: BotState
     var bodyHex: String = LunaLook.bodyMidHex
     /// A cap for small, numerous Luna (list rows); nil = the screen's rate.

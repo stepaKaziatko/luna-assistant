@@ -324,7 +324,7 @@ private func gRR(_ ctx: CGContext, _ x: CGFloat, _ y: CGFloat,
 }
 
 /// Тело Luna: та же форма, что у BotEngine (LunaLook), по заданной полувысоте.
-private func mochiPath(hw: CGFloat, hh: CGFloat) -> CGPath {
+private func lunaPath(hw: CGFloat, hh: CGFloat) -> CGPath {
     LunaLook.superellipse(rx: hw, ry: hh)
 }
 
@@ -408,7 +408,7 @@ private func drawCharm(_ ctx: CGContext, hh: CGFloat, p: GreetPose) {
     ctx.restoreGState()
 }
 
-private func drawMochi(_ ctx: CGContext, p: GreetPose) {
+private func drawLuna(_ ctx: CGContext, p: GreetPose) {
     let hh = CGFloat(p.hb/2), hw = hh*LunaLook.aspect; guard hh > 0.4 else { return }
 
     // Halo (golden → blue)
@@ -454,7 +454,7 @@ private func drawMochi(_ ctx: CGContext, p: GreetPose) {
     // Украшения над головой рисуются до тела: макушка закрывает их основание
     drawCharm(ctx, hh: hh, p: p)
 
-    let mpath = mochiPath(hw: hw, hh: hh)
+    let mpath = lunaPath(hw: hw, hh: hh)
     bodyFill(ctx, mpath, x0: hw*0.6, y0: -hh, x1: -hw*0.6, y1: hh)
 
     if p.tint > 0 {
@@ -598,7 +598,7 @@ private func drawMinis(_ ctx: CGContext, alpha: Double, compact: IslandRestingLa
         ctx.scaleBy(x: scale, y: scale)
         ctx.setFillColor(gHex(miniColors[i]))
         // та же форма, что у главного персонажа, по высоте 10 pt
-        ctx.addPath(mochiPath(hw: 5 * LunaLook.aspect, hh: 5)); ctx.fillPath()
+        ctx.addPath(lunaPath(hw: 5 * LunaLook.aspect, hh: 5)); ctx.fillPath()
         ctx.restoreGState()
     }
 }
@@ -628,7 +628,7 @@ private func drawGreeting(_ ctx: CGContext, size: CGSize, t: Double,
     }
 
     drawMinis(ctx, alpha: p.minis, compact: compact)
-    drawMochi(ctx, p: p)
+    drawLuna(ctx, p: p)
 }
 
 // MARK: - SwiftUI View

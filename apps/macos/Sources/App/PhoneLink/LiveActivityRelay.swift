@@ -12,7 +12,7 @@ import Combine
 // Cloudflare Worker). The iPhone's push tokens come from iCloud (`PhoneToken`
 // records, written by LiveActivityLink on the iPhone).
 //
-// Sent to the relay: the iPhone's token and MochiActivityState (agent, state,
+// Sent to the relay: the iPhone's token and LunaActivityState (agent, state,
 // counts). Never a project name, a step, a command or a path.
 // Runs only while the Mac is locked with an agent going: lock notifications
 // and AppState changes, no timer at rest.
@@ -43,14 +43,14 @@ final class LiveActivityRelay {
     private var changeToken: CKServerChangeToken?
 
     private var locked = false
-    private var latest: MochiActivityState?
+    private var latest: LunaActivityState?
     /// Set while a Live Activity runs on the iPhone(s).
     private var startedAt: Date?
     /// Sent with every push of an activity, so the iPhone shows the time since.
     private var activitySince: Int?
     /// The startedAt whose start push actually went out.
     private var startSent: Date?
-    private var sent: MochiActivityState?
+    private var sent: LunaActivityState?
     private var sending = false
     private var retryTask: Task<Void, Never>?
     private var retries = 0
@@ -143,7 +143,7 @@ final class LiveActivityRelay {
 
     /// Starts right away when an agent needs you; otherwise once the Mac has
     /// stayed locked for 20 s.
-    private func beginSoon(_ state: MochiActivityState) {
+    private func beginSoon(_ state: LunaActivityState) {
         if state.tone == "waiting" || state.tone == "question" {
             lockTask?.cancel(); lockTask = nil
             begin(state)
@@ -158,7 +158,7 @@ final class LiveActivityRelay {
         }
     }
 
-    private func stateChanged(_ lead: MochiActivityState?) {
+    private func stateChanged(_ lead: LunaActivityState?) {
         if lead?.tone != latest?.tone, let lead { log("phase: \(lead.agent) \(lead.statusText)\(locked ? "" : " (Mac unlocked, stays on the Mac)")") }
         latest = lead
         guard locked else { return }
@@ -185,7 +185,7 @@ final class LiveActivityRelay {
 
     // MARK: Sending
 
-    private func begin(_ state: MochiActivityState) {
+    private func begin(_ state: LunaActivityState) {
         guard !DemoEngine.shared.isActive else { return }
         let start = Date()
         activitySince = Int(start.timeIntervalSince1970)
@@ -308,7 +308,7 @@ final class LiveActivityRelay {
 
     /// Sends one push through the relay. Returns true when Apple accepted it.
     @discardableResult
-    private func post(event: String, token: String, env: String, state: MochiActivityState,
+    private func post(event: String, token: String, env: String, state: LunaActivityState,
                       urgent: Bool = false, dismissAfter: Int? = nil, phoneID: String) async -> Bool {
         guard let url = relayURL else { return false }
         var state = state
@@ -382,11 +382,11 @@ final class LiveActivityRelay {
     // MARK: State
 
     /// The most urgent session, as the iPhone's Live Activity shows it.
-    nonisolated static func leadState(tasks: [AgentTask], approval: ApprovalInfo?) -> MochiActivityState? {
+    nonisolated static func leadState(tasks: [AgentTask], approval: ApprovalInfo?) -> LunaActivityState? {
         let ranked = tasks
             .filter { $0.source != .n8n && PillCatalog.isSession($0.id) }   // same sessions as SessionPublisher
             .map { task -> (AgentTask, Int) in
-                let urgency = MochiActivityState.urgency(state: task.state,
+                let urgency = LunaActivityState.urgency(state: task.state,
                                                          waitingForOK: approval?.pillId == task.id,
                                                          hasQuestion: task.state == .question)
                 return (task, urgency)
@@ -394,14 +394,14 @@ final class LiveActivityRelay {
         guard let lead = ranked.min(by: { $0.1 < $1.1 }) else { return nil }
         let (task, urgency) = lead
         let others = ranked.filter { $0.0.id != task.id && $0.1 <= 3 }.count
-        return MochiActivityState(
+        return LunaActivityState(
             pillId: task.id,
             agent: PillCatalog.definition(for: task.id)?.name ?? "Agent",
             color: task.color,
             state: (urgency == 0 ? BotState.approval : task.state).rawValue,
-            statusText: MochiActivityState.statusText(state: task.state, urgency: urgency,
+            statusText: LunaActivityState.statusText(state: task.state, urgency: urgency,
                                                       stepIndex: task.stepIndex, stepCount: task.steps.count),
-            tone: MochiActivityState.tone(urgency: urgency),
+            tone: LunaActivityState.tone(urgency: urgency),
             stepIndex: max(0, task.stepIndex),
             stepCount: task.steps.count,
             others: others,

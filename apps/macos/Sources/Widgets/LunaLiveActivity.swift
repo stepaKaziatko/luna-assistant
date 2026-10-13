@@ -5,9 +5,9 @@ import WidgetKit
 // Luna's Live Activity: on the Lock Screen and in the Dynamic Island while
 // the Mac is locked and an agent is working. The Mac drives it (step 8).
 
-struct MochiLiveActivity: Widget {
+struct LunaLiveActivity: Widget {
     var body: some WidgetConfiguration {
-        ActivityConfiguration(for: MochiActivityAttributes.self) { context in
+        ActivityConfiguration(for: LunaActivityAttributes.self) { context in
             LockScreenActivityView(state: context.state, stale: context.isStale)
                 .activityBackgroundTint(Color(white: 0.08))
                 .activitySystemActionForegroundColor(.white)
@@ -15,7 +15,7 @@ struct MochiLiveActivity: Widget {
             let state = context.state
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    MochiSwap(state: state)
+                    LunaSwap(state: state)
                         .frame(width: 44, height: 44)
                         .padding(.leading, 4)
                 }
@@ -63,7 +63,7 @@ struct MochiLiveActivity: Widget {
                     }
                 }
             } compactLeading: {
-                MochiSwap(state: state)
+                LunaSwap(state: state)
                     .frame(width: 24, height: 24)
             } compactTrailing: {
                 Text(state.compactText)
@@ -73,7 +73,7 @@ struct MochiLiveActivity: Widget {
                     .contentTransition(.numericText())
                     .animation(.phaseChange, value: state.compactText)
             } minimal: {
-                MochiSwap(state: state)
+                LunaSwap(state: state)
                     .frame(width: 22, height: 22)
             }
             .keylineTint(state.toneColor)
@@ -82,15 +82,15 @@ struct MochiLiveActivity: Widget {
 }
 
 struct LockScreenActivityView: View {
-    let state: MochiActivityState
+    let state: LunaActivityState
     let stale: Bool
 
     var body: some View {
         HStack(spacing: 14) {
-            MochiSwap(state: state)
+            LunaSwap(state: state)
                 .padding(6)
                 .frame(width: 52, height: 52)
-                .background(Color.mochiTile(hex: state.color), in: RoundedRectangle(cornerRadius: 14))
+                .background(Color.lunaTile(hex: state.color), in: RoundedRectangle(cornerRadius: 14))
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(state.agent).font(.headline)
@@ -135,14 +135,14 @@ struct LockScreenActivityView: View {
 
 /// Luna with a little pop when his state changes: the old face fades, the
 /// new one grows in.
-struct MochiSwap: View {
-    let state: MochiActivityState
+struct LunaSwap: View {
+    let state: LunaActivityState
 
     var body: some View {
         ZStack {
-            MochiStill(state: state.botState)
+            LunaStill(state: state.botState)
                 .id(state.state)
-                .transition(.mochiSwap)
+                .transition(.lunaSwap)
         }
         .animation(.phaseChange, value: state.state)
     }
@@ -155,7 +155,7 @@ extension Animation {
 
 extension AnyTransition {
     /// The old face fades out a little bigger, the new one grows in.
-    static var mochiSwap: AnyTransition {
+    static var lunaSwap: AnyTransition {
         .asymmetric(insertion: .scale(scale: 0.55).combined(with: .opacity),
                     removal: .scale(scale: 1.15).combined(with: .opacity))
     }
@@ -209,7 +209,7 @@ struct StepsBar: View {
     }
 }
 
-extension MochiActivityState {
+extension LunaActivityState {
     var sinceDate: Date? { since.map { Date(timeIntervalSince1970: TimeInterval($0)) } }
 
     var toneColor: Color {
