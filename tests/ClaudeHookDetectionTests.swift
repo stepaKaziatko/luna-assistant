@@ -46,6 +46,12 @@ enum ClaudeHookDetectionTests {
           {"type":"command","command":"$HOME/.claude/coucou/nb-hook"}]}]}}
         """)))
 
+        // Not installed: "luna" alone in a path (a home folder, a project) is not our hook
+        precondition(!lunaHooksPresent(inSettings: settings("""
+        {"hooks":{"SessionStart":[{"hooks":[
+          {"type":"command","command":"/Users/luna/bin/other-tool --luna"}]}]}}
+        """)))
+
         // Malformed or empty settings never crash, and never read as installed
         precondition(!lunaHooksPresent(inSettings: settings("{}")))
         precondition(!lunaHooksPresent(inSettings: settings("""
@@ -61,6 +67,6 @@ enum ClaudeHookDetectionTests {
         {"hooks":"not-an-object"}
         """)))
 
-        print("Claude hook detection: 11 cases passed")
+        print("Claude hook detection: 12 cases passed")
     }
 }
