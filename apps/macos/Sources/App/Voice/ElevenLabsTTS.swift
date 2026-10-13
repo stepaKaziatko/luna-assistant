@@ -46,7 +46,7 @@ final class ElevenLabsTTS {
         req.httpBody = try? JSONSerialization.data(withJSONObject: ["text": text, "model_id": Self.model])
         guard let (data, resp) = try? await URLSession.shared.data(for: req),
               (resp as? HTTPURLResponse)?.statusCode == 200, !data.isEmpty else {
-            appendAppLog("nb.log", "[Voice] ElevenLabs request failed, Mac voice used")
+            appendAppLog("luna.log", "[Voice] ElevenLabs request failed, Mac voice used")
             return nil
         }
         return data
@@ -62,7 +62,7 @@ final class ElevenLabsTTS {
               (resp as? HTTPURLResponse)?.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let voices = json["voices"] as? [[String: Any]] else {
-            appendAppLog("nb.log", "[Voice] ElevenLabs voice list unavailable")
+            appendAppLog("luna.log", "[Voice] ElevenLabs voice list unavailable")
             return nil
         }
         guard let v = Self.pick(voices, gender: gender) else { return nil }

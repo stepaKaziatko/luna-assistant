@@ -8,23 +8,23 @@ enum ClaudeHookDetectionTests {
     }
 
     static func main() {
-        // Installed: the hook Luna writes, GitHub build
+        // Installed: the hook Luna writes into ~/.claude/luna
         precondition(lunaHooksPresent(inSettings: settings("""
         {"hooks":{"SessionStart":[{"hooks":[
-          {"type":"command","command":"$HOME/.claude/coucou/nb-hook"}]}]}}
+          {"type":"command","command":"$HOME/.claude/luna/luna-hook"}]}]}}
         """)))
 
-        // Installed: App Store build names NotchBuddy
+        // Installed: the script of the build outside the App Store, in Application Support
         precondition(lunaHooksPresent(inSettings: settings("""
         {"hooks":{"SessionStart":[{"hooks":[
-          {"type":"command","command":"/Applications/NotchBuddy.app/.../nb-hook"}]}]}}
+          {"type":"command","command":"/bin/sh \\"/Users/me/Library/Application Support/Luna/luna-hook\\""}]}]}}
         """)))
 
         // Installed: our hook sits alongside somebody else's
         precondition(lunaHooksPresent(inSettings: settings("""
         {"hooks":{"SessionStart":[
           {"hooks":[{"type":"command","command":"/usr/local/bin/other-tool"}]},
-          {"hooks":[{"type":"command","command":"$HOME/.claude/coucou/nb-hook"}]}]}}
+          {"hooks":[{"type":"command","command":"$HOME/.claude/luna/luna-hook"}]}]}}
         """)))
 
         // Not installed: other tools only — the case that showed "Key not configured"
@@ -37,6 +37,12 @@ enum ClaudeHookDetectionTests {
         // Not installed: hooks for other events do not count
         precondition(!lunaHooksPresent(inSettings: settings("""
         {"hooks":{"PreToolUse":[{"hooks":[
+          {"type":"command","command":"$HOME/.claude/luna/luna-hook"}]}]}}
+        """)))
+
+        // Not installed: a hook of the project Luna was taken from is somebody else's
+        precondition(!lunaHooksPresent(inSettings: settings("""
+        {"hooks":{"SessionStart":[{"hooks":[
           {"type":"command","command":"$HOME/.claude/coucou/nb-hook"}]}]}}
         """)))
 
@@ -55,6 +61,6 @@ enum ClaudeHookDetectionTests {
         {"hooks":"not-an-object"}
         """)))
 
-        print("Claude hook detection: 10 cases passed")
+        print("Claude hook detection: 11 cases passed")
     }
 }

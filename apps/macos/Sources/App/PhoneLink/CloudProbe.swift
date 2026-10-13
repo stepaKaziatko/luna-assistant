@@ -11,7 +11,7 @@ import CloudKit
 // Step 1 spike, kept for testing: when the phoneLinkPing default is on, proves
 // that the Mac and the iPhone app share a private CloudKit database:
 // writes a `Ping` every 60 s, waits for the iPhone's `Pong`, and logs the
-// round trip to ~/Library/Logs/Luna/nb.log. Pongs arrive both through a
+// round trip to ~/Library/Logs/Luna/luna.log. Pongs arrive both through a
 // silent push (CKDatabaseSubscription) and a 5 s poll, so the log shows which
 // path is faster. Compiled only with PHONE_LINK; normal builds never see it.
 
@@ -256,10 +256,10 @@ final class CloudProbe {
         }
     }
 
-    /// Writes to nb.log and to the Xcode console (the sandboxed build's nb.log
+    /// Writes to luna.log and to the Xcode console (the sandboxed build's luna.log
     /// sits in its container, which Terminal can't read).
     func log(_ message: String) {
-        appendAppLog("nb.log", "[PhoneLink] \(message)")
+        appendAppLog("luna.log", "[PhoneLink] \(message)")
         print("[PhoneLink] \(message)")
     }
 }

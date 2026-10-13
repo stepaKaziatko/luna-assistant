@@ -24,8 +24,9 @@ final class LiveActivityRelay {
     static let enabledKey = "iPhoneLiveActivityEnabled"
     /// Overrides the relay address (defaults write dev.luna.Luna phoneRelayURL <url>).
     static let relayURLKey = "phoneRelayURL"
-    /// The deployed relay (relay/README.md).
-    static let defaultRelayURL = "https://coucou-relay.raillelouis.workers.dev"
+    /// No default address: the relay is the user's own Cloudflare Worker (relay/README.md).
+    /// Without `phoneRelayURL` the Live Activity relay stays off.
+    static let defaultRelayURL = ""
 
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
 

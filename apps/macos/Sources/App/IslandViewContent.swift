@@ -4928,7 +4928,7 @@ struct SettingsIslandView: View {
               let ss = hooks["SessionStart"] as? [[String: Any]] else { return false }
         return ss.contains { matcher in
             (matcher["hooks"] as? [[String: Any]])?.contains {
-                ($0["command"] as? String)?.contains("NotchBuddy") == true
+                ($0["command"] as? String)?.contains("luna-hook") == true
             } ?? false
         }
     }

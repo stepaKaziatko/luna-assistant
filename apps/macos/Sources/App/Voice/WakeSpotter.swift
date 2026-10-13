@@ -17,7 +17,7 @@ import Speech
 // `endWindow()` bumps the generation, so callbacks from cancelled/superseded tasks
 // are silently ignored when they arrive after a new window has opened.
 //
-// Logging (to nb.log, prefix [Voice] for one-grep coverage):
+// Logging (to luna.log, prefix [Voice] for one-grep coverage):
 //   [Voice] spotter task start
 //   [Voice] spotter task refused (already active)
 //   [Voice] spotter task refused (unavailable)
@@ -114,16 +114,16 @@ final class WakeSpotter: @unchecked Sendable {
         if let refusal {
             switch refusal {
             case .alreadyActive:
-                appendAppLog("nb.log", "[Voice] spotter task refused (already active)")
+                appendAppLog("luna.log", "[Voice] spotter task refused (already active)")
             case .unavailable:
-                appendAppLog("nb.log", "[Voice] spotter task refused (unavailable)")
+                appendAppLog("luna.log", "[Voice] spotter task refused (unavailable)")
             }
             return false
         }
 
         guard let r = rSnap, let req = reqSnap else { return false }
 
-        appendAppLog("nb.log", "[Voice] spotter task start")
+        appendAppLog("luna.log", "[Voice] spotter task start")
         // Capture taskGen by value so callbacks from this specific task carry its generation.
         let t = r.recognitionTask(with: req) { [weak self, taskGen] result, error in
             self?.handleResult(result, error: error, expectedGen: taskGen)
@@ -221,7 +221,7 @@ final class WakeSpotter: @unchecked Sendable {
             return nil
         }
 
-        if let msg = logMsg { appendAppLog("nb.log", msg) }
+        if let msg = logMsg { appendAppLog("luna.log", msg) }
         guard let action else { return }
 
         switch action {

@@ -517,7 +517,7 @@ final class ClaudeService {
             data = try await callAPI(body: body(Self.voiceModel), key: key, beta: "web-search-2025-03-05")
         } catch {
             guard let retry = try? await callAPI(body: body(model), key: key, beta: "web-search-2025-03-05") else {
-                appendAppLog("nb.log", "[Voice] Claude turn failed: \(error.localizedDescription)")
+                appendAppLog("luna.log", "[Voice] Claude turn failed: \(error.localizedDescription)")
                 return nil
             }
             data = retry
@@ -575,7 +575,7 @@ final class ClaudeService {
         } catch {
             // The fast model is not available to this key: the Settings model instead.
             guard let retry = try? await callAPI(body: body(model), key: key, beta: "web-search-2025-03-05") else {
-                appendAppLog("nb.log", "[Voice] web answer failed")
+                appendAppLog("luna.log", "[Voice] web answer failed")
                 return nil
             }
             data = retry

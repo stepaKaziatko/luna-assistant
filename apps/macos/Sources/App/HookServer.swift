@@ -5,7 +5,7 @@ import SwiftUI
 import CryptoKit
 
 // MARK: - HookServer
-// Listens on a Unix domain socket for events from nb-hook (Claude Code hooks).
+// Listens on a Unix domain socket for events from luna-hook (Claude Code hooks).
 // Thread-safe: socket I/O on background threads, state updates dispatched to main queue.
 
 final class HookServer: @unchecked Sendable {
@@ -19,15 +19,15 @@ final class HookServer: @unchecked Sendable {
     static var socketPath: String {
         #if APPSTORE
         // Container home root keeps path ≤ 103 bytes (sun_path limit on macOS is 104 incl. NUL)
-        // /Users/louis/Library/Containers/dev.luna.LunaPhone/Data/nb.sock = 66 bytes ✓
-        return NSHomeDirectory() + "/nb.sock"
+        // /Users/louis/Library/Containers/dev.luna.LunaPhone/Data/luna.sock = 65 bytes ✓
+        return NSHomeDirectory() + "/luna.sock"
         #else
-        return supportDir.appendingPathComponent("nb.sock").path
+        return supportDir.appendingPathComponent("luna.sock").path
         #endif
     }
     // hookScriptPath is only used by the non-App Store build.
     // App Store build derives the command from the panel-selected claudeURL in buildHooksData(claudeURL:).
-    static var hookScriptPath: String { supportDir.appendingPathComponent("nb-hook").path }
+    static var hookScriptPath: String { supportDir.appendingPathComponent("luna-hook").path }
 
     // No approval blocking state — notch is notification-only, user answers in VS Code
 
@@ -39,7 +39,7 @@ final class HookServer: @unchecked Sendable {
     private let connectionLock = NSLock()
     private var connectionCount = 0
     /// Permission requests waiting for a click, oldest first; the head is on the card.
-    /// Each one holds its nb-hook connection open until it is answered or dropped.
+    /// Each one holds its luna-hook connection open until it is answered or dropped.
     private var approvals = ApprovalQueue()
     /// One read source per queued request: it notices the client hanging up, and its
     /// cancel handler is the only place the request's fd is closed.
@@ -47,9 +47,9 @@ final class HookServer: @unchecked Sendable {
     private var pendingQuestionFD: Int32 = -1         // held open while user answers AskUserQuestion
     private var questionFDSource: (any DispatchSourceRead)? = nil  // monitors pendingQuestionFD
 
-    /// True when a real nb-hook connection is holding the approval fd open.
+    /// True when a real luna-hook connection is holding the approval fd open.
     @MainActor var hasRealPendingApproval: Bool { !approvals.isEmpty }
-    /// True when a real nb-hook connection is holding the question fd open.
+    /// True when a real luna-hook connection is holding the question fd open.
     @MainActor var hasRealPendingQuestion: Bool { pendingQuestionFD >= 0 }
     private var questionPillId: String = ""           // pill that owns the pending question
     private var questionSessionId: String = ""        // sessionId for the pending question (recap tracking)
@@ -113,7 +113,7 @@ final class HookServer: @unchecked Sendable {
     }
 
     /// Takes one request out of the queue. With `answer`, the decision is written to its
-    /// nb-hook first; without, the connection just closes and the agent asks again itself.
+    /// luna-hook first; without, the connection just closes and the agent asks again itself.
     /// The cancel handler of its source closes the fd — never close it directly.
     /// The next request in line then takes the card; when none is left the card closes,
     /// with `note` for three seconds if one is given.
@@ -227,7 +227,7 @@ final class HookServer: @unchecked Sendable {
     }
 
     /// Called by QuestionView.onDisappear — card left screen without an explicit answer.
-    /// Sends "ask" immediately to unblock nb-hook; does NOT navigate (view already changed).
+    /// Sends "ask" immediately to unblock luna-hook; does NOT navigate (view already changed).
     @MainActor
     func releaseQuestionFD() {
         guard pendingQuestionFD >= 0 else { return }
@@ -366,7 +366,7 @@ final class HookServer: @unchecked Sendable {
             return
         }
 
-        let lunaKind = payload["coucou_kind"] as? String ?? ""
+        let lunaKind = payload["luna_kind"] as? String ?? ""
 
         // statusline payloads are handled separately — no session, no reveal, no sound
         if lunaKind == "statusline" {
@@ -404,7 +404,7 @@ final class HookServer: @unchecked Sendable {
 
     // MARK: - Event → AppState
     // Claude Code events route to the permanent "integration_claude" task.
-    // Events tagged with a valid coucou_agent route to a dynamic "integration_<agent>" task.
+    // Events tagged with a valid luna_agent route to a dynamic "integration_<agent>" task.
     // View switches only happen if VS Code (or the agent pill) is currently focused.
     // When not focused: state updates animate the mini bot in the pill; badge shown for alerts.
 
@@ -419,8 +419,8 @@ final class HookServer: @unchecked Sendable {
         let projectName = aliasProjectName(rawName.isEmpty ? "Session" : rawName)
 
         // Determine which pill this event belongs to.
-        // coucou_agent must be lowercase, digits and hyphens, ≤ 24 chars.
-        let rawAgent = payload["coucou_agent"] as? String ?? ""
+        // luna_agent must be lowercase, digits and hyphens, ≤ 24 chars.
+        let rawAgent = payload["luna_agent"] as? String ?? ""
         let validAgent = Self.validateAgent(rawAgent)
 
         let termProgram = payload["term_program"] as? String ?? ""
@@ -435,7 +435,7 @@ final class HookServer: @unchecked Sendable {
 
         // Routing:
         // • "codex" → agent_codex (GitHub build only: workspace pill, approvals in the notch)
-        // • other valid coucou_agent → external pill (fire-and-forget, no approval card)
+        // • other valid luna_agent → external pill (fire-and-forget, no approval card)
         // • Cursor bundle ID → agent_cursor
         // • VS Code → integration_claude
         // • a known terminal (Warp, Terminal, iTerm…) → integration_claude, host recorded on the task
@@ -665,7 +665,7 @@ final class HookServer: @unchecked Sendable {
 
     // MARK: - Agent validation + dynamic pill
 
-    /// Validates a coucou_agent name: lowercase, digits and hyphens, 1–24 chars.
+    /// Validates a luna_agent name: lowercase, digits and hyphens, 1–24 chars.
     /// "claude" is reserved and rejected so it cannot impersonate the Claude Code pill.
     /// Returns the name unchanged if valid, nil otherwise.
     private static func validateAgent(_ raw: String) -> String? {
@@ -755,7 +755,7 @@ final class HookServer: @unchecked Sendable {
         let rawName   = URL(fileURLWithPath: cwd).lastPathComponent
         let projectName = aliasProjectName(rawName.isEmpty ? "Session" : rawName)
 
-        let rawAgent = payload["coucou_agent"] as? String ?? ""
+        let rawAgent = payload["luna_agent"] as? String ?? ""
         let termProgram = payload["term_program"] as? String ?? ""
         let bundleId    = payload["bundle_id"]    as? String ?? ""
         let isCursorEditor = bundleId.lowercased() == "com.todesktop.230313mzl4w4u92"
@@ -764,18 +764,18 @@ final class HookServer: @unchecked Sendable {
             bundleId.lowercased().contains("vscode"))
 
         // Codex, Copilot CLI and Muse Code get the same approval card as Claude Code / Cursor.
-        // Other external agents (any other coucou_agent) answer immediately with "ask"
+        // Other external agents (any other luna_agent) answer immediately with "ask"
         // so the agent re-asks in its own terminal — they do not get a notch card.
         #if !APPSTORE
         let isCodexRequest   = rawAgent == "codex"
         let isCopilotRequest = rawAgent == "copilot"
         let isMuseRequest    = rawAgent == "muse"
-        // isHermesRequest is true only when the plugin sent coucou_has_transport: true,
+        // isHermesRequest is true only when the plugin sent luna_has_transport: true,
         // meaning register_approval_transport is wired and Hermes will honour our choice.
         // Without that flag the request falls through to "ask" so Hermes handles it natively.
         let isHermesRequest  = rawAgent == "hermes"
             && UserDefaults.standard.bool(forKey: "hermesApprovalsEnabled")
-            && (payload["coucou_has_transport"] as? Bool == true)
+            && (payload["luna_has_transport"] as? Bool == true)
         #else
         let isCodexRequest   = false
         let isCopilotRequest = false
@@ -872,7 +872,7 @@ final class HookServer: @unchecked Sendable {
         source.resume()
         approvalSources[entryId] = source
 
-        // Safety timeout — drop without a decision. nb-hook reads EOF from the cancel
+        // Safety timeout — drop without a decision. luna-hook reads EOF from the cancel
         // handler's close and exits; the agent asks again itself.
         // Copilot/Muse use 110s (their relay waits 118s but their hook timeout is 120s, leaving little margin).
         let waitTimeout: Double = (isCopilotRequest || isMuseRequest) ? 110 : 115
@@ -885,7 +885,7 @@ final class HookServer: @unchecked Sendable {
     }
 
     /// Called by ApprovalView buttons and the iPhone. Writes the decision to the waiting
-    /// nb-hook of request `id` — the one that was on screen. A click that lands after the
+    /// luna-hook of request `id` — the one that was on screen. A click that lands after the
     /// card moved on to another request is ignored, so it can never answer the wrong one.
     @MainActor
     func sendApprovalDecision(_ decision: String, for id: UUID? = nil) {
@@ -936,7 +936,7 @@ final class HookServer: @unchecked Sendable {
         let rawName   = URL(fileURLWithPath: cwd).lastPathComponent
         let projectName = aliasProjectName(rawName.isEmpty ? "Session" : rawName)
 
-        let rawAgent    = payload["coucou_agent"] as? String ?? ""
+        let rawAgent    = payload["luna_agent"] as? String ?? ""
         let termProgram = payload["term_program"]  as? String ?? ""
         let bundleId    = payload["bundle_id"]     as? String ?? ""
         let isCursorEditor = bundleId.lowercased() == "com.todesktop.230313mzl4w4u92"
@@ -1011,7 +1011,7 @@ final class HookServer: @unchecked Sendable {
         let captured = fd
         DispatchQueue.main.asyncAfter(deadline: .now() + 120) { [weak self] in
             guard let self, self.pendingQuestionFD == captured else { return }
-            // Send "ask" so nb-hook exits cleanly; Claude Code re-asks in terminal.
+            // Send "ask" so luna-hook exits cleanly; Claude Code re-asks in terminal.
             let askFD = self.pendingQuestionFD
             self.pendingQuestionFD = -1
             let src = self.questionFDSource
@@ -1031,7 +1031,7 @@ final class HookServer: @unchecked Sendable {
     }
 
     /// Records the session an event came from, then refreshes its card.
-    /// `externalAgent` is the validated `coucou_agent` name for a third-party agent pill,
+    /// `externalAgent` is the validated `luna_agent` name for a third-party agent pill,
     /// nil for a workspace pill.
     @MainActor
     private func upsertTask(pill: String, display: PillSessionRegistry.Display,
@@ -1253,7 +1253,7 @@ final class HookServer: @unchecked Sendable {
     // MARK: - Logging
 
     private func lunaLog(_ message: String) {
-        appendAppLog("nb.log", message)
+        appendAppLog("luna.log", message)
     }
 
     private func sendLine(fd: Int32, text: String) {
@@ -1268,7 +1268,7 @@ final class HookServer: @unchecked Sendable {
         }
     }
 
-    // MARK: - nb-hook script installation
+    // MARK: - luna-hook script installation
 
     func installHookScript() {
         #if APPSTORE
@@ -1278,12 +1278,12 @@ final class HookServer: @unchecked Sendable {
         let dir = Self.supportDir
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         try? FileManager.default.setAttributes([.posixPermissions: 0o700 as NSNumber], ofItemAtPath: dir.path)
-        // nb-hook: shell wrapper (always exits 0, calls nb-hook.py via python3)
+        // luna-hook: shell wrapper (always exits 0, calls luna-hook.py via python3)
         let wrapperURL = URL(fileURLWithPath: Self.hookScriptPath)
         try? lunaHookShellWrapper.write(to: wrapperURL, atomically: true, encoding: .utf8)
         _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755 as NSNumber], ofItemAtPath: wrapperURL.path)
-        // nb-hook.py: Python relay
-        let pyURL = wrapperURL.deletingLastPathComponent().appendingPathComponent("nb-hook.py")
+        // luna-hook.py: Python relay
+        let pyURL = wrapperURL.deletingLastPathComponent().appendingPathComponent("luna-hook.py")
         try? lunaHookPythonGitHub.write(to: pyURL, atomically: true, encoding: .utf8)
         _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755 as NSNumber], ofItemAtPath: pyURL.path)
         #endif
@@ -1310,7 +1310,7 @@ final class HookServer: @unchecked Sendable {
                 if let hookList = matcher["hooks"] as? [[String: Any]] {
                     for hook in hookList {
                         if let cmd = hook["command"] as? String,
-                           cmd.contains("NotchBuddy") || cmd.contains("coucou") {
+                           cmd.contains("luna-hook") {
                             hasLunaHooks = true
                             if let timeout = hook["timeout"] as? Int, timeout < 120 { return true }
                         }
@@ -1326,7 +1326,7 @@ final class HookServer: @unchecked Sendable {
                 (m["matcher"] as? String) == "AskUserQuestion"
                 && (m["hooks"] as? [[String: Any]])?.contains {
                     let cmd = $0["command"] as? String ?? ""
-                    return cmd.contains("NotchBuddy") || cmd.contains("coucou")
+                    return cmd.contains("luna-hook")
                 } ?? false
             }
             if !hasAskEntry { return true }
@@ -1385,7 +1385,7 @@ final class HookServer: @unchecked Sendable {
         var hooks = try ClaudeSettingsFile.hooks(in: settings, name: "settings.json")
         for (event, timeout) in events {
             var existing = try ClaudeSettingsFile.hookGroups(in: hooks, event: event, name: "settings.json")
-            existing.removeAll { ($0["hooks"] as? [[String: Any]])?.contains { ($0["command"] as? String)?.contains("NotchBuddy") == true || ($0["command"] as? String)?.contains("coucou") == true } ?? false }
+            existing.removeAll { ($0["hooks"] as? [[String: Any]])?.contains { ($0["command"] as? String)?.contains("luna-hook") == true } ?? false }
             existing.append(["hooks": [["type": "command", "command": quotedCmd, "timeout": timeout]]])
             hooks[event] = existing
         }
@@ -1412,8 +1412,7 @@ final class HookServer: @unchecked Sendable {
             if var matchers = hooks[key] as? [[String: Any]] {
                 matchers.removeAll { matcher in
                     (matcher["hooks"] as? [[String: Any]])?.contains {
-                        ($0["command"] as? String)?.contains("NotchBuddy") == true ||
-                        ($0["command"] as? String)?.contains("coucou") == true
+                        ($0["command"] as? String)?.contains("luna-hook") == true
                     } ?? false
                 }
                 if matchers.isEmpty { hooks.removeValue(forKey: key) }
@@ -1439,7 +1438,7 @@ final class HookServer: @unchecked Sendable {
               let settings = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let sl = settings["statusLine"] as? [String: Any],
               let cmd = sl["command"] as? String else { return false }
-        return cmd.contains("nb-hook")
+        return cmd.contains("luna-hook")
     }
 
     private var _pendingStatusLineData: Data?
@@ -1482,7 +1481,7 @@ final class HookServer: @unchecked Sendable {
             }
 
             if let existing = oldSL,
-               let cmd = existing["command"] as? String, !cmd.contains("nb-hook") {
+               let cmd = existing["command"] as? String, !cmd.contains("luna-hook") {
                 // Keep existing object but swap command; save old for later restoration
                 var updated = existing
                 updated["command"] = quotedCmd
@@ -1490,7 +1489,7 @@ final class HookServer: @unchecked Sendable {
                 _pendingPreviousData = try? JSONSerialization.data(withJSONObject: existing,
                                                                    options: [.prettyPrinted, .sortedKeys])
             } else if let existing = oldSL,
-                      let cmd = existing["command"] as? String, cmd.contains("nb-hook") {
+                      let cmd = existing["command"] as? String, cmd.contains("luna-hook") {
                 // Already installed — rebuild to update path if needed, keep other fields
                 var updated = existing
                 updated["command"] = quotedCmd
@@ -1500,7 +1499,7 @@ final class HookServer: @unchecked Sendable {
             }
         } else {
             // Uninstall: only if it's ours
-            if let cur = oldSL, let cmd = cur["command"] as? String, cmd.contains("nb-hook") {
+            if let cur = oldSL, let cmd = cur["command"] as? String, cmd.contains("luna-hook") {
                 if let prevData = try? Data(contentsOf: statusLinePreviousURL),
                    let prevObj = (try? JSONSerialization.jsonObject(with: prevData)) as? [String: Any] {
                     newSL = prevObj
@@ -1558,18 +1557,18 @@ final class HookServer: @unchecked Sendable {
     // MARK: - App Store: hooks via security-scoped bookmark
 
     #if APPSTORE
-    /// Writes nb-hook script and updates settings.json in one shot.
+    /// Writes luna-hook script and updates settings.json in one shot.
     /// claudeURL must be a URL from NSOpenPanel (sandbox access is granted immediately — no security scope needed).
     func installAndWriteClaudeHooksAppStore(claudeURL: URL) throws {
         let (data, original) = try buildHooksData(claudeURL: claudeURL)
 
-        // Write nb-hook (shell wrapper) + nb-hook.py (Python relay) into ~/.claude/coucou/
-        let lunaDir = claudeURL.appendingPathComponent("coucou")
+        // Write luna-hook (shell wrapper) + luna-hook.py (Python relay) into ~/.claude/luna/
+        let lunaDir = claudeURL.appendingPathComponent("luna")
         try FileManager.default.createDirectory(at: lunaDir, withIntermediateDirectories: true)
-        let wrapperURL = lunaDir.appendingPathComponent("nb-hook")
+        let wrapperURL = lunaDir.appendingPathComponent("luna-hook")
         try lunaHookShellWrapper.write(to: wrapperURL, atomically: true, encoding: .utf8)
         _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755 as NSNumber], ofItemAtPath: wrapperURL.path)
-        let pyURL = lunaDir.appendingPathComponent("nb-hook.py")
+        let pyURL = lunaDir.appendingPathComponent("luna-hook.py")
         try lunaHookPythonAppStore.write(to: pyURL, atomically: true, encoding: .utf8)
         _ = try? FileManager.default.setAttributes([.posixPermissions: 0o755 as NSNumber], ofItemAtPath: pyURL.path)
 
@@ -1588,8 +1587,7 @@ final class HookServer: @unchecked Sendable {
             if var matchers = hooks[key] as? [[String: Any]] {
                 matchers.removeAll { matcher in
                     (matcher["hooks"] as? [[String: Any]])?.contains {
-                        ($0["command"] as? String)?.contains("coucou") == true ||
-                        ($0["command"] as? String)?.contains("NotchBuddy") == true
+                        ($0["command"] as? String)?.contains("luna-hook") == true
                     } ?? false
                 }
                 if matchers.isEmpty { hooks.removeValue(forKey: key) }
@@ -1608,7 +1606,7 @@ final class HookServer: @unchecked Sendable {
         let snapshot = try ClaudeSettingsFile.read(at: settingsURL)
         var settings = snapshot.object
         // Derive hook path from the panel-selected claudeURL (real ~/.claude, not container)
-        let hookPath = claudeURL.appendingPathComponent("coucou/nb-hook").path
+        let hookPath = claudeURL.appendingPathComponent("luna/luna-hook").path
         let quotedCmd = "/bin/sh \"\(hookPath.replacingOccurrences(of: "\"", with: "\\\""))\""
         let events: [(String, Int)] = [
             ("SessionStart", 10), ("SessionEnd", 10),
@@ -1624,8 +1622,7 @@ final class HookServer: @unchecked Sendable {
         for (event, timeout) in events {
             var existing = try ClaudeSettingsFile.hookGroups(in: hooks, event: event, name: "settings.json")
             existing.removeAll { ($0["hooks"] as? [[String: Any]])?.contains {
-                ($0["command"] as? String)?.contains("coucou") == true ||
-                ($0["command"] as? String)?.contains("NotchBuddy") == true
+                ($0["command"] as? String)?.contains("luna-hook") == true
             } ?? false }
             existing.append(["hooks": [["type": "command", "command": quotedCmd, "timeout": timeout]]])
             hooks[event] = existing
@@ -1683,12 +1680,12 @@ final class HookServer: @unchecked Sendable {
                 if let innerHooks = group["hooks"] as? [[String: Any]] {
                     for hook in innerHooks {
                         if let cmd = hook["command"] as? String,
-                           cmd.contains("nb-hook"), cmd.contains("--agent gemini") { return true }
+                           cmd.contains("luna-hook"), cmd.contains("--agent gemini") { return true }
                     }
                 }
                 // Legacy flat entry
                 if let cmd = group["command"] as? String,
-                   cmd.contains("nb-hook"), cmd.contains("--agent gemini") { return true }
+                   cmd.contains("luna-hook"), cmd.contains("--agent gemini") { return true }
             }
         }
         return false
@@ -1697,10 +1694,10 @@ final class HookServer: @unchecked Sendable {
     static func agyHooksInstalled() -> Bool {
         guard let data = try? Data(contentsOf: agyHooksURL),
               let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              let coucou = root["coucou"] else { return false }
-        let json = (try? JSONSerialization.data(withJSONObject: coucou))
+              let luna = root["luna"] else { return false }
+        let json = (try? JSONSerialization.data(withJSONObject: luna))
             .flatMap { String(data: $0, encoding: .utf8) } ?? ""
-        return json.contains("nb-hook")
+        return json.contains("luna-hook")
     }
 
     // MARK: Gemini CLI – preview / write
@@ -1763,7 +1760,7 @@ final class HookServer: @unchecked Sendable {
                 ])
             }
             var groups = hooks[geminiEvent] as? [[String: Any]] ?? []
-            // Remove legacy flat entries and groups whose inner hooks contain nb-hook
+            // Remove legacy flat entries and groups whose inner hooks contain luna-hook
             groups = removeNbHookEntries(from: groups)
             let hookEntry: [String: Any] = [
                 "type": "command",
@@ -1839,20 +1836,20 @@ final class HookServer: @unchecked Sendable {
         let base = hookBase()
         // PreToolUse / PostToolUse: tool-level hooks — use matcher group
         // PreInvocation / PostInvocation / Stop: lifecycle hooks — direct handler, no matcher
-        var coucou: [String: Any] = [:]
+        var luna: [String: Any] = [:]
         for event in ["PreToolUse", "PostToolUse"] {
             let hook: [String: Any] = ["type": "command",
                                        "command": "\(base) --agent antigravity \(event)",
                                        "timeout": 10]
-            coucou[event] = [["matcher": "*", "hooks": [hook]]]
+            luna[event] = [["matcher": "*", "hooks": [hook]]]
         }
         for event in ["PreInvocation", "PostInvocation", "Stop"] {
             let hook: [String: Any] = ["type": "command",
                                        "command": "\(base) --agent antigravity \(event)",
                                        "timeout": 10]
-            coucou[event] = [hook]
+            luna[event] = [hook]
         }
-        root["coucou"] = coucou
+        root["luna"] = luna
         return try JSONSerialization.data(withJSONObject: root,
                                          options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
     }
@@ -1860,7 +1857,7 @@ final class HookServer: @unchecked Sendable {
     private func withoutAgyHooks() throws -> Data {
         var root = try Self.strictReadJSONObject(at: Self.agyHooksURL,
                                                  label: "~/.gemini/config/hooks.json")
-        root.removeValue(forKey: "coucou")
+        root.removeValue(forKey: "luna")
         return try JSONSerialization.data(withJSONObject: root,
                                          options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
     }
@@ -1912,16 +1909,16 @@ final class HookServer: @unchecked Sendable {
         try data.write(to: url, options: .atomic)
     }
 
-    /// Removes entries containing "nb-hook" from a Gemini-format groups array.
+    /// Removes entries containing "luna-hook" from a Gemini-format groups array.
     /// Handles both new group format (matcher + hooks[]) and legacy flat format (command at top level).
     /// Returns the cleaned array; empty groups (after inner-hook removal) are dropped.
     private func removeNbHookEntries(from groups: [[String: Any]]) -> [[String: Any]] {
         groups.compactMap { group -> [String: Any]? in
             // Legacy flat entry — command at group level
-            if let cmd = group["command"] as? String, cmd.contains("nb-hook") { return nil }
+            if let cmd = group["command"] as? String, cmd.contains("luna-hook") { return nil }
             // Group format — filter inner hooks
             if var innerHooks = group["hooks"] as? [[String: Any]] {
-                innerHooks.removeAll { ($0["command"] as? String)?.contains("nb-hook") == true }
+                innerHooks.removeAll { ($0["command"] as? String)?.contains("luna-hook") == true }
                 if innerHooks.isEmpty { return nil }
                 var updated = group
                 updated["hooks"] = innerHooks
@@ -1937,7 +1934,7 @@ final class HookServer: @unchecked Sendable {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/hooks.json")
     }
 
-    /// True when ~/.codex/hooks.json already routes Codex events to Luna's nb-hook.
+    /// True when ~/.codex/hooks.json already routes Codex events to Luna's luna-hook.
     static func codexHooksInstalled() -> Bool {
         guard let data = try? Data(contentsOf: codexHooksURL),
               let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -1948,7 +1945,7 @@ final class HookServer: @unchecked Sendable {
                 if let innerHooks = group["hooks"] as? [[String: Any]] {
                     for hook in innerHooks {
                         if let cmd = hook["command"] as? String,
-                           cmd.contains("nb-hook"), cmd.contains("--agent codex") { return true }
+                           cmd.contains("luna-hook"), cmd.contains("--agent codex") { return true }
                     }
                 }
             }
@@ -2058,10 +2055,10 @@ final class HookServer: @unchecked Sendable {
 
     static var copilotHooksURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".copilot/hooks/coucou.json")
+            .appendingPathComponent(".copilot/hooks/luna.json")
     }
 
-    /// True when ~/.copilot/hooks/coucou.json already routes Copilot events to Luna's nb-hook.
+    /// True when ~/.copilot/hooks/luna.json already routes Copilot events to Luna's luna-hook.
     static func copilotHooksInstalled() -> Bool {
         guard let data = try? Data(contentsOf: copilotHooksURL),
               let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -2070,7 +2067,7 @@ final class HookServer: @unchecked Sendable {
             guard let entries = value as? [[String: Any]] else { continue }
             for entry in entries {
                 if let cmd = entry["bash"] as? String,
-                   cmd.contains("nb-hook"), cmd.contains("--agent copilot") { return true }
+                   cmd.contains("luna-hook"), cmd.contains("--agent copilot") { return true }
             }
         }
         return false
@@ -2105,11 +2102,11 @@ final class HookServer: @unchecked Sendable {
         let current = (try? Data(contentsOf: url)) ?? Data()
         guard sha256Hex(current) == fp else {
             throw NSError(domain: "Luna", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "~/.copilot/hooks/coucou.json changed since preview. Refresh and try again."
+                NSLocalizedDescriptionKey: "~/.copilot/hooks/luna.json changed since preview. Refresh and try again."
             ])
         }
         if let data = _pendingCopilotData {
-            try writeJSONFile(data, to: url, suffix: "coucou.json")
+            try writeJSONFile(data, to: url, suffix: "luna.json")
         } else {
             // Uninstall: delete the file entirely
             try FileManager.default.removeItem(at: url)
@@ -2120,10 +2117,10 @@ final class HookServer: @unchecked Sendable {
 
     private func buildCopilotHooksData() throws -> Data {
         var root = try Self.strictReadJSONObject(at: Self.copilotHooksURL,
-                                                  label: "~/.copilot/hooks/coucou.json")
+                                                  label: "~/.copilot/hooks/luna.json")
         if let raw = root["hooks"], !(raw is [String: Any]) {
             throw NSError(domain: "Luna", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "~/.copilot/hooks/coucou.json: \"hooks\" has an unexpected type — Luna has not touched it."
+                NSLocalizedDescriptionKey: "~/.copilot/hooks/luna.json: \"hooks\" has an unexpected type — Luna has not touched it."
             ])
         }
         let base = hookBase()
@@ -2144,11 +2141,11 @@ final class HookServer: @unchecked Sendable {
         for (event, timeout) in events {
             if let raw = hooks[event], !(raw is [[String: Any]]) {
                 throw NSError(domain: "Luna", code: 2, userInfo: [
-                    NSLocalizedDescriptionKey: "~/.copilot/hooks/coucou.json: \"hooks\"[\"\(event)\"] has an unexpected type — Luna has not touched it."
+                    NSLocalizedDescriptionKey: "~/.copilot/hooks/luna.json: \"hooks\"[\"\(event)\"] has an unexpected type — Luna has not touched it."
                 ])
             }
             var entries = hooks[event] as? [[String: Any]] ?? []
-            entries.removeAll { ($0["bash"] as? String)?.contains("nb-hook") == true }
+            entries.removeAll { ($0["bash"] as? String)?.contains("luna-hook") == true }
             entries.append(["type": "command", "bash": "\(base) --agent copilot \(event)", "timeoutSec": timeout])
             hooks[event] = entries
         }
@@ -2160,11 +2157,11 @@ final class HookServer: @unchecked Sendable {
 
     private func withoutCopilotHooks() throws -> Data {
         var root = try Self.strictReadJSONObject(at: Self.copilotHooksURL,
-                                                  label: "~/.copilot/hooks/coucou.json")
+                                                  label: "~/.copilot/hooks/luna.json")
         if var hooks = root["hooks"] as? [String: Any] {
             for key in hooks.keys {
                 if var entries = hooks[key] as? [[String: Any]] {
-                    entries.removeAll { ($0["command"] as? String)?.contains("nb-hook") == true }
+                    entries.removeAll { ($0["command"] as? String)?.contains("luna-hook") == true }
                     if entries.isEmpty { hooks.removeValue(forKey: key) } else { hooks[key] = entries }
                 }
             }
@@ -2181,7 +2178,7 @@ final class HookServer: @unchecked Sendable {
             .appendingPathComponent(".config/muse/settings.json")
     }
 
-    /// True when ~/.config/muse/settings.json already routes Muse events to Luna's nb-hook.
+    /// True when ~/.config/muse/settings.json already routes Muse events to Luna's luna-hook.
     static func museHooksInstalled() -> Bool {
         guard let data = try? Data(contentsOf: museSettingsURL),
               let settings = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -2192,11 +2189,11 @@ final class HookServer: @unchecked Sendable {
                 if let innerHooks = group["hooks"] as? [[String: Any]] {
                     for h in innerHooks {
                         if let cmd = h["command"] as? String,
-                           cmd.contains("nb-hook"), cmd.contains("--agent muse") { return true }
+                           cmd.contains("luna-hook"), cmd.contains("--agent muse") { return true }
                     }
                 }
                 if let cmd = group["command"] as? String,
-                   cmd.contains("nb-hook"), cmd.contains("--agent muse") { return true }
+                   cmd.contains("luna-hook"), cmd.contains("--agent muse") { return true }
             }
         }
         return false
@@ -2305,12 +2302,12 @@ final class HookServer: @unchecked Sendable {
 
     static var openCodePluginURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/opencode/plugins/coucou.js")
+            .appendingPathComponent(".config/opencode/plugins/luna.js")
     }
 
     static func openCodePluginInstalled() -> Bool {
         guard let content = try? String(contentsOf: openCodePluginURL, encoding: .utf8) else { return false }
-        return content.contains("nb-hook") && content.contains("opencode")
+        return content.contains("luna-hook") && content.contains("opencode")
     }
 
     private func buildOpenCodePluginContent() -> String {
@@ -2341,7 +2338,7 @@ function forward(hook_event_name, payload) {
   p.unref();
 }
 
-export const CoucouPlugin = async (_ctx) => ({
+export const LunaPlugin = async (_ctx) => ({
   event: async ({ event }) => {
     const hook_event_name = EVENT_MAP[event.type];
     if (!hook_event_name) return;
@@ -2400,7 +2397,7 @@ export const CoucouPlugin = async (_ctx) => ({
         let current = (try? Data(contentsOf: url)) ?? Data()
         guard sha256Hex(current) == fp else {
             throw NSError(domain: "Luna", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "~/.config/opencode/plugins/coucou.js changed since preview. Refresh and try again."
+                NSLocalizedDescriptionKey: "~/.config/opencode/plugins/luna.js changed since preview. Refresh and try again."
             ])
         }
         guard let content = _pendingOpenCodeContent else {
@@ -2413,7 +2410,7 @@ export const CoucouPlugin = async (_ctx) => ({
             fmt.locale = Locale(identifier: "en_US_POSIX")
             fmt.dateFormat = "yyyyMMdd-HHmmss"
             let backupURL = url.deletingLastPathComponent()
-                .appendingPathComponent("coucou.js.bak-\(fmt.string(from: Date()))")
+                .appendingPathComponent("luna.js.bak-\(fmt.string(from: Date()))")
             try fm.copyItem(at: url, to: backupURL)
         }
         try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -2428,7 +2425,7 @@ export const CoucouPlugin = async (_ctx) => ({
         let content = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
         guard content.contains("generated by Luna") else {
             throw NSError(domain: "Luna", code: 3, userInfo: [
-                NSLocalizedDescriptionKey: "~/.config/opencode/plugins/coucou.js was not generated by Luna — not deleting it."
+                NSLocalizedDescriptionKey: "~/.config/opencode/plugins/luna.js was not generated by Luna — not deleting it."
             ])
         }
         try FileManager.default.removeItem(at: url)
@@ -2441,12 +2438,12 @@ export const CoucouPlugin = async (_ctx) => ({
 
     static var ampPluginURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/amp/plugins/coucou.ts")
+            .appendingPathComponent(".config/amp/plugins/luna.ts")
     }
 
     static func ampPluginInstalled() -> Bool {
         guard let content = try? String(contentsOf: ampPluginURL, encoding: .utf8) else { return false }
-        return content.contains("nb-hook") && content.contains("'amp'")
+        return content.contains("luna-hook") && content.contains("'amp'")
     }
 
     private func buildAmpPluginContent() -> String {
@@ -2508,7 +2505,7 @@ export default function (amp: any): void {
         let current = (try? Data(contentsOf: url)) ?? Data()
         guard sha256Hex(current) == fp else {
             throw NSError(domain: "Luna", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "~/.config/amp/plugins/coucou.ts changed since preview. Refresh and try again."
+                NSLocalizedDescriptionKey: "~/.config/amp/plugins/luna.ts changed since preview. Refresh and try again."
             ])
         }
         guard let content = _pendingAmpContent else {
@@ -2521,7 +2518,7 @@ export default function (amp: any): void {
             fmt.locale = Locale(identifier: "en_US_POSIX")
             fmt.dateFormat = "yyyyMMdd-HHmmss"
             let backupURL = url.deletingLastPathComponent()
-                .appendingPathComponent("coucou.ts.bak-\(fmt.string(from: Date()))")
+                .appendingPathComponent("luna.ts.bak-\(fmt.string(from: Date()))")
             try fm.copyItem(at: url, to: backupURL)
         }
         try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -2536,7 +2533,7 @@ export default function (amp: any): void {
         let content = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
         guard content.contains("generated by Luna") else {
             throw NSError(domain: "Luna", code: 3, userInfo: [
-                NSLocalizedDescriptionKey: "~/.config/amp/plugins/coucou.ts was not generated by Luna — not deleting it."
+                NSLocalizedDescriptionKey: "~/.config/amp/plugins/luna.ts was not generated by Luna — not deleting it."
             ])
         }
         try FileManager.default.removeItem(at: url)
@@ -2551,7 +2548,7 @@ export default function (amp: any): void {
 
     static var hermesPluginDir: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".hermes/plugins/coucou")
+            .appendingPathComponent(".hermes/plugins/luna")
     }
     static var hermesInitPyURL: URL { hermesPluginDir.appendingPathComponent("__init__.py") }
     static var hermesPluginYamlURL: URL { hermesPluginDir.appendingPathComponent("plugin.yaml") }
@@ -2561,7 +2558,7 @@ export default function (amp: any): void {
 
     static func hermesPluginInstalled() -> Bool {
         guard let content = try? String(contentsOf: hermesInitPyURL, encoding: .utf8) else { return false }
-        return content.contains("nb-hook") && content.contains("hermes")
+        return content.contains("luna-hook") && content.contains("hermes")
     }
 
     /// Returns true if the installed Hermes version exposes register_approval_transport.
@@ -2668,7 +2665,7 @@ _current_session_id = ''
 
 
 def _fire(fields: dict) -> None:
-    \"\"\"Non-blocking: spawn nb-hook and return immediately. Reaps child to avoid zombies.\"\"\"
+    \"\"\"Non-blocking: spawn luna-hook and return immediately. Reaps child to avoid zombies.\"\"\"
     def _run() -> None:
         try:
             p = subprocess.Popen(
@@ -2756,8 +2753,8 @@ def register(ctx) -> None:
             payload = json.dumps({
                 'hook_event_name': 'PermissionRequest',
                 'session_id': sid,
-                'coucou_agent': 'hermes',
-                'coucou_has_transport': True,
+                'luna_agent': 'hermes',
+                'luna_has_transport': True,
                 'tool_name': cmd,
                 'tool_input': {'command': cmd, 'description': desc},
             }).encode()
@@ -2777,7 +2774,7 @@ def register(ctx) -> None:
                 # Fall back to Hermes' native prompt on any error.
                 return request.respond('deny')
 
-        ctx.register_approval_transport('coucou', _present)
+        ctx.register_approval_transport('luna', _present)
     else:
         # Observer-only hook (hermes 0.15.x): Hermes still controls the decision.
         # Fire a PreToolUse-style step so the notch shows "⏳ Approval pending in Hermes"
@@ -2799,7 +2796,7 @@ def register(ctx) -> None:
     }
 
     private static let hermesPluginYaml = """
-name: coucou
+name: luna
 version: "1.0"
 description: Luna notch integration — generated by Luna.app
 """
@@ -2860,7 +2857,7 @@ description: Luna notch integration — generated by Luna.app
         }
 
         // --- security.approval ---
-        let transportLine = "\(ind2)transport: coucou"
+        let transportLine = "\(ind2)transport: luna"
         let fallbackLine  = "\(ind2)transport_fallback: builtin"
 
         func ensureApprovalTransport() {
@@ -2905,16 +2902,16 @@ description: Luna notch integration — generated by Luna.app
             // Only remove exact Luna-written transport keys; don't touch unrelated keys.
             lines.removeAll { line in
                 let t = line.trimmingCharacters(in: .whitespaces)
-                return t == "transport: coucou" || t == "transport_fallback: builtin"
+                return t == "transport: luna" || t == "transport_fallback: builtin"
             }
         }
 
         // --- plugins.enabled ---
-        // Note: actual plugin enable/disable is done via `hermes plugins enable/disable coucou`
+        // Note: actual plugin enable/disable is done via `hermes plugins enable/disable luna`
         // CLI after writing/removing the plugin files. This block ensures the preview
         // shows the complete intended state of config.yaml.
         func ensureLunaPlugin() {
-            // "Already present" = coucou in the plugins.enabled list specifically.
+            // "Already present" = luna in the plugins.enabled list specifically.
             // Check by finding plugins: section first, then enabled: sub-key within it.
             if let pluginsIdx = topLevelIndex(key: "plugins") {
                 let pluginsRange = sectionRange(from: pluginsIdx)
@@ -2925,41 +2922,41 @@ description: Luna notch integration — generated by Luna.app
                     let trimmed = enabledLine.trimmingCharacters(in: .whitespaces)
                     if trimmed.contains("[") && trimmed.contains("]") {
                         // Inline list: enabled: [x, y]  or  enabled: []
-                        if trimmed.contains("coucou") { return }   // already present
+                        if trimmed.contains("luna") { return }   // already present
                         if trimmed == "enabled: []" || trimmed == "enabled:[]" {
                             // Empty inline list → expand to block entry
                             let prefix = enabledLine.prefix(while: { $0 == " " })
                             lines[enabledIdx] = "\(prefix)enabled:"
-                            lines.insert("\(prefix)\(ind)- coucou", at: enabledIdx + 1)
+                            lines.insert("\(prefix)\(ind)- luna", at: enabledIdx + 1)
                         } else {
-                            lines[enabledIdx] = enabledLine.replacingOccurrences(of: "]", with: ", coucou]")
+                            lines[enabledIdx] = enabledLine.replacingOccurrences(of: "]", with: ", luna]")
                         }
                     } else {
-                        // Block list — check if coucou is already a child of this enabled:
+                        // Block list — check if luna is already a child of this enabled:
                         let enabledRange = sectionRange(from: enabledIdx)
                         let alreadyPresent = (enabledRange.lowerBound + 1 ..< enabledRange.upperBound)
-                            .contains { lines[$0].trimmingCharacters(in: .whitespaces) == "- coucou" }
+                            .contains { lines[$0].trimmingCharacters(in: .whitespaces) == "- luna" }
                         if alreadyPresent { return }
                         // Insert after enabled:
                         let prefix = enabledLine.prefix(while: { $0 == " " })
-                        lines.insert("\(prefix)\(ind)- coucou", at: enabledIdx + 1)
+                        lines.insert("\(prefix)\(ind)- luna", at: enabledIdx + 1)
                     }
                 } else {
                     // No enabled: key under plugins: — insert after plugins:
                     lines.insert("\(ind)enabled:", at: pluginsIdx + 1)
-                    lines.insert("\(ind)\(ind)- coucou", at: pluginsIdx + 2)
+                    lines.insert("\(ind)\(ind)- luna", at: pluginsIdx + 2)
                 }
             } else {
                 // No plugins: section — append
                 if lines.last != "" { lines.append("") }
                 lines.append("plugins:")
                 lines.append("\(ind)enabled:")
-                lines.append("\(ind)\(ind)- coucou")
+                lines.append("\(ind)\(ind)- luna")
             }
         }
 
         func removeLunaPlugin() {
-            // Remove the `- coucou` entry from plugins.enabled only.
+            // Remove the `- luna` entry from plugins.enabled only.
             // If that leaves enabled: with no entries, leave the key in place (don't remove it).
             guard let pluginsIdx = topLevelIndex(key: "plugins") else { return }
             let pluginsRange = sectionRange(from: pluginsIdx)
@@ -2969,19 +2966,19 @@ description: Luna notch integration — generated by Luna.app
             let enabledLine = lines[enabledIdx]
             let trimmed = enabledLine.trimmingCharacters(in: .whitespaces)
             if trimmed.contains("[") && trimmed.contains("]") {
-                // Inline list: remove coucou from it
+                // Inline list: remove luna from it
                 let cleaned = trimmed
-                    .replacingOccurrences(of: ", coucou", with: "")
-                    .replacingOccurrences(of: "coucou, ", with: "")
-                    .replacingOccurrences(of: "coucou",   with: "")
+                    .replacingOccurrences(of: ", luna", with: "")
+                    .replacingOccurrences(of: "luna, ", with: "")
+                    .replacingOccurrences(of: "luna",   with: "")
                 let prefix = enabledLine.prefix(while: { $0 == " " })
                 lines[enabledIdx] = "\(prefix)\(cleaned)"
             } else {
-                // Block list: remove the `- coucou` entry
+                // Block list: remove the `- luna` entry
                 let enabledRange = sectionRange(from: enabledIdx)
                 // Collect indices to remove first, then remove in reverse to preserve indices.
                 let toRemove = (enabledRange.lowerBound + 1 ..< enabledRange.upperBound)
-                    .filter { lines[$0].trimmingCharacters(in: .whitespaces) == "- coucou" }
+                    .filter { lines[$0].trimmingCharacters(in: .whitespaces) == "- luna" }
                 for i in toRemove.reversed() { lines.remove(at: i) }
             }
         }
@@ -3016,7 +3013,7 @@ description: Luna notch integration — generated by Luna.app
         let current = (try? Data(contentsOf: url)) ?? Data()
         guard sha256Hex(current) == fp else {
             throw NSError(domain: "Luna", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "~/.hermes/plugins/coucou/__init__.py changed since preview. Refresh and try again."
+                NSLocalizedDescriptionKey: "~/.hermes/plugins/luna/__init__.py changed since preview. Refresh and try again."
             ])
         }
         let fm = FileManager.default
@@ -3034,7 +3031,7 @@ description: Luna notch integration — generated by Luna.app
             try Self.hermesPluginYaml.write(to: Self.hermesPluginYamlURL, atomically: true, encoding: .utf8)
             // Register the plugin with the Hermes CLI so it appears in plugins.enabled.
             // Best-effort — silently ignored if hermes is not on PATH.
-            try? Self.runHermesCLI(["plugins", "enable", "coucou"])
+            try? Self.runHermesCLI(["plugins", "enable", "luna"])
         }
         _pendingHermesPluginContent = nil
         _pendingHermesPluginFingerprint = nil
@@ -3046,12 +3043,12 @@ description: Luna notch integration — generated by Luna.app
         let content = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
         guard content.contains("generated by Luna") else {
             throw NSError(domain: "Luna", code: 3, userInfo: [
-                NSLocalizedDescriptionKey: "~/.hermes/plugins/coucou/__init__.py was not generated by Luna — not deleting it."
+                NSLocalizedDescriptionKey: "~/.hermes/plugins/luna/__init__.py was not generated by Luna — not deleting it."
             ])
         }
         // Remove from hermes plugins.enabled first, then delete the files.
         // Best-effort — silently ignored if hermes is not on PATH.
-        try? Self.runHermesCLI(["plugins", "disable", "coucou"])
+        try? Self.runHermesCLI(["plugins", "disable", "luna"])
         try FileManager.default.removeItem(at: Self.hermesPluginDir)
     }
 
@@ -3089,7 +3086,7 @@ description: Luna notch integration — generated by Luna.app
         guard let merged = Self.mergedHermesConfig(base, enableApprovals: effectiveApprovals) else {
             _pendingHermesConfigContent = nil
             throw NSError(domain: "Luna", code: 4, userInfo: [
-                NSLocalizedDescriptionKey: "~/.hermes/config.yaml uses an unsupported structure (flow maps, YAML anchors, or multi-document). Edit it manually and add:\n  security:\n    approval:\n      transport: coucou\n      transport_fallback: builtin"
+                NSLocalizedDescriptionKey: "~/.hermes/config.yaml uses an unsupported structure (flow maps, YAML anchors, or multi-document). Edit it manually and add:\n  security:\n    approval:\n      transport: luna\n      transport_fallback: builtin"
             ])
         }
         _pendingHermesConfigContent = merged
@@ -3135,7 +3132,7 @@ extension Notification.Name {
     static let hookExpand = Notification.Name("luna.hookExpand")
 }
 
-// MARK: - nb-hook shell wrapper (same for both GitHub and App Store)
+// MARK: - luna-hook shell wrapper (same for both GitHub and App Store)
 // Invoked by Claude Code via /bin/sh or directly via shebang.
 // Always exits 0 — never blocks Claude Code.
 // Checks xcode-select before running python3 to avoid triggering the
@@ -3147,7 +3144,7 @@ private let lunaHookShellWrapper = """
 HOOK_DIR="$(dirname "$0")"
 out=""
 if xcode-select -p >/dev/null 2>&1; then
-    out=$(/usr/bin/python3 "$HOOK_DIR/nb-hook.py" "$@" 2>/dev/null)
+    out=$(/usr/bin/python3 "$HOOK_DIR/luna-hook.py" "$@" 2>/dev/null)
     rc=$?
     if [ "$rc" -ne 0 ] || [ -z "$out" ]; then
         out=""
@@ -3175,11 +3172,11 @@ fi
 exit 0
 """
 
-// MARK: - nb-hook Python relay (GitHub / non-sandboxed version)
+// MARK: - luna-hook Python relay (GitHub / non-sandboxed version)
 
 private let lunaHookPythonGitHub = """
 #!/usr/bin/env python3
-# nb-hook.py — Luna hook relay for Claude Code and third-party agents (GitHub version)
+# luna-hook.py — Luna hook relay for Claude Code and third-party agents (GitHub version)
 # Reads JSON from stdin, forwards to Luna via Unix socket, translates response.
 import sys, json, os, socket
 
@@ -3254,13 +3251,13 @@ def main():
             return
 
     socket_path = os.path.expanduser(
-        '~/Library/Application Support/Luna/nb.sock'
+        '~/Library/Application Support/Luna/luna.sock'
     )
 
     # --statusline mode: relay rate_limits to Luna, then delegate to saved previous
     if '--statusline' in sys.argv[1:]:
         relay = {
-            'coucou_kind': 'statusline',
+            'luna_kind': 'statusline',
             'session_id': payload.get('session_id', ''),
             'rate_limits': payload.get('rate_limits', {}),
         }
@@ -3294,7 +3291,7 @@ def main():
         tool = payload.get('tool_name', '')
         if tool != 'AskUserQuestion':
             return  # Not an AskUserQuestion invocation — exit cleanly (no output)
-        payload['coucou_kind'] = 'ask_user_question'
+        payload['luna_kind'] = 'ask_user_question'
         env = os.environ
         payload.setdefault('term_program', env.get('TERM_PROGRAM', ''))
         payload.setdefault('iterm_session_id', env.get('ITERM_SESSION_ID', ''))
@@ -3340,7 +3337,7 @@ def main():
         return
 
     # Parse --agent <name> and optional positional event from argv.
-    # --agent tags the payload with coucou_agent so the app routes to the right pill.
+    # --agent tags the payload with luna_agent so the app routes to the right pill.
     # The positional arg is a fallback event name for agents that do not set hook_event_name.
     args = sys.argv[1:]
     agent = ''
@@ -3355,11 +3352,11 @@ def main():
                 arg_event = args[i]
             i += 1
     if agent:
-        payload.setdefault('coucou_agent', agent)
+        payload.setdefault('luna_agent', agent)
     # Claude Code sessions from the Claude desktop app (Code tab) report this entrypoint;
     # route them to the Claude Desktop pill instead of dropping them (no VS Code terminal).
-    if not payload.get('coucou_agent') and os.environ.get('CLAUDE_CODE_ENTRYPOINT') == 'claude-desktop':
-        payload['coucou_agent'] = 'claude-desktop'
+    if not payload.get('luna_agent') and os.environ.get('CLAUDE_CODE_ENTRYPOINT') == 'claude-desktop':
+        payload['luna_agent'] = 'claude-desktop'
 
     # Enrich with terminal context
     env = os.environ
@@ -3482,11 +3479,11 @@ except Exception:
 sys.exit(0)
 """
 
-// MARK: - nb-hook Python relay (App Store — socket in sandboxed container)
+// MARK: - luna-hook Python relay (App Store — socket in sandboxed container)
 
 private let lunaHookPythonAppStore = """
 #!/usr/bin/env python3
-# nb-hook.py — Luna (App Store) hook relay for Claude Code and third-party agents
+# luna-hook.py — Luna (App Store) hook relay for Claude Code and third-party agents
 # Socket lives inside the sandboxed container; script runs outside the sandbox.
 import sys, json, os, socket
 
@@ -3561,13 +3558,13 @@ def main():
             return
 
     socket_path = os.path.expanduser(
-        '~/Library/Containers/dev.luna.LunaPhone/Data/nb.sock'
+        '~/Library/Containers/dev.luna.LunaPhone/Data/luna.sock'
     )
 
     # --statusline mode: relay rate_limits to Luna, then delegate to saved previous
     if '--statusline' in sys.argv[1:]:
         relay = {
-            'coucou_kind': 'statusline',
+            'luna_kind': 'statusline',
             'session_id': payload.get('session_id', ''),
             'rate_limits': payload.get('rate_limits', {}),
         }
@@ -3601,7 +3598,7 @@ def main():
         tool = payload.get('tool_name', '')
         if tool != 'AskUserQuestion':
             return  # Not an AskUserQuestion invocation — exit cleanly (no output)
-        payload['coucou_kind'] = 'ask_user_question'
+        payload['luna_kind'] = 'ask_user_question'
         env = os.environ
         payload.setdefault('term_program', env.get('TERM_PROGRAM', ''))
         payload.setdefault('iterm_session_id', env.get('ITERM_SESSION_ID', ''))
@@ -3647,7 +3644,7 @@ def main():
         return
 
     # Parse --agent <name> and optional positional event from argv.
-    # --agent tags the payload with coucou_agent so the app routes to the right pill.
+    # --agent tags the payload with luna_agent so the app routes to the right pill.
     # The positional arg is a fallback event name for agents that do not set hook_event_name.
     args = sys.argv[1:]
     agent = ''
@@ -3662,11 +3659,11 @@ def main():
                 arg_event = args[i]
             i += 1
     if agent:
-        payload.setdefault('coucou_agent', agent)
+        payload.setdefault('luna_agent', agent)
     # Claude Code sessions from the Claude desktop app (Code tab) report this entrypoint;
     # route them to the Claude Desktop pill instead of dropping them (no VS Code terminal).
-    if not payload.get('coucou_agent') and os.environ.get('CLAUDE_CODE_ENTRYPOINT') == 'claude-desktop':
-        payload['coucou_agent'] = 'claude-desktop'
+    if not payload.get('luna_agent') and os.environ.get('CLAUDE_CODE_ENTRYPOINT') == 'claude-desktop':
+        payload['luna_agent'] = 'claude-desktop'
 
     env = os.environ
     payload.setdefault('term_program', env.get('TERM_PROGRAM', ''))

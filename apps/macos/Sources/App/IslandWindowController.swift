@@ -1480,7 +1480,7 @@ extension IslandWindowController {
         // can't be reached does the phrase parser below take over.
         if runner.pendingQuestion == nil, ClaudeVoiceBrain.isActive {
             if await handleWithClaude(transcript) { return }
-            appendAppLog("nb.log", "[Voice] Claude unreachable, phrase parser used")
+            appendAppLog("luna.log", "[Voice] Claude unreachable, phrase parser used")
         }
 
         // ── Short noise / spurious activation guard (conversation mode only) ────────
@@ -1495,7 +1495,7 @@ extension IslandWindowController {
                 let isKnown    = IntentParser.parse(normTranscript, pills: pills) != .unknown
                 if !isPillName && !isKnown {
                     // Never log the words themselves (VOICE.md: no transcript on disk).
-                    appendAppLog("nb.log", "[Voice] ignoring short spurious transcript")
+                    appendAppLog("luna.log", "[Voice] ignoring short spurious transcript")
                     VoiceTranscriptHistory.shared.record(transcript: transcript, note: "—", origin: .ignored)
                     closeVoiceTurn()
                     return
@@ -1631,7 +1631,7 @@ extension IslandWindowController {
             }
 
             let brainMs = Int(Date().timeIntervalSince(tBrain0) * 1000)
-            appendAppLog("nb.log",
+            appendAppLog("luna.log",
                 "[Voice] turn: parse=\(parseMs)ms action=\(actionMs)ms brain=\(brainMs)ms (\(brainWarm ? "warm" : "cold"))")
 
             if let brain {
@@ -1682,9 +1682,9 @@ extension IslandWindowController {
                 return
             }
 
-            appendAppLog("nb.log", "[Voice] turn: parse=\(parseMs)ms action=\(actionMs)ms brain=\(brainMs)ms (\(brainWarm ? "warm" : "cold")) — no result")
+            appendAppLog("luna.log", "[Voice] turn: parse=\(parseMs)ms action=\(actionMs)ms brain=\(brainMs)ms (\(brainWarm ? "warm" : "cold")) — no result")
         } else {
-            appendAppLog("nb.log", "[Voice] turn: parse=\(parseMs)ms action=\(actionMs)ms (parser)")
+            appendAppLog("luna.log", "[Voice] turn: parse=\(parseMs)ms action=\(actionMs)ms (parser)")
         }
 
         // Mid-conversation, a phrase with no command in it (talking to someone else,
@@ -1693,7 +1693,7 @@ extension IslandWindowController {
         if case .unknown = effectiveIntent, result.outcome == .failure {
             if isInConversation {
                 // Second miss (or noise while waiting for an answer): stop there.
-                appendAppLog("nb.log", "[Voice] answer had no command in it, ignored")
+                appendAppLog("luna.log", "[Voice] answer had no command in it, ignored")
                 closeVoiceTurn()
                 return
             }
@@ -1861,7 +1861,7 @@ extension IslandWindowController {
         guard let reply = await ClaudeVoiceBrain.shared.respond(to: transcript), !reply.failed else {
             return false
         }
-        appendAppLog("nb.log", "[Voice] Claude turn \(Int(Date().timeIntervalSince(t0) * 1000)) ms\(reply.acted ? ", acted" : "")")
+        appendAppLog("luna.log", "[Voice] Claude turn \(Int(Date().timeIntervalSince(t0) * 1000)) ms\(reply.acted ? ", acted" : "")")
         let fr = VoiceSettings.language == "fr"
         let text = reply.text.isEmpty ? (fr ? "C'est fait." : "Done.") : reply.text
         VoiceTranscriptHistory.shared.record(transcript: transcript, note: text, origin: .brain)

@@ -5,7 +5,7 @@ import Foundation
 /// Keeps track of the agent sessions living behind each pill.
 ///
 /// A pill is picked from the client that sent the event — bundle ID,
-/// `term_program`, `coucou_agent` — never from the session. Two `claude`
+/// `term_program`, `luna_agent` — never from the session. Two `claude`
 /// started in two projects under VS Code therefore land on the same
 /// `integration_claude`, while `AppState.tasks` holds one entry per pill.
 /// Without a session set, the first session to end wipes the card and the

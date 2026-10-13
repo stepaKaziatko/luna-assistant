@@ -85,10 +85,10 @@ final class VoiceAudio: @unchecked Sendable {
             conv.primeMethod = .none
             conv.downmix      = true   // collapse multi-channel mic (e.g. 3ch) to mono
             converter = conv
-            appendAppLog("nb.log",
+            appendAppLog("luna.log",
                 "[Voice] audio format: input \(Int(fmt.sampleRate)) Hz \(fmt.channelCount)ch → 16000 Hz 1ch")
         } else {
-            appendAppLog("nb.log",
+            appendAppLog("luna.log",
                 "[Voice] audio converter unavailable: \(Int(fmt.sampleRate)) Hz \(fmt.channelCount)ch — feeding raw")
         }
 
@@ -106,7 +106,7 @@ final class VoiceAudio: @unchecked Sendable {
 
         engine.prepare()
         try engine.start()
-        appendAppLog("nb.log", "[Voice] engine started (\(Int(fmt.sampleRate)) Hz \(fmt.channelCount)ch)")
+        appendAppLog("luna.log", "[Voice] engine started (\(Int(fmt.sampleRate)) Hz \(fmt.channelCount)ch)")
     }
 
     func stop() {
@@ -149,7 +149,7 @@ final class VoiceAudio: @unchecked Sendable {
             let fps = buf.format.sampleRate / Double(buf.frameLength)
             vad.setFrameRate(fps)
             prerollLock.withLock { prerollCapacity = max(2, Int((0.5 * fps).rounded(.up))) }
-            appendAppLog("nb.log", "[Voice] tap buffers: \(buf.frameLength) frames (\(Int(fps.rounded()))/s)")
+            appendAppLog("luna.log", "[Voice] tap buffers: \(buf.frameLength) frames (\(Int(fps.rounded()))/s)")
         }
 
         if pendingVADReset {

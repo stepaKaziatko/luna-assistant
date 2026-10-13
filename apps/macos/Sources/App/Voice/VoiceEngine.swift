@@ -110,7 +110,7 @@ final class VoiceEngine: ObservableObject {
     private init() {
         lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
         let buildHash = Bundle.main.object(forInfoDictionaryKey: "LunaGitHash") as? String ?? "unknown"
-        appendAppLog("nb.log", "[Voice] build \(buildHash)")
+        appendAppLog("luna.log", "[Voice] build \(buildHash)")
         observeSystemEvents()
         if isEnabled && !isPaused { startAudioPipeline() }
     }
@@ -170,20 +170,20 @@ final class VoiceEngine: ObservableObject {
         loggedDropWhileSpeaking = false
         audio.bypassVAD       = true
         duckMusic()
-        appendAppLog("nb.log", "[Voice] direct listen start (firstWordTimeout: \(firstWordTimeout)s)")
+        appendAppLog("luna.log", "[Voice] direct listen start (firstWordTimeout: \(firstWordTimeout)s)")
         NotificationCenter.default.post(name: .voiceWoke, object: "direct" as NSString)
         let preroll = audio.drainPreroll()
         // startInCommandPhase: skip wake-phrase gate, deliver speech directly as command.
         let started = spotter.beginWindow(locale: loc, preroll: preroll, startInCommandPhase: true)
         if !started {
-            appendAppLog("nb.log", "[Voice] direct listen refused (alreadyActive/unavailable), retrying in 150ms")
+            appendAppLog("luna.log", "[Voice] direct listen refused (alreadyActive/unavailable), retrying in 150ms")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
                 guard let self, self.isListeningForCommand else { return }
                 guard let spotter = self.spotter, let audio = self.audio, let loc = self.locale else { return }
                 let preroll2 = audio.drainPreroll()
                 let started2 = spotter.beginWindow(locale: loc, preroll: preroll2, startInCommandPhase: true)
                 if !started2 {
-                    appendAppLog("nb.log", "[Voice] direct listen still refused, giving up")
+                    appendAppLog("luna.log", "[Voice] direct listen still refused, giving up")
                     self.endCommand(postFinished: true)
                 }
             }
@@ -206,7 +206,7 @@ final class VoiceEngine: ObservableObject {
         guard audio == nil else { return }
         guard let loc = suitableLocale() else {
             recognizerUnavailable = true
-            appendAppLog("nb.log", "[Voice] no suitable on-device recognizer — voice disabled")
+            appendAppLog("luna.log", "[Voice] no suitable on-device recognizer — voice disabled")
             return
         }
         recognizerUnavailable = false
@@ -237,7 +237,7 @@ final class VoiceEngine: ObservableObject {
             if wasError {
                 consecErrorStreak += 1
                 if consecErrorStreak >= Self.maxConsecErrors {
-                    appendAppLog("nb.log",
+                    appendAppLog("luna.log",
                         "[Voice] window error streak \(consecErrorStreak), rebuilding pipeline")
                     self.triggerPipelineRebuild(reason: "window error streak \(consecErrorStreak)")
                     return
@@ -251,14 +251,14 @@ final class VoiceEngine: ObservableObject {
             case .open:
                 self.openWakeWindow(audio: a, spotter: s, locale: loc)
             case .delay(let d):
-                appendAppLog("nb.log",
+                appendAppLog("luna.log",
                     "[Voice] window backoff \(String(format: "%.2f", d))s (streak \(backoff.streak))")
                 DispatchQueue.main.asyncAfter(deadline: .now() + d) { [weak self] in
                     guard let self, !isListeningForCommand, voiceSegmentActive else { return }
                     self.openWakeWindow(audio: a, spotter: s, locale: loc)
                 }
             case .stop:
-                appendAppLog("nb.log",
+                appendAppLog("luna.log",
                     "[Voice] window fast-fail limit (\(backoff.maxFastFails)), waiting for next VAD")
             }
         }
@@ -281,11 +281,11 @@ final class VoiceEngine: ObservableObject {
             guard !VoiceSpeaker.shared.isBusy else {
                 // Luna's own voice. But with music playing the sound never "ends", so
                 // this start would be the last one: open the window once Luna is quiet.
-                appendAppLog("nb.log", "[Voice] vad start deferred (speaker active)")
+                appendAppLog("luna.log", "[Voice] vad start deferred (speaker active)")
                 self.openWindowWhenSpeakerQuiet(audio: a, spotter: s, locale: loc)
                 return
             }
-            appendAppLog("nb.log", "[Voice] vad start")
+            appendAppLog("luna.log", "[Voice] vad start")
             voiceSegmentActive = true
             backoff.reset()
             consecErrorStreak  = 0
@@ -294,7 +294,7 @@ final class VoiceEngine: ObservableObject {
 
         a.onVoiceEnd = { [weak self] in
             guard let self else { return }
-            appendAppLog("nb.log", "[Voice] vad end")
+            appendAppLog("luna.log", "[Voice] vad end")
             voiceSegmentActive  = false
             unavailableWork?.cancel(); unavailableWork = nil
             firstUnavailableAt  = nil
@@ -302,7 +302,7 @@ final class VoiceEngine: ObservableObject {
             if !isListeningForCommand && !s.isInCommandPhase {
                 let elapsed = Date().timeIntervalSince(self.windowOpenedAt)
                 let st = s.endWindow()
-                appendAppLog("nb.log", "[Voice] window close \(Self.describe(st))")
+                appendAppLog("luna.log", "[Voice] window close \(Self.describe(st))")
                 self.checkDeafRecognizer(st, elapsed: elapsed)
             }
         }
@@ -318,7 +318,7 @@ final class VoiceEngine: ObservableObject {
         } catch {
             let e = error as NSError
             let msg = "[Voice] pipeline start failed: \(e.domain)/\(e.code) \(e.localizedDescription)"
-            appendAppLog("nb.log", msg)
+            appendAppLog("luna.log", msg)
             audioError = "\(e.domain)/\(e.code): \(e.localizedDescription)"
         }
     }
@@ -366,7 +366,7 @@ final class VoiceEngine: ObservableObject {
                 guard sinceStart > Self.stallTimeout else { continue }
                 let age = Date().timeIntervalSince(audio.lastBufferTime)
                 guard age > Self.stallTimeout else { continue }
-                appendAppLog("nb.log",
+                appendAppLog("luna.log",
                     "[Voice] audio stall \(String(format: "%.1f", age))s, rebuilding")
                 self.triggerPipelineRebuild(reason: "audio stall \(String(format: "%.1f", age))s")
                 return
@@ -389,13 +389,13 @@ final class VoiceEngine: ObservableObject {
             windowOpenedAt     = Date()
             firstUnavailableAt = nil
             unavailableWork?.cancel(); unavailableWork = nil
-            appendAppLog("nb.log", "[Voice] window open")
+            appendAppLog("luna.log", "[Voice] window open")
             scheduleWakeWindowRestart(audio: audio, spotter: spotter, locale: locale)
         } else {
             if firstUnavailableAt == nil { firstUnavailableAt = Date() }
             let age = Date().timeIntervalSince(firstUnavailableAt!)
             if age >= Self.unavailableRebuildDelay {
-                appendAppLog("nb.log", "[Voice] recognizer unavailable \(Int(age))s, rebuilding")
+                appendAppLog("luna.log", "[Voice] recognizer unavailable \(Int(age))s, rebuilding")
                 triggerPipelineRebuild(reason: "recognizer unavailable \(Int(age))s")
             } else {
                 unavailableWork?.cancel()
@@ -416,7 +416,7 @@ final class VoiceEngine: ObservableObject {
             guard let self, !isListeningForCommand else { return }
             let st = spotter.endWindow()
             // Log only: a 20 s window can be steady background noise with no words.
-            appendAppLog("nb.log", "[Voice] window close (20s) \(Self.describe(st))")
+            appendAppLog("luna.log", "[Voice] window close (20s) \(Self.describe(st))")
             self.openWakeWindow(audio: audio, spotter: spotter, locale: locale)
         }
         wakeWindowWork = item
@@ -444,7 +444,7 @@ final class VoiceEngine: ObservableObject {
                 return
             }
             guard self.audio === audio, !self.isListeningForCommand, !spotter.isActive else { return }
-            appendAppLog("nb.log", "[Voice] vad start (deferred)")
+            appendAppLog("luna.log", "[Voice] vad start (deferred)")
             audio.resetVAD()
             self.voiceSegmentActive = true
             self.backoff.reset()
@@ -476,7 +476,7 @@ final class VoiceEngine: ObservableObject {
         deafWindows += 1
         if deafWindows >= (music ? 6 : 2) {
             deafWindows = 0
-            appendAppLog("nb.log", "[Voice] recognizer returned nothing for \(music ? 6 : 2) windows, rebuilding")
+            appendAppLog("luna.log", "[Voice] recognizer returned nothing for \(music ? 6 : 2) windows, rebuilding")
             triggerPipelineRebuild(reason: "recognizer deaf")
         }
     }
@@ -496,7 +496,7 @@ final class VoiceEngine: ObservableObject {
         let tooSoon  = now.timeIntervalSince(lastRebuildTime) < Self.minRebuildInterval
         let tooMany  = rebuildsThisMinute >= Self.maxRebuildsPerMinute
         if tooSoon || tooMany {
-            appendAppLog("nb.log", "[Voice] rebuild limit reached (\(reason))")
+            appendAppLog("luna.log", "[Voice] rebuild limit reached (\(reason))")
             if audioError == nil {
                 audioError = "Voice recognition stalled — toggle Voice off/on to reset."
             }
@@ -505,7 +505,7 @@ final class VoiceEngine: ObservableObject {
 
         rebuildsThisMinute += 1
         lastRebuildTime     = now
-        appendAppLog("nb.log", "[Voice] pipeline rebuild (\(reason))")
+        appendAppLog("luna.log", "[Voice] pipeline rebuild (\(reason))")
         stopAudioPipeline()
         guard isEnabled, !isPaused else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -525,7 +525,7 @@ final class VoiceEngine: ObservableObject {
         if SpotifyController.shared.isPlaying {
             savedSpotifyVolume = SpotifyController.shared.volume
             SpotifyController.shared.setVolume(25)
-            appendAppLog("nb.log", "[Voice] music duck spotify \(savedSpotifyVolume ?? -1) → 25")
+            appendAppLog("luna.log", "[Voice] music duck spotify \(savedSpotifyVolume ?? -1) → 25")
         }
 
         if AppState.shared.musicPlaying {
@@ -533,7 +533,7 @@ final class VoiceEngine: ObservableObject {
                 if let vol = await MusicController.shared.getVolume() {
                     savedMusicVolume = vol
                     MusicController.shared.setVolume(25)
-                    appendAppLog("nb.log", "[Voice] music duck apple \(vol) → 25")
+                    appendAppLog("luna.log", "[Voice] music duck apple \(vol) → 25")
                 }
             }
         }
@@ -550,18 +550,18 @@ final class VoiceEngine: ObservableObject {
             VoiceActionRunner.shared.volumeCommandExecuted = false
             savedMusicVolume   = nil
             savedSpotifyVolume = nil
-            appendAppLog("nb.log", "[Voice] music restore skipped (volume command)")
+            appendAppLog("luna.log", "[Voice] music restore skipped (volume command)")
             return
         }
 
         if let vol = savedSpotifyVolume {
             SpotifyController.shared.setVolume(vol)
-            appendAppLog("nb.log", "[Voice] music restore spotify → \(vol)")
+            appendAppLog("luna.log", "[Voice] music restore spotify → \(vol)")
             savedSpotifyVolume = nil
         }
         if let vol = savedMusicVolume {
             MusicController.shared.setVolume(vol)
-            appendAppLog("nb.log", "[Voice] music restore apple → \(vol)")
+            appendAppLog("luna.log", "[Voice] music restore apple → \(vol)")
             savedMusicVolume = nil
         }
     }
@@ -571,18 +571,18 @@ final class VoiceEngine: ObservableObject {
     private func wakeDetected(transcript: String) {
         guard isEnabled, !isPaused else {
             let reason = isPaused ? "paused" : "disabled"
-            appendAppLog("nb.log", "[Voice] wake ignored: \(reason)")
+            appendAppLog("luna.log", "[Voice] wake ignored: \(reason)")
             spotter?.endWindow(); return
         }
         guard !isListeningForCommand else {
-            appendAppLog("nb.log", "[Voice] wake ignored: already listening")
+            appendAppLog("luna.log", "[Voice] wake ignored: already listening")
             spotter?.endWindow(); return
         }
         let s = AppState.shared
         if let reason = VoiceWakeFilter.wakeBlocked(
             view: s.view, mode: s.mode, pendingApproval: s.pendingApproval != nil
         ) {
-            appendAppLog("nb.log", "[Voice] wake ignored: \(reason)")
+            appendAppLog("luna.log", "[Voice] wake ignored: \(reason)")
             spotter?.endWindow(); return
         }
         wakeWindowWork?.cancel();  wakeWindowWork  = nil
@@ -598,7 +598,7 @@ final class VoiceEngine: ObservableObject {
         directInitialTimeout  = Self.wakeFirstWordTimeout
         audio?.bypassVAD      = true
         duckMusic()
-        appendAppLog("nb.log", "[Voice] wake")
+        appendAppLog("luna.log", "[Voice] wake")
         NotificationCenter.default.post(name: .voiceWoke, object: nil)
         resetSilenceTimer()
         let maxItem = DispatchWorkItem { [weak self] in
@@ -614,7 +614,7 @@ final class VoiceEngine: ObservableObject {
             // Logged once per turn (no words): helps when an answer seems unheard.
             if !loggedDropWhileSpeaking {
                 loggedDropWhileSpeaking = true
-                appendAppLog("nb.log", "[Voice] words heard while Luna was speaking: ignored")
+                appendAppLog("luna.log", "[Voice] words heard while Luna was speaking: ignored")
             }
             return
         }
@@ -685,7 +685,7 @@ final class VoiceEngine: ObservableObject {
         micLevel           = 0
         spotter?.endWindow()
         restoreMusic()
-        appendAppLog("nb.log", "[Voice] command end (had transcript: \(!commandTranscript.isEmpty))")
+        appendAppLog("luna.log", "[Voice] command end (had transcript: \(!commandTranscript.isEmpty))")
         if !postFinished { commandTranscript = "" }
         isListeningForCommand = false
         if postFinished {

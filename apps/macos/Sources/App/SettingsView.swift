@@ -565,7 +565,7 @@ struct SettingsView: View {
                     #endif
                 }
                 #if APPSTORE
-                Text("~/.claude/coucou/nb-hook")
+                Text("~/.claude/luna/luna-hook")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.secondary)
                 HStack(spacing: 10) {
@@ -575,7 +575,7 @@ struct SettingsView: View {
                         .buttonStyle(.bordered)
                 }
                 #else
-                Text("nb-hook : \(HookServer.hookScriptPath)")
+                Text("luna-hook : \(HookServer.hookScriptPath)")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.secondary)
                 HStack(spacing: 10) {
@@ -718,7 +718,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text(copilotHooksInstalled
                      ? String(localized: "hooks.copilot.installed")
-                     : "~/.copilot/hooks/coucou.json")
+                     : "~/.copilot/hooks/luna.json")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.secondary)
                 HStack(spacing: 10) {
@@ -784,7 +784,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text(openCodePluginInstalled
                      ? String(localized: "plugin.opencode.installed")
-                     : "~/.config/opencode/plugins/coucou.js")
+                     : "~/.config/opencode/plugins/luna.js")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.secondary)
                 HStack(spacing: 10) {
@@ -817,7 +817,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text(ampPluginInstalled
                      ? String(localized: "plugin.amp.installed")
-                     : "~/.config/amp/plugins/coucou.ts")
+                     : "~/.config/amp/plugins/luna.ts")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.secondary)
                 HStack(spacing: 10) {
@@ -850,7 +850,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text(hermesPluginInstalled
                      ? String(localized: "plugin.hermes.installed")
-                     : "~/.hermes/plugins/coucou/__init__.py")
+                     : "~/.hermes/plugins/luna/__init__.py")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.secondary)
                 HStack(spacing: 10) {
