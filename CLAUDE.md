@@ -8,7 +8,7 @@
 |---|---|
 | `apps/macos/project.yml` | Проект для XcodeGen. `Luna.xcodeproj` и `Resources/Info*.plist` из него генерируются и коммитятся; руками не правятся |
 | `apps/macos/Sources/App/` | Mac: остров (`IslandWindowController`, `IslandViewContent`, `IslandStateMachine`), хуки агентов и генерируемые плагины (`HookServer.swift`), интеграции (`*Poller.swift`, `*Controller.swift`), настройки, `Voice/` |
-| `apps/macos/Sources/LunaKit/` | Общее с iPhone: персонаж (`BotEngine`, `MochiStill`, `MochiWardrobe`), `PillCatalog.swift` — единственный источник правды о pill (ID, цвет, категория), diff, модели |
+| `apps/macos/Sources/LunaKit/` | Общее с iPhone: персонаж (`BotEngine`, `LunaStill`, `LunaWardrobe`), `PillCatalog.swift` — единственный источник правды о pill (ID, цвет, категория), diff, модели |
 | `apps/macos/Sources/Phone/`, `Widgets/`, `NotificationContent/` | iPhone-таргеты. Переносятся как есть, не собираются (нужны команда Apple Developer, CloudKit, relay) |
 | `tests/`, `scripts/test-*.sh` | Тесты на `swiftc`: скрипт собирает нужные файлы и запускает проверки |
 | `docs/` | `SPEC.md` (остров, по-французски), `INTEGRATIONS.md`, `AGENTS.md`, `VOICE.md`, `IPHONE.md` |
@@ -37,10 +37,10 @@ scripts/bump-version.sh minor               # поднять версию (minor
 - **Ни одно разрешение агента и ни одно письмо не уходят без явного клика.**
 - **0 % CPU, когда остров скрыт.**
 - **Bundle ID `dev.luna.Luna` не меняется:** на него завязаны Keychain, настройки и выданные разрешения macOS.
-- **ID pill — контракт** (Keychain, UserDefaults, маршрутизация хуков): существующий ID не переименовывается. Payload-ключи `coucou_agent`, `coucou_kind` — контракт со сторонними агентами, остаются как есть.
+- **ID pill — контракт** (Keychain, UserDefaults, маршрутизация хуков): существующий ID не переименовывается. Payload-ключи `luna_agent`, `luna_kind` — контракт со сторонними агентами.
 - **Существующие экраны не перерисовываются** без явной просьбы; новые следуют стилю приложения.
-- **Ничего из LICENSE-ASSETS.md coucou в сборке нет:** имена «Coucou» и «Mochi», их иконка и звуки, медиа из `docs/media` и `design/captures`. Своё: иконки — `apps/macos/scripts/render-icons.swift`, звуки — `render-sounds.py`. Идентификаторы в коде (`LunaKit`, `MochiWardrobe`, `coucou_agent`) — код под MIT, их можно оставлять.
-- **Синхронизация с upstream** — по diff с коммитом, записанным в `LICENSE-COUCOU`; структура `apps/macos` совпадает с `NotchBuddy/` в coucou, чтобы патчи переносились.
+- **Ничего из LICENSE-ASSETS.md coucou в сборке нет:** имена «Coucou» и «Mochi», их иконка и звуки, медиа из `docs/media` и `design/captures`. Своё: иконки — `apps/macos/scripts/render-icons.swift`, звуки — `render-sounds.py`. Идентификаторы в коде переименованы в Luna (LUNA-60): прежних имён в нём нет, кроме упоминаний источника.
+- **Синхронизация с upstream** — по diff с коммитом, записанным в `LICENSE-COUCOU`.
 - **Версия записана в двух местах:** `apps/macos/project.yml` и сгенерированный `apps/macos/Resources/Info.plist`. Меняет её только `scripts/bump-version.sh` — вместе с разделом в `CHANGELOG.md`.
 
 Комментарии в коде, сообщения коммитов и тексты интерфейса для русской локали — на русском; код coucou и его комментарии остаются по-английски, переводить их не нужно.

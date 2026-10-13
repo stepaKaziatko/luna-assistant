@@ -302,7 +302,7 @@ targets:
         # Steps change often while an agent works: without this, iOS holds back
         # updates once its budget is spent, and "waiting for your OK" came late.
         NSSupportsLiveActivitiesFrequentUpdates: YES
-        # coucou://session/<id>: the widgets open a session in the app.
+        # luna://session/<id>: the widgets open a session in the app.
         CFBundleURLTypes:
           - CFBundleURLName: dev.luna.LunaPhone
             CFBundleURLSchemes:

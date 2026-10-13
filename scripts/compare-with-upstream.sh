@@ -14,12 +14,12 @@ LUNA_FILES="BotEngine LunaOutfitDrawing LunaWardrobe IslandTypes IslandScreenGeo
 SDK="$(xcrun --sdk macosx --show-sdk-path)"
 T="$(mktemp -d "${TMPDIR:-/tmp}/luna-compare.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
-mkdir -p "$T/mochi"
+mkdir -p "$T/upstream"
 
 echo "Скачиваю upstream $UPSTREAM_REF..."
 for f in $UPSTREAM_FILES; do
   gh api "repos/Louis-CFM/coucou/contents/NotchBuddy/Sources/CoucouKit/$f.swift?ref=$UPSTREAM_REF" \
-    -H 'Accept: application/vnd.github.raw' > "$T/mochi/$f.swift"
+    -H 'Accept: application/vnd.github.raw' > "$T/upstream/$f.swift"
 done
 
 build() { # <out> <sources...>
@@ -28,16 +28,16 @@ build() { # <out> <sources...>
     -framework AppKit -framework SwiftUI -o "$out" 2>&1 | { grep -v "warning:" || true; }
 }
 echo "Собираю Mochi и Luna..."
-build "$T/mochi-frame" $(for f in $UPSTREAM_FILES; do echo "$T/mochi/$f.swift"; done)
+build "$T/upstream-frame" $(for f in $UPSTREAM_FILES; do echo "$T/upstream/$f.swift"; done)
 build "$T/luna-frame" $(for f in $LUNA_FILES; do echo "apps/macos/Sources/LunaKit/$f.swift"; done) \
   apps/macos/Sources/LunaKit/LunaLook.swift apps/macos/Sources/LunaKit/LunaFace.swift
 swiftc -sdk "$SDK" scripts/MaskIoU.swift -framework AppKit -o "$T/mask-iou" 2>&1 | { grep -v "warning:" || true; }
 
 fail=0
 for s in $STATES; do
-  "$T/mochi-frame" "$T/mochi-$s.png" "$s"
+  "$T/upstream-frame" "$T/upstream-$s.png" "$s"
   "$T/luna-frame" "$T/luna-$s.png" "$s"
-  line="$("$T/mask-iou" "$T/mochi-$s.png" "$T/luna-$s.png")"
+  line="$("$T/mask-iou" "$T/upstream-$s.png" "$T/luna-$s.png")"
   echo "$s: $line"
   iou="${line#IoU=}"; iou="${iou%% *}"
   if awk "BEGIN{exit !($iou > $MAX_IOU)}"; then fail=1; echo "  слишком похоже на Mochi (порог $MAX_IOU)"; fi
