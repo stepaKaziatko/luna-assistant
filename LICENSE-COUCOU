@@ -5,7 +5,7 @@
 docs/media и design/ в coucou лицензированы отдельно (LICENSE-ASSETS.md в upstream) и
 в этот репозиторий не переносились. В Luna вместо них: имя Luna, иконки из
 apps/macos/scripts/render-icons.swift, звуки из apps/macos/scripts/render-sounds.py.
-Персонаж остаётся нарисованным кодом coucou; его облик — на усмотрение автора coucou.
+Персонаж Luna собственный: он нарисован кодом в apps/macos/Sources/LunaKit и не перенесён из coucou.
 
 Android-часть coucou (© Rhytam Biswas, MIT) и версии для Windows и Linux не переносились.
 

@@ -39,8 +39,8 @@ scripts/bump-version.sh minor               # поднять версию (minor
 - **Bundle ID `dev.luna.Luna` не меняется:** на него завязаны Keychain, настройки и выданные разрешения macOS.
 - **ID pill — контракт** (Keychain, UserDefaults, маршрутизация хуков): существующий ID не переименовывается. Payload-ключи `luna_agent`, `luna_kind` — контракт со сторонними агентами.
 - **Существующие экраны не перерисовываются** без явной просьбы; новые следуют стилю приложения.
-- **Ничего из LICENSE-ASSETS.md coucou в сборке нет:** имена «Coucou» и «Mochi», их иконка и звуки, медиа из `docs/media` и `design/captures`. Своё: иконки — `apps/macos/scripts/render-icons.swift`, звуки — `render-sounds.py`. Идентификаторы в коде переименованы в Luna (LUNA-60): прежних имён в нём нет, кроме упоминаний источника.
-- **Синхронизация с upstream** — по diff с коммитом, записанным в `LICENSE-COUCOU`.
+- **Ничего из LICENSE-ASSETS.md coucou в сборке нет:** имена «Coucou» и «Mochi», их иконка и звуки, медиа из `docs/media` и `design/captures`. Своё: персонаж — нарисован кодом в `LunaKit` (`BotEngine`, `LunaStill`), иконки — `apps/macos/scripts/render-icons.swift`, звуки — `render-sounds.py`. Идентификаторы в коде переименованы в Luna (LUNA-60): прежних имён в нём нет, кроме упоминаний источника.
+- **Код взят из coucou один раз.** Коммит 0dffbaf записан в `LICENSE-COUCOU` как атрибуция по MIT. Дальше код ведётся в этом репозитории самостоятельно, имена — Luna; обновления из upstream не забираются.
 - **Версия записана в двух местах:** `apps/macos/project.yml` и сгенерированный `apps/macos/Resources/Info.plist`. Меняет её только `scripts/bump-version.sh` — вместе с разделом в `CHANGELOG.md`.
 
 Комментарии в коде, сообщения коммитов и тексты интерфейса для русской локали — на русском; код coucou и его комментарии остаются по-английски, переводить их не нужно.
