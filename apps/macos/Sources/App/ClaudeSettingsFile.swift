@@ -107,7 +107,7 @@ enum ClaudeSettingsFile {
         // Written beside the target and renamed over it: a crash or a full disk
         // leaves the original intact rather than half a file.
         let temp = target.deletingLastPathComponent()
-            .appendingPathComponent("\(target.lastPathComponent).coucou-\(ProcessInfo.processInfo.processIdentifier)")
+            .appendingPathComponent("\(target.lastPathComponent).luna-\(ProcessInfo.processInfo.processIdentifier)")
         try? fm.removeItem(at: temp)
         guard fm.createFile(atPath: temp.path, contents: data,
                             attributes: [.posixPermissions: NSNumber(value: 0o600)]) else {

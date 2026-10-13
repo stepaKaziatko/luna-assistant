@@ -4,7 +4,7 @@ import Foundation
 //
 // Pure test. Compiles with:
 //   swiftc -o /tmp/voice-gender-tests \
-//     NotchBuddy/Sources/App/Voice/VoiceGenderNames.swift \
+//     apps/macos/Sources/App/Voice/VoiceGenderNames.swift \
 //     tests/VoiceGenderTests.swift
 
 @main

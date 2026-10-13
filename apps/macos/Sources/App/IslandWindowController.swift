@@ -473,7 +473,7 @@ final class IslandWindowController: NSWindowController {
         wasInIsland = inIsland
         if inIsland && !previouslyInIsland {
             guard !inAttachDrag else { return }
-            // If in coucou: tell greeting to stay open (tc → infinity)
+            // If in luna: tell greeting to stay open (tc → infinity)
             if fsm.state == .luna {
                 NotificationCenter.default.post(name: .greetingHover, object: nil)
             }
@@ -628,7 +628,7 @@ final class IslandWindowController: NSWindowController {
             AppState.shared.voiceActive = false
         }
         #endif
-        // Keep the FSM in step with what is on screen (home/coucou → petit now).
+        // Keep the FSM in step with what is on screen (home/luna → petit now).
         fsm.collapse()
         setMode(.compact)
         window?.resignKey()

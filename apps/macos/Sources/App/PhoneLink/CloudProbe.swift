@@ -21,7 +21,7 @@ final class CloudProbe {
 
     static let containerID = "iCloud.dev.luna.Luna"
     static let zoneID = CKRecordZone.ID(zoneName: "Luna", ownerName: CKCurrentUserDefaultName)
-    private static let subscriptionID = "coucou-zone-mac"
+    private static let subscriptionID = "luna-zone-mac"
 
     private let container = CKContainer(identifier: CloudProbe.containerID)
     private var database: CKDatabase { container.privateCloudDatabase }

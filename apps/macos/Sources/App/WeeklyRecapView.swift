@@ -156,7 +156,7 @@ private struct RecapSharePanelView: View {
                 Button("Save…") {
                     guard let img = nsImage else { return }
                     let panel = NSSavePanel()
-                    panel.nameFieldStringValue = "coucou-weekly-recap.png"
+                    panel.nameFieldStringValue = "luna-weekly-recap.png"
                     panel.allowedContentTypes = [.png]
                     panel.begin { result in
                         guard result == .OK, let url = panel.url else { return }

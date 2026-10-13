@@ -54,7 +54,7 @@ struct SessionsProvider: TimelineProvider {
 
 struct SoloWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "CoucouSolo", provider: SessionsProvider()) { entry in
+        StaticConfiguration(kind: "LunaSolo", provider: SessionsProvider()) { entry in
             SoloView(session: entry.sessions.first)
         }
         .configurationDisplayName("Solo")
@@ -65,7 +65,7 @@ struct SoloWidget: Widget {
 
 struct TeamWidget: Widget {
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: "CoucouTeam", intent: TeamConfiguration.self, provider: TeamProvider()) { entry in
+        AppIntentConfiguration(kind: "LunaTeam", intent: TeamConfiguration.self, provider: TeamProvider()) { entry in
             TeamView(sessions: entry.sessions, picks: entry.picks, tick: entry.tick)
         }
         .configurationDisplayName("Team")
@@ -76,7 +76,7 @@ struct TeamWidget: Widget {
 
 struct ListWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "CoucouList", provider: SessionsProvider()) { entry in
+        StaticConfiguration(kind: "LunaList", provider: SessionsProvider()) { entry in
             ListView(sessions: Array(entry.sessions.prefix(4)))
         }
         .configurationDisplayName("List")
@@ -87,7 +87,7 @@ struct ListWidget: Widget {
 
 struct LockScreenWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "CoucouLock", provider: SessionsProvider()) { entry in
+        StaticConfiguration(kind: "LunaLock", provider: SessionsProvider()) { entry in
             LockScreenView(sessions: entry.sessions)
         }
         .configurationDisplayName("Luna")
@@ -389,7 +389,7 @@ extension SharedSession {
     }
 
     static let samples: [SharedSession] = [
-        SharedSession(id: "integration_claude", title: "coucou", agent: "VS Code", color: "#4A86E8",
+        SharedSession(id: "integration_claude", title: "luna", agent: "VS Code", color: "#4A86E8",
                       state: "approval", statusText: "waiting for your OK", tone: .waiting, urgency: 0,
                       stepIndex: 2, stepCount: 7, currentStep: "npm run test", updatedAt: .now),
         SharedSession(id: "agent_codex", title: "site-perso", agent: "Codex", color: "#D9663A",

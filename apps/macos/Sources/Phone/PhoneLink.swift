@@ -77,10 +77,10 @@ final class PhoneLink {
 
     static let containerID = "iCloud.dev.luna.Luna"
     static let zoneID = CKRecordZone.ID(zoneName: "Luna", ownerName: CKCurrentUserDefaultName)
-    private static let subscriptionID = "coucou-zone-phone-silent"
+    private static let subscriptionID = "luna-zone-phone-silent"
     /// Step 1's subscription showed a "Ping from your Mac" banner. A saved
     /// subscription keeps its notification settings, so it is deleted rather than reused.
-    private static let oldSubscriptionID = "coucou-zone-phone"
+    private static let oldSubscriptionID = "luna-zone-phone"
 
     var status: Status = .starting
     /// The first look at iCloud is over (whatever came of it): the intro can end.
@@ -172,7 +172,7 @@ final class PhoneLink {
         // A saved subscription keeps its sound: one ID per sound, the other one is deleted.
         let luna = PhoneSettings.lunaSounds
         let approvals = CKQuerySubscription(recordType: "ApprovalRequest", predicate: NSPredicate(value: true),
-                                            subscriptionID: luna ? "coucou-approvals-luna" : "coucou-approvals",
+                                            subscriptionID: luna ? "luna-approvals-luna" : "luna-approvals",
                                             options: [.firesOnRecordCreation])
         approvals.zoneID = Self.zoneID
         let alert = CKSubscription.NotificationInfo()
@@ -185,7 +185,7 @@ final class PhoneLink {
         approvals.notificationInfo = alert
         do {
             _ = try await database.modifySubscriptions(saving: [approvals], deleting: [])
-            _ = try? await database.modifySubscriptions(saving: [], deleting: [luna ? "coucou-approvals" : "coucou-approvals-luna"])
+            _ = try? await database.modifySubscriptions(saving: [], deleting: [luna ? "luna-approvals" : "luna-approvals-luna"])
             approvalsSubscribed = true
             approvalsStatus = "On"
         } catch {
@@ -307,7 +307,7 @@ final class PhoneLink {
 
     // MARK: Approval notifications (step 7)
 
-    /// State of the "coucou-approvals" subscription, shown on the link test screen.
+    /// State of the "luna-approvals" subscription, shown on the link test screen.
     var approvalsStatus = "Not set up yet"
     @ObservationIgnored private var notifiedFingerprints: Set<String> = []
 

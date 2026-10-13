@@ -31,9 +31,9 @@ final class IslandStateMachine {
     }
     /// petit → hidden delay (seconds). Override for debug.
     var petitToHiddenDelay: TimeInterval = 60
-    /// coucou → petit delay after greeting animation ends (no hover). ~0.6s syncs with canvas collapse.
+    /// luna → petit delay after greeting animation ends (no hover). ~0.6s syncs with canvas collapse.
     var greetAutoCollapseDelay: TimeInterval = 0.6
-    /// coucou → petit delay when mouse is hovering over the greeting.
+    /// luna → petit delay when mouse is hovering over the greeting.
     var greetHoverCollapseDelay: TimeInterval = 10
 
     /// Opt-in (Settings → General → Behavior): hovering the island opens it, and an island

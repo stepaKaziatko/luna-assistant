@@ -23,7 +23,7 @@ final class AppState: ObservableObject {
     var notchHeight: CGFloat = IslandConst.notchHeight
     var hasNotch = true
 
-    // Last app active before NotchBuddy (for window context capture)
+    // Last app active before Luna (for window context capture)
     var lastExternalApp: NSRunningApplication? = nil
 
     // Bot drag-attach state (hides original bot while ghost follows cursor)

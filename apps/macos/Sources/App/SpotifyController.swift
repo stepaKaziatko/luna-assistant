@@ -45,7 +45,7 @@ final class SpotifyController: ObservableObject {
     @Published private(set) var artwork: NSImage?
     @Published private(set) var automationDenied = false
 
-    nonisolated private static let grantedKey = "coucou.spotifyAutomationGranted"
+    nonisolated private static let grantedKey = "luna.spotifyAutomationGranted"
 
     private var notifTokens: [Any] = []
     private var cancellables = Set<AnyCancellable>()

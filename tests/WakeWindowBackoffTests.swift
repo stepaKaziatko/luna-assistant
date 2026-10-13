@@ -4,7 +4,7 @@ import Foundation
 //
 // Pure test — no AppKit, no VoiceEngine. Compiles with:
 //   swiftc -o /tmp/voice-backoff-tests \
-//     NotchBuddy/Sources/App/Voice/WakeWindowBackoff.swift \
+//     apps/macos/Sources/App/Voice/WakeWindowBackoff.swift \
 //     tests/WakeWindowBackoffTests.swift
 
 @main

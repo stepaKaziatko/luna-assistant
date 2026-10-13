@@ -1696,7 +1696,7 @@ struct SettingsView: View {
             pendingGeminiJSON = try HookServer.shared.previewGeminiHooks(install: install)
             showGeminiDiff = true
             statusMessage = String(localized: "hooks.review-json")
-        } catch let e as NSError where e.domain == "CoucouNoop" {
+        } catch let e as NSError where e.domain == "LunaNoop" {
             statusMessage = e.localizedDescription
         } catch {
             statusMessage = "❌ \(error.localizedDescription)"
@@ -1723,7 +1723,7 @@ struct SettingsView: View {
             pendingAgyJSON = try HookServer.shared.previewAgyHooks(install: install)
             showAgyDiff = true
             statusMessage = String(localized: "hooks.review-json")
-        } catch let e as NSError where e.domain == "CoucouNoop" {
+        } catch let e as NSError where e.domain == "LunaNoop" {
             statusMessage = e.localizedDescription
         } catch {
             statusMessage = "❌ \(error.localizedDescription)"
@@ -1750,7 +1750,7 @@ struct SettingsView: View {
             pendingCodexJSON = try HookServer.shared.previewCodexHooks(install: install)
             showCodexDiff = true
             statusMessage = String(localized: "hooks.review-json")
-        } catch let e as NSError where e.domain == "CoucouNoop" {
+        } catch let e as NSError where e.domain == "LunaNoop" {
             statusMessage = e.localizedDescription
         } catch {
             statusMessage = "❌ \(error.localizedDescription)"
@@ -1777,7 +1777,7 @@ struct SettingsView: View {
             pendingCopilotJSON = try HookServer.shared.previewCopilotHooks(install: install)
             showCopilotDiff = true
             statusMessage = String(localized: "hooks.review-json")
-        } catch let e as NSError where e.domain == "CoucouNoop" {
+        } catch let e as NSError where e.domain == "LunaNoop" {
             statusMessage = e.localizedDescription
         } catch {
             statusMessage = "❌ \(error.localizedDescription)"
@@ -1804,7 +1804,7 @@ struct SettingsView: View {
             pendingMuseJSON = try HookServer.shared.previewMuseHooks(install: install)
             showMuseDiff = true
             statusMessage = String(localized: "hooks.review-json")
-        } catch let e as NSError where e.domain == "CoucouNoop" {
+        } catch let e as NSError where e.domain == "LunaNoop" {
             statusMessage = e.localizedDescription
         } catch {
             statusMessage = "❌ \(error.localizedDescription)"
@@ -1831,7 +1831,7 @@ struct SettingsView: View {
             pendingOpenCodeContent = try HookServer.shared.previewOpenCodePlugin(install: install)
             showOpenCodeDiff = true
             statusMessage = String(localized: "plugin.review-content")
-        } catch let e as NSError where e.domain == "CoucouNoop" {
+        } catch let e as NSError where e.domain == "LunaNoop" {
             statusMessage = e.localizedDescription
         } catch {
             statusMessage = "❌ \(error.localizedDescription)"
@@ -1862,7 +1862,7 @@ struct SettingsView: View {
             pendingAmpContent = try HookServer.shared.previewAmpPlugin(install: install)
             showAmpDiff = true
             statusMessage = String(localized: "plugin.review-content")
-        } catch let e as NSError where e.domain == "CoucouNoop" {
+        } catch let e as NSError where e.domain == "LunaNoop" {
             statusMessage = e.localizedDescription
         } catch {
             statusMessage = "❌ \(error.localizedDescription)"
@@ -1893,7 +1893,7 @@ struct SettingsView: View {
             pendingHermesPluginContent = try HookServer.shared.previewHermesPlugin(install: install)
             showHermesPluginDiff = true
             statusMessage = String(localized: "plugin.review-content")
-        } catch let e as NSError where e.domain == "CoucouNoop" {
+        } catch let e as NSError where e.domain == "LunaNoop" {
             statusMessage = e.localizedDescription
         } catch {
             statusMessage = "❌ \(error.localizedDescription)"

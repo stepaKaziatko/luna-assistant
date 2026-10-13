@@ -25,7 +25,7 @@ final class SoundEngine {
                              "rate","sleep","greeting"]
 
     /// Your own sounds: a file named like a built-in sound (e.g. finish.wav, approval.mp3) in this
-    /// folder replaces it. ~/Library/Application Support/NotchBuddy/Sounds (in the App Store build,
+    /// folder replaces it. ~/Library/Application Support/Luna/Sounds (in the App Store build,
     /// the same path inside the app's container).
     static var customFolder: URL? {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
