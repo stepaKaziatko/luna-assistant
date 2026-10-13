@@ -49,7 +49,7 @@ enum ShortcutAction: String, CaseIterable, Sendable {
         case .muteToggle:        return String(localized: "shortcut.mute-toggle")
         case .desktopToggle:     return String(localized: "shortcut.desktop-toggle")
         case .wardrobeToggle:    return String(localized: "shortcut.wardrobe")
-        case .talkToLuna:      return String(localized: "shortcut.talk-to-coucou")
+        case .talkToLuna:      return String(localized: "shortcut.talk-to-luna")
         }
     }
 

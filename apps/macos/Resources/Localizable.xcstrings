@@ -10888,61 +10888,61 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "سيكتب:\n• ~/.claude/coucou/nb-hook\n• ~/.claude/settings.json (يُنشئ نسخة احتياطية أولاً)"
+            "value": "سيكتب:\n• ~/.claude/luna/luna-hook\n• ~/.claude/settings.json (يُنشئ نسخة احتياطية أولاً)"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "translated",
-            "value": "লিখবে:\n• ~/.claude/coucou/nb-hook\n• ~/.claude/settings.json (আগে ব্যাকআপ তৈরি হবে)"
+            "value": "লিখবে:\n• ~/.claude/luna/luna-hook\n• ~/.claude/settings.json (আগে ব্যাকআপ তৈরি হবে)"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Writes:\n• ~/.claude/coucou/nb-hook\n• ~/.claude/settings.json (backup created first)"
+            "value": "Writes:\n• ~/.claude/luna/luna-hook\n• ~/.claude/settings.json (backup created first)"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Escribirá:\n• ~/.claude/coucou/nb-hook\n• ~/.claude/settings.json (se crea una copia de seguridad primero)"
+            "value": "Escribirá:\n• ~/.claude/luna/luna-hook\n• ~/.claude/settings.json (se crea una copia de seguridad primero)"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Écrira :\n• ~/.claude/coucou/nb-hook\n• ~/.claude/settings.json (sauvegarde créée d'abord)"
+            "value": "Écrira :\n• ~/.claude/luna/luna-hook\n• ~/.claude/settings.json (sauvegarde créée d'abord)"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "लिखेगा:\n• ~/.claude/coucou/nb-hook\n• ~/.claude/settings.json (पहले बैकअप बनाया जाएगा)"
+            "value": "लिखेगा:\n• ~/.claude/luna/luna-hook\n• ~/.claude/settings.json (पहले बैकअप बनाया जाएगा)"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Akan menulis:\n• ~/.claude/coucou/nb-hook\n• ~/.claude/settings.json (backup dibuat terlebih dahulu)"
+            "value": "Akan menulis:\n• ~/.claude/luna/luna-hook\n• ~/.claude/settings.json (backup dibuat terlebih dahulu)"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vai escrever:\n• ~/.claude/coucou/nb-hook\n• ~/.claude/settings.json (backup criado antes)"
+            "value": "Vai escrever:\n• ~/.claude/luna/luna-hook\n• ~/.claude/settings.json (backup criado antes)"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Запишет:\n• ~/.claude/coucou/nb-hook\n• ~/.claude/settings.json (резервная копия создаётся сначала)"
+            "value": "Запишет:\n• ~/.claude/luna/luna-hook\n• ~/.claude/settings.json (резервная копия создаётся сначала)"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "将写入：\n• ~/.claude/coucou/nb-hook\n• ~/.claude/settings.json（先创建备份）"
+            "value": "将写入：\n• ~/.claude/luna/luna-hook\n• ~/.claude/settings.json（先创建备份）"
           }
         }
       }
@@ -15820,61 +15820,61 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ ملحق Hermes مثبَّت في ~/.hermes/plugins/coucou/"
+            "value": "✓ ملحق Hermes مثبَّت في ~/.hermes/plugins/luna/"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Hermes প্লাগইন ~/.hermes/plugins/coucou/-এ ইনস্টল হয়েছে"
+            "value": "✓ Hermes প্লাগইন ~/.hermes/plugins/luna/-এ ইনস্টল হয়েছে"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Hermes plugin installed in ~/.hermes/plugins/coucou/"
+            "value": "✓ Hermes plugin installed in ~/.hermes/plugins/luna/"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Plugin de Hermes instalado en ~/.hermes/plugins/coucou/"
+            "value": "✓ Plugin de Hermes instalado en ~/.hermes/plugins/luna/"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Plugin Hermes installé dans ~/.hermes/plugins/coucou/"
+            "value": "✓ Plugin Hermes installé dans ~/.hermes/plugins/luna/"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Hermes प्लगइन ~/.hermes/plugins/coucou/ में इंस्टॉल हुआ"
+            "value": "✓ Hermes प्लगइन ~/.hermes/plugins/luna/ में इंस्टॉल हुआ"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Plugin Hermes terpasang di ~/.hermes/plugins/coucou/"
+            "value": "✓ Plugin Hermes terpasang di ~/.hermes/plugins/luna/"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Plugin do Hermes instalado em ~/.hermes/plugins/coucou/"
+            "value": "✓ Plugin do Hermes instalado em ~/.hermes/plugins/luna/"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Плагин Hermes установлен в ~/.hermes/plugins/coucou/"
+            "value": "✓ Плагин Hermes установлен в ~/.hermes/plugins/luna/"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Hermes 插件已安装至 ~/.hermes/plugins/coucou/"
+            "value": "✓ Hermes 插件已安装至 ~/.hermes/plugins/luna/"
           }
         }
       }
@@ -19468,61 +19468,61 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ ملحق Amp مثبَّت في ~/.config/amp/plugins/coucou.ts"
+            "value": "✓ ملحق Amp مثبَّت في ~/.config/amp/plugins/luna.ts"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ ~/.config/amp/plugins/coucou.ts-এ Amp প্লাগইন ইনস্টল হয়েছে"
+            "value": "✓ ~/.config/amp/plugins/luna.ts-এ Amp প্লাগইন ইনস্টল হয়েছে"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Amp plugin installed in ~/.config/amp/plugins/coucou.ts"
+            "value": "✓ Amp plugin installed in ~/.config/amp/plugins/luna.ts"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Plugin de Amp instalado en ~/.config/amp/plugins/coucou.ts"
+            "value": "✓ Plugin de Amp instalado en ~/.config/amp/plugins/luna.ts"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Plugin Amp installé dans ~/.config/amp/plugins/coucou.ts"
+            "value": "✓ Plugin Amp installé dans ~/.config/amp/plugins/luna.ts"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ ~/.config/amp/plugins/coucou.ts में Amp प्लगइन इंस्टॉल हुआ"
+            "value": "✓ ~/.config/amp/plugins/luna.ts में Amp प्लगइन इंस्टॉल हुआ"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Plugin Amp terpasang di ~/.config/amp/plugins/coucou.ts"
+            "value": "✓ Plugin Amp terpasang di ~/.config/amp/plugins/luna.ts"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Plugin do Amp instalado em ~/.config/amp/plugins/coucou.ts"
+            "value": "✓ Plugin do Amp instalado em ~/.config/amp/plugins/luna.ts"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Плагин Amp установлен в ~/.config/amp/plugins/coucou.ts"
+            "value": "✓ Плагин Amp установлен в ~/.config/amp/plugins/luna.ts"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Amp 插件已安装至 ~/.config/amp/plugins/coucou.ts"
+            "value": "✓ Amp 插件已安装至 ~/.config/amp/plugins/luna.ts"
           }
         }
       }
@@ -19724,61 +19724,61 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ خطافات Copilot CLI مثبَّتة في ~/.copilot/hooks/coucou.json"
+            "value": "✓ خطافات Copilot CLI مثبَّتة في ~/.copilot/hooks/luna.json"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ ~/.copilot/hooks/coucou.json-এ Copilot CLI হুক ইনস্টল হয়েছে"
+            "value": "✓ ~/.copilot/hooks/luna.json-এ Copilot CLI হুক ইনস্টল হয়েছে"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Copilot CLI hooks installed in ~/.copilot/hooks/coucou.json"
+            "value": "✓ Copilot CLI hooks installed in ~/.copilot/hooks/luna.json"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Hooks de Copilot CLI instalados en ~/.copilot/hooks/coucou.json"
+            "value": "✓ Hooks de Copilot CLI instalados en ~/.copilot/hooks/luna.json"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Hooks Copilot CLI installés dans ~/.copilot/hooks/coucou.json"
+            "value": "✓ Hooks Copilot CLI installés dans ~/.copilot/hooks/luna.json"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ ~/.copilot/hooks/coucou.json में Copilot CLI हुक इंस्टॉल हुए"
+            "value": "✓ ~/.copilot/hooks/luna.json में Copilot CLI हुक इंस्टॉल हुए"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Hooks Copilot CLI terpasang di ~/.copilot/hooks/coucou.json"
+            "value": "✓ Hooks Copilot CLI terpasang di ~/.copilot/hooks/luna.json"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Hooks do Copilot CLI instalados em ~/.copilot/hooks/coucou.json"
+            "value": "✓ Hooks do Copilot CLI instalados em ~/.copilot/hooks/luna.json"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Хуки Copilot CLI установлены в ~/.copilot/hooks/coucou.json"
+            "value": "✓ Хуки Copilot CLI установлены в ~/.copilot/hooks/luna.json"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Copilot CLI Hooks 已安装至 ~/.copilot/hooks/coucou.json"
+            "value": "✓ Copilot CLI Hooks 已安装至 ~/.copilot/hooks/luna.json"
           }
         }
       }
@@ -21188,61 +21188,61 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ ملحق OpenCode مثبَّت في ~/.config/opencode/plugins/coucou.js"
+            "value": "✓ ملحق OpenCode مثبَّت في ~/.config/opencode/plugins/luna.js"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ ~/.config/opencode/plugins/coucou.js-এ OpenCode প্লাগইন ইনস্টল হয়েছে"
+            "value": "✓ ~/.config/opencode/plugins/luna.js-এ OpenCode প্লাগইন ইনস্টল হয়েছে"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ OpenCode plugin installed in ~/.config/opencode/plugins/coucou.js"
+            "value": "✓ OpenCode plugin installed in ~/.config/opencode/plugins/luna.js"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Plugin de OpenCode instalado en ~/.config/opencode/plugins/coucou.js"
+            "value": "✓ Plugin de OpenCode instalado en ~/.config/opencode/plugins/luna.js"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Plugin OpenCode installé dans ~/.config/opencode/plugins/coucou.js"
+            "value": "✓ Plugin OpenCode installé dans ~/.config/opencode/plugins/luna.js"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ ~/.config/opencode/plugins/coucou.js में OpenCode प्लगइन इंस्टॉल हुआ"
+            "value": "✓ ~/.config/opencode/plugins/luna.js में OpenCode प्लगइन इंस्टॉल हुआ"
           }
         },
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Plugin OpenCode terpasang di ~/.config/opencode/plugins/coucou.js"
+            "value": "✓ Plugin OpenCode terpasang di ~/.config/opencode/plugins/luna.js"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Plugin do OpenCode instalado em ~/.config/opencode/plugins/coucou.js"
+            "value": "✓ Plugin do OpenCode instalado em ~/.config/opencode/plugins/luna.js"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ Плагин OpenCode установлен в ~/.config/opencode/plugins/coucou.js"
+            "value": "✓ Плагин OpenCode установлен в ~/.config/opencode/plugins/luna.js"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "✓ OpenCode 插件已安装至 ~/.config/opencode/plugins/coucou.js"
+            "value": "✓ OpenCode 插件已安装至 ~/.config/opencode/plugins/luna.js"
           }
         }
       }
@@ -22399,7 +22399,7 @@
         }
       }
     },
-    "shortcut.talk-to-coucou": {
+    "shortcut.talk-to-luna": {
       "extractionState": "manual",
       "localizations": {
         "ar": {
