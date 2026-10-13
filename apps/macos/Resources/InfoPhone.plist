@@ -33,8 +33,8 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>3</string>
-	<key>CoucouAPNsEnvironment</key>
-	<string>$(COUCOU_APNS_ENV)</string>
+	<key>LunaAPNsEnvironment</key>
+	<string>$(LUNA_APNS_ENV)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>

@@ -11,7 +11,7 @@ options:
 # same for a Developer ID build with its provisioning profile
 # (scripts/cloud-test-build.sh); a Developer ID profile only allows the
 # Production CloudKit environment, so the iPhone joins it with the
-# CoucouPhoneProduction scheme. Release also compiles PHONE_LINK (the sync
+# LunaPhoneProduction scheme. Release also compiles PHONE_LINK (the sync
 # stays off until turned on in Settings); Debug stays unsigned without it.
 configs:
   Debug: debug
@@ -61,10 +61,10 @@ schemes:
       config: Debug
     archive:
       config: Release
-  CoucouAppStore:
+  LunaAppStore:
     build:
       targets:
-        CoucouAppStore: all
+        LunaAppStore: all
     run:
       config: Debug
     archive:
@@ -77,28 +77,28 @@ schemes:
       config: DebugCloud
     archive:
       config: Release
-  CoucouAppStoreCloud:
+  LunaAppStoreCloud:
     build:
       targets:
-        CoucouAppStore: all
+        LunaAppStore: all
     run:
       config: DebugCloud
     archive:
       config: Release
-  CoucouPhone:
+  LunaPhone:
     build:
       targets:
-        CoucouPhone: all
+        LunaPhone: all
     run:
       config: Debug
     archive:
       config: Release
   # Same iPhone app on the Production CloudKit environment, to talk to the
   # Developer ID build (scripts/cloud-test-build.sh), which can only use Production.
-  CoucouPhoneProduction:
+  LunaPhoneProduction:
     build:
       targets:
-        CoucouPhone: all
+        LunaPhone: all
     run:
       config: DebugCloud
     archive:
@@ -178,11 +178,11 @@ targets:
       - name: "Write Git Hash to Info.plist"
         script: |
           HASH=$(git -C "${SRCROOT}/.." rev-parse --short HEAD 2>/dev/null || echo "unknown")
-          /usr/libexec/PlistBuddy -c "Set :CoucouGitHash ${HASH}" "${TARGET_BUILD_DIR}/${INFOPLIST_PATH}" 2>/dev/null \
-            || /usr/libexec/PlistBuddy -c "Add :CoucouGitHash string ${HASH}" "${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
+          /usr/libexec/PlistBuddy -c "Set :LunaGitHash ${HASH}" "${TARGET_BUILD_DIR}/${INFOPLIST_PATH}" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Add :LunaGitHash string ${HASH}" "${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
         showEnvVars: false
 
-  CoucouAppStore:
+  LunaAppStore:
     type: application
     platform: macOS
     sources:
@@ -249,13 +249,13 @@ targets:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: "APPSTORE PHONE_LINK"
 
   # iPhone app. Same bundle ID as the Mac App Store build, for universal purchase.
-  CoucouPhone:
+  LunaPhone:
     type: application
     platform: iOS
     deploymentTarget: "18.0"
     dependencies:
-      - target: CoucouWidgets
-      - target: CoucouNotificationContent
+      - target: LunaWidgets
+      - target: LunaNotificationContent
     sources:
       - path: Sources/Phone
         type: group
@@ -308,7 +308,7 @@ targets:
             CFBundleURLSchemes:
               - luna
         # Which APNs environment the Live Activity tokens belong to (read by the Mac).
-        CoucouAPNsEnvironment: $(COUCOU_APNS_ENV)
+        LunaAPNsEnvironment: $(LUNA_APNS_ENV)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.luna.LunaPhone
@@ -318,7 +318,7 @@ targets:
         # Luna in other colors, picked in Settings (UIApplication.setAlternateIconName).
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIcon-Blue AppIcon-Green AppIcon-Purple AppIcon-Pink AppIcon-Graphite"
         ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: NO
-        COUCOU_APNS_ENV: production
+        LUNA_APNS_ENV: production
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MACCATALYST: NO
@@ -331,14 +331,14 @@ targets:
         OTHER_CODE_SIGN_FLAGS: ""
       configs:
         Debug:
-          COUCOU_APNS_ENV: development
+          LUNA_APNS_ENV: development
         DebugCloud:
           CODE_SIGN_ENTITLEMENTS: Resources/LunaPhoneProduction.entitlements
-          COUCOU_APNS_ENV: development
+          LUNA_APNS_ENV: development
 
   # Home Screen and Lock Screen widgets (Solo, Team, List, accessories). They
   # read the sessions the iPhone app saves to the shared App Group.
-  CoucouWidgets:
+  LunaWidgets:
     type: app-extension
     platform: iOS
     deploymentTarget: "18.0"
@@ -355,7 +355,7 @@ targets:
     info:
       path: Resources/InfoWidgets.plist
       properties:
-        CFBundleName: CoucouWidgets
+        CFBundleName: LunaWidgets
         CFBundleDisplayName: Luna
         CFBundleIdentifier: dev.luna.LunaPhone.Widgets
         CFBundleVersion: "3"
@@ -367,7 +367,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.luna.LunaPhone.Widgets
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) WIDGET_EXTENSION"
-        PRODUCT_NAME: CoucouWidgets
+        PRODUCT_NAME: LunaWidgets
         INFOPLIST_FILE: Resources/InfoWidgets.plist
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
         TARGETED_DEVICE_FAMILY: "1"
@@ -383,7 +383,7 @@ targets:
         APPLICATION_EXTENSION_API_ONLY: YES
 
   # The expanded approval notification: Luna alive, with the command.
-  CoucouNotificationContent:
+  LunaNotificationContent:
     type: app-extension
     platform: iOS
     deploymentTarget: "18.0"
@@ -397,7 +397,7 @@ targets:
     info:
       path: Resources/InfoNotificationContent.plist
       properties:
-        CFBundleName: CoucouNotificationContent
+        CFBundleName: LunaNotificationContent
         CFBundleDisplayName: Luna
         CFBundleIdentifier: dev.luna.LunaPhone.NotificationContent
         CFBundleVersion: "3"
@@ -407,13 +407,13 @@ targets:
           NSExtensionPointIdentifier: com.apple.usernotifications.content-extension
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationViewController
           NSExtensionAttributes:
-            UNNotificationExtensionCategory: COUCOU_APPROVAL
+            UNNotificationExtensionCategory: LUNA_APPROVAL
             UNNotificationExtensionInitialContentSizeRatio: 0.45
             UNNotificationExtensionDefaultContentHidden: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.luna.LunaPhone.NotificationContent
-        PRODUCT_NAME: CoucouNotificationContent
+        PRODUCT_NAME: LunaNotificationContent
         INFOPLIST_FILE: Resources/InfoNotificationContent.plist
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
         TARGETED_DEVICE_FAMILY: "1"

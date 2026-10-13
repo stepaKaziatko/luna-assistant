@@ -95,7 +95,7 @@ To run it from source on your own iPhone, the Mac app and the iPhone app have to
    ```bash
    cd NotchBuddy
    xcodegen
-   open NotchBuddy.xcodeproj   # scheme NotchBuddy for the Mac, CoucouPhone for the iPhone
+   open NotchBuddy.xcodeproj   # scheme NotchBuddy for the Mac, LunaPhone for the iPhone
    ```
 
 The name Coucou, Mochi, the icon and the sounds are not under the MIT license ([LICENSE-ASSETS.md](../LICENSE-ASSETS.md)): a build for yourself is fine; a build you share needs its own name and character.

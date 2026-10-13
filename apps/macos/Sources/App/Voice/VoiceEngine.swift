@@ -109,7 +109,7 @@ final class VoiceEngine: ObservableObject {
 
     private init() {
         lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
-        let buildHash = Bundle.main.object(forInfoDictionaryKey: "CoucouGitHash") as? String ?? "unknown"
+        let buildHash = Bundle.main.object(forInfoDictionaryKey: "LunaGitHash") as? String ?? "unknown"
         appendAppLog("nb.log", "[Voice] build \(buildHash)")
         observeSystemEvents()
         if isEnabled && !isPaused { startAudioPipeline() }

@@ -1,7 +1,7 @@
 import Foundation
 
 // The sessions the iPhone app hands to its widgets, through the App Group
-// container. Compiled into both the app and the CoucouWidgets extension.
+// container. Compiled into both the app and the LunaWidgets extension.
 
 struct SharedSession: Codable, Identifiable, Hashable, Sendable {
     let id: String          // pill ID

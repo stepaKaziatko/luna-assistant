@@ -42,7 +42,7 @@ enum PhoneSettings {
 /// Notification categories and their actions.
 enum NotificationActions {
     // Approvals: Allow and Deny answer right there (iOS asks to unlock first).
-    static let approvalCategory = "COUCOU_APPROVAL"
+    static let approvalCategory = "LUNA_APPROVAL"
     static let allow = "COUCOU_ALLOW"
     static let review = "COUCOU_REVIEW"
     static let deny = "COUCOU_DENY"

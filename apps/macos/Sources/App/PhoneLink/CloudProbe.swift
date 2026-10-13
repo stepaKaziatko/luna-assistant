@@ -39,7 +39,7 @@ final class CloudProbe {
 
     private var appLabel: String {
         #if APPSTORE
-        "CoucouAppStore"
+        "LunaAppStore"
         #else
         "Luna"
         #endif

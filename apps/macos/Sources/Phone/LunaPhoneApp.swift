@@ -7,7 +7,7 @@ import CloudKit
 // (SessionPublisher on the Mac, PhoneLink here).
 
 @main
-struct CoucouPhoneApp: App {
+struct LunaPhoneApp: App {
     @UIApplicationDelegateAdaptor(PhoneAppDelegate.self) var delegate
     @Environment(\.scenePhase) private var scenePhase
 
