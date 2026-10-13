@@ -5,7 +5,7 @@
 // relay signs a token with the key (a Worker secret) and forwards the push to
 // Apple. Nothing is stored and nothing is logged: no database, observability
 // off. The state holds no project name, command or path (see
-// MochiActivityState.swift), and the relay builds the push itself, so it can't
+// LunaActivityState.swift), and the relay builds the push itself, so it can't
 // be used to send arbitrary notifications.
 
 export interface Env {

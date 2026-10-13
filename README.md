@@ -64,14 +64,13 @@ Luna просит их по мере надобности и работает б
 |---|---|
 | `apps/macos/project.yml` | Описание Xcode-проекта для XcodeGen; `Luna.xcodeproj` из него генерируется |
 | `apps/macos/Sources/App/` | Mac-приложение: остров, хуки агентов (`HookServer.swift`), интеграции, настройки, голос (`Voice/`) |
-| `apps/macos/Sources/CoucouKit/` | Общее с iPhone: персонаж (`BotEngine`), каталог pill (`PillCatalog`), diff, модели |
+| `apps/macos/Sources/LunaKit/` | Общее с iPhone: персонаж (`BotEngine`), каталог pill (`PillCatalog`), diff, модели |
 | `apps/macos/Sources/Phone/`, `Widgets/`, `NotificationContent/` | iPhone-приложение, виджеты и карточка уведомления |
 | `apps/macos/Resources/` | `Localizable.xcstrings`, звуки, энтайтлменты, сгенерированные Info.plist |
 | `apps/macos/scripts/` | Сборка бандла, проверка запуска, генерация иконок и звуков |
 | `tests/`, `scripts/test-*.sh` | Тесты и скрипты их запуска |
 | `relay/` | Cloudflare Worker для пушей Live Activity на iPhone |
 | `docs/` | Спецификация острова, интеграции, агенты, голос, iPhone (по-английски и по-французски, из coucou) |
-| `design/prototype/` | HTML-прототип острова — визуальный эталон |
 | `scripts/` | Версия, выпуск, публикация релиза |
 
 ## Выпуск

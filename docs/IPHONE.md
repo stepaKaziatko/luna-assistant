@@ -82,7 +82,7 @@ Still stuck? [Open an issue](https://github.com/Louis-CFM/coucou/issues) or see 
 
 ## Build it yourself (developers)
 
-The iPhone app is in this repository (`NotchBuddy/Sources/Phone`, with its widgets in `Sources/Widgets` and the notification card in `Sources/NotificationContent`). It shares Mochi, the pills and the diff engine with the Mac through `Sources/CoucouKit`.
+The iPhone app is in this repository (`NotchBuddy/Sources/Phone`, with its widgets in `Sources/Widgets` and the notification card in `Sources/NotificationContent`). It shares Mochi, the pills and the diff engine with the Mac through `Sources/LunaKit`.
 
 To run it from source on your own iPhone, the Mac app and the iPhone app have to share **your own** iCloud container, because a container belongs to the Apple developer team that signs the app:
 

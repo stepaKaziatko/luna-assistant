@@ -260,7 +260,7 @@ targets:
       - path: Sources/Phone
         type: group
       # Shared with the Mac targets (they get it through Sources/).
-      - path: Sources/CoucouKit
+      - path: Sources/LunaKit
         type: group
       - path: PhoneAssets.xcassets
         buildPhase: resources
@@ -345,12 +345,12 @@ targets:
     sources:
       - path: Sources/Widgets
         type: group
-      - path: Sources/CoucouKit
+      - path: Sources/LunaKit
         type: group
       - path: Sources/Phone/SharedSessions.swift
       - path: Sources/Phone/MacStubs.swift
-      - path: Sources/Phone/MochiActivityAttributes.swift
-      - path: Sources/Phone/OpenLeadMochiIntent.swift
+      - path: Sources/Phone/LunaActivityAttributes.swift
+      - path: Sources/Phone/OpenLeadLunaIntent.swift
       - path: Sources/Phone/DenyApprovalIntent.swift
     info:
       path: Resources/InfoWidgets.plist
@@ -390,9 +390,9 @@ targets:
     sources:
       - path: Sources/NotificationContent
         type: group
-      - path: Sources/CoucouKit
+      - path: Sources/LunaKit
         type: group
-      - path: Sources/Phone/MochiLive.swift
+      - path: Sources/Phone/LunaLive.swift
       - path: Sources/Phone/MacStubs.swift
     info:
       path: Resources/InfoNotificationContent.plist

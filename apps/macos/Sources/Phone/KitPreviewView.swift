@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Step 3 check: CoucouKit (Luna, pills, diff, models) drawn on the iPhone
+/// Step 3 check: LunaKit (Luna, pills, diff, models) drawn on the iPhone
 /// with the Mac's own code.
 struct KitPreviewView: View {
     private let poses: [(BotState, EyeShape?, String)] = [
@@ -67,7 +67,7 @@ struct KitPreviewView: View {
                 }
             }
         }
-        .navigationTitle("CoucouKit")
+        .navigationTitle("LunaKit")
     }
 
     private func tileColor(_ index: Int) -> Color {

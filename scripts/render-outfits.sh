@@ -13,13 +13,13 @@ swiftc \
   -parse-as-library \
   -sdk "$SDK" \
   -target arm64-apple-macosx15.0 \
-  apps/macos/Sources/CoucouKit/IslandScreenGeometry.swift \
-  apps/macos/Sources/CoucouKit/IslandTypes.swift \
-  apps/macos/Sources/CoucouKit/MochiWardrobe.swift \
-  apps/macos/Sources/CoucouKit/LunaLook.swift \
-  apps/macos/Sources/CoucouKit/LunaFace.swift \
-  apps/macos/Sources/CoucouKit/BotEngine.swift \
-  apps/macos/Sources/CoucouKit/MochiOutfitDrawing.swift \
+  apps/macos/Sources/LunaKit/IslandScreenGeometry.swift \
+  apps/macos/Sources/LunaKit/IslandTypes.swift \
+  apps/macos/Sources/LunaKit/LunaWardrobe.swift \
+  apps/macos/Sources/LunaKit/LunaLook.swift \
+  apps/macos/Sources/LunaKit/LunaFace.swift \
+  apps/macos/Sources/LunaKit/BotEngine.swift \
+  apps/macos/Sources/LunaKit/LunaOutfitDrawing.swift \
   scripts/RenderStubs.swift \
   scripts/RenderOutfits.swift \
   -framework AppKit \

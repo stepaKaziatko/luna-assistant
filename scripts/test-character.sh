@@ -8,13 +8,13 @@ TEST_DIR="$(mktemp -d "${TMPDIR:-/tmp}/luna-character.XXXXXX")"
 trap 'rm -rf "$TEST_DIR"' EXIT
 SDK="$(xcrun --sdk macosx --show-sdk-path)"
 swiftc -parse-as-library -sdk "$SDK" \
-    apps/macos/Sources/CoucouKit/IslandScreenGeometry.swift \
-    apps/macos/Sources/CoucouKit/IslandTypes.swift \
-    apps/macos/Sources/CoucouKit/MochiWardrobe.swift \
-    apps/macos/Sources/CoucouKit/LunaLook.swift \
-    apps/macos/Sources/CoucouKit/LunaFace.swift \
-    apps/macos/Sources/CoucouKit/BotEngine.swift \
-    apps/macos/Sources/CoucouKit/MochiOutfitDrawing.swift \
+    apps/macos/Sources/LunaKit/IslandScreenGeometry.swift \
+    apps/macos/Sources/LunaKit/IslandTypes.swift \
+    apps/macos/Sources/LunaKit/LunaWardrobe.swift \
+    apps/macos/Sources/LunaKit/LunaLook.swift \
+    apps/macos/Sources/LunaKit/LunaFace.swift \
+    apps/macos/Sources/LunaKit/BotEngine.swift \
+    apps/macos/Sources/LunaKit/LunaOutfitDrawing.swift \
     scripts/RenderStubs.swift \
     tests/CharacterFrameTests.swift \
     -framework AppKit -framework SwiftUI \

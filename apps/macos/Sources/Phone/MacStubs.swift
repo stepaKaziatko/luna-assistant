@@ -1,6 +1,6 @@
 import Foundation
 
-// Stand-ins for Mac-only pieces that CoucouKit's BotEngine calls.
+// Stand-ins for Mac-only pieces that LunaKit's BotEngine calls.
 // The Mac app has the real ones (SoundEngine.swift, IslandWindowController.swift).
 
 /// Luna is silent on the iPhone.
