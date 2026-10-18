@@ -167,6 +167,27 @@ enum AgentSessionsTests {
                   b.snapshot(now: at(6)).isEmpty)
             b.apply(event: "PreToolUse", key: k, who: who("luna"), tool: "Read", step: "r", now: at(7))
             check("a tool call starts one", b.snapshot(now: at(8)).count == 1)
+
+            // Each event on its own session: one after another on a single key, a later
+            // SessionEnd would hide a tile that an earlier event wrongly created.
+            for (n, event) in ["Stop", "StopFailure", "Interrupt", "SessionEnd", "SubagentStop"].enumerated() {
+                var one = AgentSessionBook()
+                one.apply(event: event, key: key("ghost-\(n)"), who: who("luna"), finalText: "x",
+                          message: "?", now: at(0))
+                check("\(event) of a session never heard of creates no tile", one.snapshot(now: at(1)).isEmpty)
+            }
+        }
+
+        // ── since: the moment the phase changed ─────────────────────────────────
+        print("\nSince")
+        do {
+            let k = key("s")
+            var b = AgentSessionBook()
+            b.apply(event: "UserPromptSubmit", key: k, who: who("luna"), step: "go", now: at(0))
+            b.apply(event: "Stop", key: k, who: who("luna"), finalText: "done", now: at(100))
+            b.apply(event: "Notification", key: k, who: who("luna"), message: "hi", now: at(500))
+            check("since is the moment the turn ended, not of the later event",
+                  info(b, k, now: at(600))?.since == at(100))
         }
 
         // ── silence ─────────────────────────────────────────────────────────────
