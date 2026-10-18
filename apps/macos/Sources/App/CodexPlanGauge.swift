@@ -19,23 +19,7 @@ struct CodexPlanUsage {
 enum CodexPlanGauge {
 
     static func codexExecutable() -> String? {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        var candidates = [
-            "\(home)/.local/bin/codex",
-            "/opt/homebrew/bin/codex",
-            "/usr/local/bin/codex",
-            "\(home)/.npm-global/bin/codex",
-            "\(home)/.volta/bin/codex",
-            "\(home)/.bun/bin/codex",
-            "\(home)/Library/pnpm/codex",
-        ]
-        // nvm: one bin folder per Node version, newest first.
-        let nvmNode = "\(home)/.nvm/versions/node"
-        if let versions = try? FileManager.default.contentsOfDirectory(atPath: nvmNode) {
-            let sorted = versions.sorted { $0.compare($1, options: .numeric) == .orderedDescending }
-            candidates += sorted.map { "\(nvmNode)/\($0)/bin/codex" }
-        }
-        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+        CLIResolver.executable(.codex)
     }
 
     /// Runs `codex app-server` and asks for `account/rateLimits/read`. nil if Codex is missing or not signed in.

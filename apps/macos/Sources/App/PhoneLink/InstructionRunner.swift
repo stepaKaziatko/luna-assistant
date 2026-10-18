@@ -185,18 +185,9 @@ final class InstructionRunner {
         }
     }
 
-    /// Where `claude` usually lives; the app doesn't get the shell's PATH.
+    /// Where `claude` usually lives; the app doesn't get the shell's PATH (shared with the chat).
     static func claudeExecutable() -> String? {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let candidates = [
-            "\(home)/.claude/local/claude",
-            "\(home)/.local/bin/claude",
-            "/opt/homebrew/bin/claude",
-            "/usr/local/bin/claude",
-            "\(home)/.npm-global/bin/claude",
-            "\(home)/.bun/bin/claude",
-        ]
-        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+        CLIResolver.executable(.claude)
     }
 
     private func log(_ message: String) {
