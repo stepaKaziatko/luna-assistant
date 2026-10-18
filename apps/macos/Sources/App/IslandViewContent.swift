@@ -19,6 +19,7 @@ struct IslandViewContent: View {
         case .uploading: UploadingView(state: state)
         case .choose:    ChooseView(state: state)
         case .mail:      MailView(state: state)
+        case .agents:    AgentsView(state: state)
         case .prompt:    PromptView(state: state)
         case .searching: SearchingView(state: state)
         case .result:    ResultView(state: state)

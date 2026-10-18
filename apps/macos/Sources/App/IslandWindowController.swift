@@ -658,13 +658,10 @@ final class IslandWindowController: NSWindowController {
             expand(to: .prompt)
 
         case .goToAlert:
-            if state.pendingApproval != nil {
+            if let card = state.alertView {
                 islandPanel.makeKey()
-                fsm.openedExternally()
-                expand(to: .approval)
-            } else if state.pendingQuestion != nil {
-                islandPanel.makeKey()
-                expand(to: .question)
+                if card == .approval { fsm.openedExternally() }
+                expand(to: card)
             } else {
                 NotificationCenter.default.post(name: .triggerEmote, object: BotEmote.annoyed)
                 SoundEngine.shared.play("error")

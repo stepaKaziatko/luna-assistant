@@ -445,6 +445,34 @@ final class AppState: ObservableObject {
         didSet { QuestionLayout.height = pendingQuestion?.estimatedIslandHeight }
     }
 
+    // Agents page: one tile per live agent session, published by HookServer only when
+    // something visible changed (see AgentSessions.swift).
+    @Published private(set) var agentSessions: [AgentSessionInfo] = []
+
+    var agentsSummary: AgentsSummary { AgentsSummary(agentSessions) }
+
+    func setAgentSessions(_ sessions: [AgentSessionInfo]) {
+        if sessions != agentSessions { agentSessions = sessions }
+    }
+
+    /// The card that holds the request the app has now (permission first, as the queue head
+    /// is what ⌃⌥A shows), nil when no request waits.
+    var alertView: IslandView? {
+        if pendingApproval != nil { return .approval }
+        if pendingQuestion != nil { return .question }
+        return nil
+    }
+
+    /// The single entry point of a click on a tile. For now: a session that waits for you opens
+    /// the card of the request the app holds (the head of the queue when several wait); any other
+    /// tile does nothing. The preview of an agent replaces the body of this method.
+    func openAgent(id: String) {
+        guard let agent = agentSessions.first(where: { $0.id == id }),
+              agent.wait != nil, let card = alertView else { return }
+        view = card
+        lastActivity = .now
+    }
+
     // Per-pill flat list of FileDiffs, in order of reception.
     // Not @Published — steps[] changes already trigger redraws.
     var sessionDiffs: [String: [FileDiff]] = [:]

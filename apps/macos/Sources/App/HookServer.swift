@@ -57,6 +57,8 @@ final class HookServer: @unchecked Sendable {
     private var activeSessionId: String? = nil        // current Claude Code session
     private var focusBeforeApproval: String? = nil    // saved focus to restore after approval
     private var sessions = PillSessionRegistry()      // live sessions behind each pill
+    private var agentBook = AgentSessionBook()        // one tile per live session (Agents page)
+    private var questionOwner: AgentSessionKey? = nil // session that asked the pending question
 
     private init() {}
 
@@ -120,6 +122,7 @@ final class HookServer: @unchecked Sendable {
     @MainActor
     private func removeApproval(id: UUID, answer json: String? = nil, note: String? = nil) {
         guard let entry = approvals.remove(id: id) else { return }
+        defer { publishAgentSessions() }
         let source = approvalSources.removeValue(forKey: id)
         if let json {
             let fd = entry.fd
@@ -171,6 +174,7 @@ final class HookServer: @unchecked Sendable {
 
     @MainActor
     private func dismissQuestionCard(note: String) {
+        defer { publishAgentSessions() }
         cancelQuestionFDSource()
         pendingQuestionFD = -1
         let state = AppState.shared
@@ -231,6 +235,7 @@ final class HookServer: @unchecked Sendable {
     @MainActor
     func releaseQuestionFD() {
         guard pendingQuestionFD >= 0 else { return }
+        defer { publishAgentSessions() }
         let fd = pendingQuestionFD
         pendingQuestionFD = -1
         let source = questionFDSource
@@ -482,6 +487,13 @@ final class HookServer: @unchecked Sendable {
         let recapSessionId = (sessionId == "unknown" || sessionId.isEmpty)
             ? "\(agentId)+\(cwd)"
             : sessionId
+
+        // The Agents page: every event moves its session's tile, whatever happens to the pill
+        // below. "Waits for you" is not stored there — it is read off the queues at publish.
+        recordAgentEvent(name: name, payload: payload, pill: agentId, sessionId: sessionId,
+                         cwd: cwd, project: display.projectName, external: isExternalAgent,
+                         hostApp: hostApp, bundleId: bundleId)
+        defer { publishAgentSessions() }
 
         #if PHONE_LINK
         // The iPhone's "last turn" (prompt, actions, diffs, answer).
@@ -856,6 +868,10 @@ final class HookServer: @unchecked Sendable {
                                                         cwd: cwd, hostApp: terminalHost?.bundleId,
                                                         bundleId: bundleId),
                    working: true, externalAgent: nil)
+        recordAgentEvent(name: "PermissionRequest", payload: payload, pill: pillId, sessionId: sessionId,
+                         cwd: cwd, project: projectName,
+                         external: !isCodexRequest && Self.validateAgent(rawAgent) != nil,
+                         hostApp: terminalHost?.bundleId, bundleId: bundleId)
         state.updateTask(id: pillId, state: .approval)
         SoundEngine.shared.play("approval")
 
@@ -882,6 +898,7 @@ final class HookServer: @unchecked Sendable {
         }
 
         showApprovalHead()
+        publishAgentSessions()
     }
 
     /// Called by ApprovalView buttons and the iPhone. Writes the decision to the waiting
@@ -981,6 +998,7 @@ final class HookServer: @unchecked Sendable {
         pendingQuestionFD = fd
         activeSessionId = sessionId
         questionPillId = pillId
+        questionOwner = AgentSessionKey.make(pill: pillId, sessionId: sessionId, cwd: cwd)
         questionSessionId = (sessionId == "unknown" || sessionId.isEmpty)
             ? "\(pillId)+\(cwd)"
             : sessionId
@@ -990,6 +1008,10 @@ final class HookServer: @unchecked Sendable {
                                                         cwd: cwd, hostApp: terminalHost?.bundleId,
                                                         bundleId: bundleId),
                    working: true, externalAgent: nil)
+        recordAgentEvent(name: "Question", payload: payload, pill: pillId, sessionId: sessionId,
+                         cwd: cwd, project: projectName, external: false,
+                         hostApp: terminalHost?.bundleId, bundleId: bundleId)
+        publishAgentSessions()
         state.updateTask(id: pillId, state: .question)
         state.pendingQuestion = parsed
         state.isPinned = true
@@ -1022,6 +1044,83 @@ final class HookServer: @unchecked Sendable {
             }
             self.dismissQuestionCard(note: "")
         }
+    }
+
+    // MARK: - Agents page
+
+    /// Feeds one hook event to the session book. The step label is the localized one the pill
+    /// shows; the book decides what the event means for the session.
+    @MainActor
+    private func recordAgentEvent(name: String, payload: [String: Any], pill: String,
+                                  sessionId: String, cwd: String, project: String, external: Bool,
+                                  hostApp: String?, bundleId: String) {
+        let tool = payload["tool_name"] as? String ?? ""
+        let input = payload["tool_input"] as? [String: Any] ?? [:]
+        var step: String? = nil
+        var finalText: String? = nil
+        switch name {
+        case "UserPromptSubmit":
+            step = (payload["prompt"] as? String).map { String($0.prefix(60)) }
+        case "PreToolUse":
+            step = localizedStep(tool: tool.isEmpty ? "Tool" : tool, input: input)
+        case "PostToolUseFailure":
+            step = "⚠ failed"
+        case "SubagentStart":
+            step = "+ subagent"
+        case "SubagentStop":
+            step = "• subagent done"
+        case "Stop":
+            let raw = (payload["last_assistant_message"] as? String)
+                ?? (payload["message"] as? String) ?? ""
+            finalText = DiffEngine.toOneLine(raw)
+        default:
+            break
+        }
+        // A third-party agent has no cwd: its tile carries the agent's own name.
+        let who = AgentSessionWho(project: external ? Self.agentLabel(pill: pill) : project,
+                                  agent: Self.agentLabel(pill: pill),
+                                  hostBundleId: AgentHost.bundleId(pill: pill, reported: hostApp ?? bundleId))
+        agentBook.apply(event: name,
+                        key: AgentSessionKey.make(pill: pill, sessionId: sessionId, cwd: cwd),
+                        who: who, tool: tool, step: step, finalText: finalText,
+                        message: payload["message"] as? String ?? "")
+    }
+
+    /// "Claude Code", "Cursor", "Codex", "Gemini CLI"… for a tile.
+    private static func agentLabel(pill: String) -> String {
+        guard let def = PillCatalog.definition(for: pill) else {
+            return pill.hasPrefix("agent_") ? String(pill.dropFirst("agent_".count)) : pill
+        }
+        return def.sessionSubtitle == "Agent" ? def.name : def.sessionSubtitle
+    }
+
+    /// What the app holds for each session right now: a permission request in the queue, or the
+    /// question on the card. Read at every publish, so it cannot outlive its request.
+    @MainActor
+    private func currentAgentWaits() -> [AgentSessionKey: AgentWait] {
+        var waits: [AgentSessionKey: AgentWait] = [:]
+        for entry in approvals.entries {
+            let key = AgentSessionKey.make(pill: entry.pillId, sessionId: entry.sessionId, cwd: entry.cwd)
+            if waits[key] == nil { waits[key] = .permission(tool: entry.tool) }
+        }
+        if pendingQuestionFD >= 0, let owner = questionOwner, waits[owner] == nil {
+            waits[owner] = .question
+        }
+        return waits
+    }
+
+    /// Rebuilds the tiles and hands them to the page. `AppState` keeps the old value when
+    /// nothing visible changed, so the page redraws only for a real change. Runs on the main
+    /// thread and waits for nothing: the hook has already been answered.
+    @MainActor
+    func publishAgentSessions(now: Date = Date()) {
+        AppState.shared.setAgentSessions(agentBook.snapshot(waits: currentAgentWaits(), now: now))
+    }
+
+    /// The Agents page was shown: sessions that finished meanwhile are no longer news.
+    @MainActor
+    func markAgentsSeen() {
+        if agentBook.markFinishedSeen() { publishAgentSessions() }
     }
 
     /// "VS Code", "Warp"… — where the Claude Code pill's current session runs.

@@ -284,10 +284,12 @@ struct BotPlacement: View {
         let canvasSize = diameter / 0.6
         let overhang: CGFloat = 40
         let isUploading = state.view == .uploading
+        // The Agents page is a wall of tiles with a Luna each: the big one steps aside.
+        let hiddenByPage = state.mode == .expanded && state.view == .agents
 
         Group {
             // No glow in uploading mode — the tiny dot doesn't need it
-            if state.mode == .expanded && !isUploading {
+            if state.mode == .expanded && !isUploading && !hiddenByPage {
                 Circle()
                     .fill(RadialGradient(
                         gradient: Gradient(stops: [
@@ -328,9 +330,9 @@ struct BotPlacement: View {
                 .transition(.scale(scale: 0.01, anchor: .center).combined(with: .opacity))
             } else {
                 // Invisible while Luna lives on the desktop: no drawing either.
-                BotCanvasView(state: state, particleOverhang: overhang, paused: state.lunaOnDesktop)
+                BotCanvasView(state: state, particleOverhang: overhang, paused: state.lunaOnDesktop || hiddenByPage)
                     .frame(width: canvasSize, height: canvasSize + overhang)
-                    .opacity(state.isDraggingBot || state.lunaOnDesktop ? 0 : opacity)
+                    .opacity(state.isDraggingBot || state.lunaOnDesktop || hiddenByPage ? 0 : opacity)
                     .position(x: cx, y: cy - overhang / 2)
                     .animation(.spring(response: 0.5, dampingFraction: 0.72), value: cx)
                     .animation(.spring(response: 0.5, dampingFraction: 0.72), value: cy)
@@ -492,7 +494,7 @@ struct IslandContentView: View {
                     // Views that fill available height instead of the fixed 98pt content frame:
                     // chat (prompt) is always flexible; mail is flexible only when active so
                     // it doesn't push the ZStack taller when inactive.
-                    let isTall = v == .prompt || (v == .mail && active)
+                    let isTall = v == .prompt || ((v == .mail || v == .agents) && active)
                     let anim: Animation = active
                         ? .spring(response: 0.4, dampingFraction: 0.8).delay(0.16)
                         : .easeIn(duration: 0.16)
@@ -534,6 +536,7 @@ struct IslandHeader: View {
             // Left: tab capsules
             HStack(spacing: 5) {
                 TabButton(icon: "house.fill", view: .overview, state: state)
+                TabButton(icon: "square.grid.2x2.fill", view: .agents, state: state)
                 TabButton(icon: "bubble.left.fill", view: .prompt, state: state, preAction: {
                     #if !APPSTORE
                     if state.promptContext == nil {
