@@ -103,9 +103,40 @@ The GitHub build exposes Gemini CLI (`agent_gemini`), Antigravity (`agent_antigr
 GitHub Copilot CLI (`agent_copilot`), Muse Code (`agent_muse`), OpenCode (`agent_opencode`),
 Amp (`agent_amp`) and Hermes (`agent_hermes`) in Settings → Active pills. Cursor (`agent_cursor`) and Codex
 (`agent_codex`, GitHub build only) are there too — their pills can be declared and set as
-the main pill; session support is coming in a future version.
+the main pill. Their sessions are followed like any other: Claude Code in Cursor and Codex both
+send approval and question cards to the notch, and every session of them shows on the Agents page.
 
 Claude Desktop (`agent_claude-desktop`, every build) is there as well. Claude Code sessions started from the Claude desktop app's Code tab carry `CLAUDE_CODE_ENTRYPOINT=claude-desktop`; the relay tags them `luna_agent: claude-desktop` on its own (an explicit `--agent` still wins), so nothing extra is installed. Declare the pill to keep it after the session ends; the ↗ button opens the Claude app.
+
+## The Agents page
+
+The second tab of the island header lists the live agent sessions, one tile per session — not
+per pill, so two Claude Code sessions in two projects under one VS Code are two tiles. A tile
+shows the agent's Luna, the project (the agent's own name for a third-party agent, which sends no
+`cwd`), the agent and the app it runs in (icon from the `bundle_id` of the event), the last five
+steps as icons (newest on the right) and a status line.
+
+| State | Tile |
+|---|---|
+| Waits for you (a permission request or a question the notch holds) | first, orange frame, "Waiting: permission Bash" / "Waiting: question" |
+| Error (`StopFailure`) | red frame |
+| Turn finished (`Stop`, Gemini's `AfterAgent`) | green frame until the page has been shown, then quiet |
+| Working (`UserPromptSubmit`, `PreToolUse`…) | blue frame, the last step as the status |
+| Open, no turn (`SessionStart`, `Interrupt`) | quiet |
+
+Where the data comes from: the hook events in this document (`PillSessionRegistry` still decides
+what a turn-ending event may do to a pill; `AgentSessionBook` in `AgentSessions.swift` keeps the
+sessions and their steps). "Waits for you" is read off the approval queue and the question on the
+card when the tiles are built, so it goes away on its own when the request is answered, times out
+or is taken back by the agent. Only requests the notch actually holds count: a terminal session
+asks the notch only with "Answer questions and permissions from terminal sessions" on, and a
+third-party agent never does.
+
+A session leaves the page on `SessionEnd`, after two hours without an event between turns
+(some agents never send `SessionEnd`), or after twelve hours at the latest; a turn that sends
+nothing for 30 minutes no longer counts as working. A `Stop` of a session Luna never heard
+start creates no tile. Claude Code in an editor or terminal Luna does not know (JetBrains,
+Windsurf…) is ignored, as everywhere.
 
 ## Real-world examples
 
