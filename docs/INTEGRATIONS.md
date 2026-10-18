@@ -262,6 +262,19 @@ Permissions : Enregistrement de l'écran (capture) et Automatisation (navigateur
 
 ---
 
+## 5ter. Claude Code (abonnement)
+
+Source du chat qui lance le CLI `claude` installé par l'utilisateur, sans clé API (build GitHub uniquement, `#if !APPSTORE`). Fichiers : `ChatCLI.swift` (recherche du binaire, état de connexion, choix de la source, étiquette), `ClaudeStreamParser.swift` (flux `stream-json`), `ClaudeCLIChat.swift` (sous-processus), `ChatCLIMessages.swift` (messages d'erreur).
+
+- **État** : `claude auth status` (JSON, 5 s, en arrière-plan, à l'ouverture du chat ou des réglages — jamais au lancement). « Abonnement » seulement si `authMethod == "claude.ai"`.
+- **Requête** : `claude -p --output-format stream-json --verbose --include-partial-messages --safe-mode --strict-mcp-config --tools WebSearch,WebFetch --allowedTools WebSearch,WebFetch --system-prompt <prompt Luna> [--model m] (--session-id <uuid> | --resume <uuid>)`. La question passe par stdin. Jamais `--bare` (désactive l'abonnement) ni `--dangerously-skip-permissions`.
+- **Environnement** : `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` et les marqueurs de session parente (`CLAUDECODE`, `CLAUDE_CODE_*`) sont retirés : le CLI ne bascule pas en silence sur une facturation à la clé.
+- **Session** : propre au chat (uuid de Luna, dossier `~/Library/Application Support/Luna/chat`) ; « Nouvelle conversation » en démarre une autre. Les sessions d'agents en cours ne sont jamais reprises. `--safe-mode` coupe les hooks : la réponse du chat n'apparaît pas dans l'île comme une session d'agent.
+- **Arrêt** : « Nouvelle conversation », sortie de Luna et SIGTERM terminent le sous-processus ; 120 s sans sortie = abandon avec message.
+- **Pas de clé Anthropic mais Claude Code prêt** : la note propose de répondre par abonnement au lieu de « API key missing ». Premier lancement (pas de `chatProvider` enregistré, pas de clé Anthropic) : Claude Code prêt est choisi ; un choix explicite n'est jamais remplacé.
+
+---
+
 ## 5bis. Autres fournisseurs du chat (Google AI, OpenAI)
 
 Clés dans Settings → Chat — other providers (Trousseau : `google-api-key`, `openai-api-key`). La liste des modèles est récupérée à l'ouverture du chat selon le fournisseur :

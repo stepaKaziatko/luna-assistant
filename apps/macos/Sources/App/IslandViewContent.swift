@@ -1348,7 +1348,7 @@ struct PromptView: View {
                             Circle()
                                 .fill(Color(hex: state.chatProvider.accentHex))
                                 .frame(width: 6, height: 6)
-                            Text(state.activeChatModel)
+                            Text(state.activeChatModelLabel)
                                 .font(.system(size: 10.5, weight: .medium))
                                 .foregroundColor(Color(hex: "#7B8089"))
                             Image(systemName: "chevron.up.chevron.down")

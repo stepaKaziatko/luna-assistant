@@ -295,6 +295,13 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Подпись на кнопке модели над полем ввода: у CLI «default» ничего не говорит — пишем «Claude Code».
+    var activeChatModelLabel: String {
+        guard chatProvider.isCLI else { return activeChatModel }
+        return claudeCodeChatModel == ClaudeCodeModels.defaultID
+            ? chatProvider.displayName : "\(chatProvider.displayName) · \(claudeCodeChatModel)"
+    }
+
     // Sound volume (0–0.2) — persisted, synced to SoundEngine
     @Published var soundVolume: Double = 0.12 {
         didSet {
