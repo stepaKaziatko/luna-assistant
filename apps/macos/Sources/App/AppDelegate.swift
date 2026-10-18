@@ -10,11 +10,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         DemoEngine.shared.stop()
         HotKeyCenter.shared.unregisterAll()
+        #if !APPSTORE
+        ClaudeCLIProcess.terminateAll()   // ни одного осиротевшего `claude` после выхода
+        #endif
     }
+
+    #if !APPSTORE
+    private var sigtermSource: (any DispatchSourceSignal)?
+
+    /// `pkill Luna` и выключение системы шлют SIGTERM: без перехвата Cocoa-приложение умирает, не
+    /// вызвав `applicationWillTerminate`, и запущенный `claude` остаётся на фоне.
+    private func installTerminationHandler() {
+        sigtermSource = Self.makeTerminationSource()
+    }
+
+    // nonisolated: обработчик идёт на глобальной очереди, а не на главном акторе.
+    private nonisolated static func makeTerminationSource() -> any DispatchSourceSignal {
+        signal(SIGTERM, SIG_IGN)
+        let source = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .global())
+        source.setEventHandler {
+            ClaudeCLIProcess.terminateAll()
+            DispatchQueue.main.async { MainActor.assumeIsolated { NSApp.terminate(nil) } }
+            // Главный поток завис — выходим сами.
+            DispatchQueue.global().asyncAfter(deadline: .now() + 2) { exit(0) }
+        }
+        source.resume()
+        return source
+    }
+    #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Ignore SIGPIPE — prevents crash when luna-hook closes socket before we write response
         signal(SIGPIPE, SIG_IGN)
+        #if !APPSTORE
+        installTerminationHandler()
+        #endif
         // Warm up Keychain cache on main thread BEFORE any poller or view touches it
         _ = KeychainStore.shared
         NSApp.setActivationPolicy(.accessory)

@@ -94,6 +94,7 @@ enum AgentSource: Equatable {
 
 enum ChatProvider: String, CaseIterable, Codable {
     case anthropic = "anthropic"
+    case claudeCode = "claude_code"   // установленный Claude Code CLI, вход по подписке
     case google    = "google"
     case openai    = "openai"
     case ollama    = "ollama"
@@ -102,6 +103,7 @@ enum ChatProvider: String, CaseIterable, Codable {
     var displayName: String {
         switch self {
         case .anthropic: "Anthropic"
+        case .claudeCode: "Claude Code"
         case .google:    "Google"
         case .openai:    "OpenAI"
         case .ollama:    "Ollama"
@@ -112,6 +114,7 @@ enum ChatProvider: String, CaseIterable, Codable {
     var accentHex: String {
         switch self {
         case .anthropic: "#E07950"
+        case .claudeCode: "#D97757"
         case .google:    "#4285F4"
         case .openai:    "#10A37F"
         case .ollama:    "#FACC15"
@@ -122,6 +125,7 @@ enum ChatProvider: String, CaseIterable, Codable {
     var defaultModel: String {
         switch self {
         case .anthropic: "claude-sonnet-4-6"
+        case .claudeCode: "default"
         case .google:    "gemini-2.0-flash"
         case .openai:    "gpt-4o"
         case .ollama:    "llama3.2"
@@ -132,6 +136,7 @@ enum ChatProvider: String, CaseIterable, Codable {
     var keychainKey: String {
         switch self {
         case .anthropic: "anthropic-api-key"
+        case .claudeCode: ""
         case .google:    "google-api-key"
         case .openai:    "openai-api-key"
         case .ollama:    ""
@@ -143,9 +148,15 @@ enum ChatProvider: String, CaseIterable, Codable {
         self == .ollama || self == .lmstudio
     }
 
+    /// Отвечает установленный CLI по подписке: ни ключа, ни адреса сервера не нужно.
+    var isCLI: Bool {
+        self == .claudeCode
+    }
+
     var pillID: String {
         switch self {
         case .anthropic: "ai_anthropic"
+        case .claudeCode: "ai_claude_code"   // pill в каталоге не заводится: init(pillID:) его не знает
         case .google:    "ai_google"
         case .openai:    "ai_openai"
         case .ollama:    "ai_ollama"

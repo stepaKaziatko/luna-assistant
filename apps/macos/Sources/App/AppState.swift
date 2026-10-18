@@ -124,6 +124,49 @@ final class AppState: ObservableObject {
     @Published var chatProvider: ChatProvider = .anthropic {
         didSet { UserDefaults.standard.set(chatProvider.rawValue, forKey: "chatProvider") }
     }
+    /// Модель Claude Code (алиас `--model`): "default" — как настроено в самом CLI.
+    @Published var claudeCodeChatModel: String = ChatProvider.claudeCode.defaultModel {
+        didSet { UserDefaults.standard.set(claudeCodeChatModel, forKey: "claudeCodeChatModel") }
+    }
+    /// Состояние Claude Code (`claude auth status`): обновляется при открытии чата и настроек,
+    /// не при запуске приложения.
+    @Published var claudeCodeStatus: CLIStatus = .unknown
+    private var claudeCodeCheckedAt: Date?
+    private var claudeCodeChecking = false
+
+    /// Проверяет вход в фоне. Результат кэшируется на 30 с; `force` — по кнопке «Проверить».
+    func refreshClaudeCodeStatus(force: Bool = false) {
+        #if !APPSTORE
+        guard !claudeCodeChecking else { return }
+        if !force, let at = claudeCodeCheckedAt, Date().timeIntervalSince(at) < 30 { return }
+        claudeCodeChecking = true
+        Task {
+            let status = await ClaudeAuthProbe.check()
+            claudeCodeChecking = false
+            claudeCodeCheckedAt = Date()
+            claudeCodeStatus = status
+            // Первый запуск: готовый Claude Code выбирается сам. Явный выбор — никогда.
+            if ChatSourceSelection.shouldAutoSelectClaudeCode(
+                savedProvider: UserDefaults.standard.string(forKey: "chatProvider"),
+                claude: status,
+                hasAnthropicKey: !(KeychainStore.shared.get("anthropic-api-key") ?? "").isEmpty) {
+                chatProvider = .claudeCode
+            }
+        }
+        #endif
+    }
+
+    /// Состояние для решения «что делать с вопросом»: если ещё не проверяли — проверяем сейчас.
+    func resolvedClaudeCodeStatus() async -> CLIStatus {
+        #if !APPSTORE
+        if claudeCodeStatus == .unknown {
+            claudeCodeStatus = await ClaudeAuthProbe.check()
+            claudeCodeCheckedAt = Date()
+        }
+        #endif
+        return claudeCodeStatus
+    }
+
     @Published var googleChatModel: String = ChatProvider.google.defaultModel {
         didSet { UserDefaults.standard.set(googleChatModel, forKey: "googleChatModel") }
     }
@@ -158,6 +201,15 @@ final class AppState: ObservableObject {
     func fetchModelsIfNeeded(for provider: ChatProvider) {
         guard !loadingProviderModels.contains(provider),
               fetchedProviderModels[provider] == nil else { return }
+        // CLI-источник: список статический (алиасы --model), CLI не опрашивается.
+        if provider.isCLI {
+            fetchedProviderModels[provider] = ClaudeCodeModels.ids.map {
+                (id: $0, label: $0 == ClaudeCodeModels.defaultID
+                    ? String(localized: "chat.cli.model.default", defaultValue: "Default (CLI setting)")
+                    : $0)
+            }
+            return
+        }
         // Local providers: fetch from server URL (no API key needed)
         if provider.isLocal {
             let baseURL = provider == .ollama ? ollamaServerURL : lmstudioServerURL
@@ -205,7 +257,7 @@ final class AppState: ObservableObject {
             case .anthropic: models = await ClaudeService.fetchModels(apiKey: apiKey)
             case .google:    models = await ClaudeService.fetchGoogleModels(apiKey: apiKey)
             case .openai:    models = await ClaudeService.fetchOpenAIModels(apiKey: apiKey)
-            case .ollama, .lmstudio: models = []  // handled above
+            case .ollama, .lmstudio, .claudeCode: models = []  // handled above
             }
             loadingProviderModels.remove(provider)
             if models.isEmpty {
@@ -225,7 +277,7 @@ final class AppState: ObservableObject {
                     if !models.contains(where: { $0.id == openAIChatModel }) {
                         openAIChatModel = models.first(where: { $0.id.contains("mini") })?.id ?? models.first!.id
                     }
-                case .ollama, .lmstudio: break
+                case .ollama, .lmstudio, .claudeCode: break
                 }
             }
         }
@@ -235,6 +287,7 @@ final class AppState: ObservableObject {
     var activeChatModel: String {
         switch chatProvider {
         case .anthropic: return claudeModel
+        case .claudeCode: return claudeCodeChatModel
         case .google:    return googleChatModel
         case .openai:    return openAIChatModel
         case .ollama:    return ollamaChatModel
@@ -268,6 +321,8 @@ final class AppState: ObservableObject {
 
     // Short note message (shown in NoteView)
     @Published var noteMessage: String? = nil
+    /// Кнопка под заметкой (например, «ответить по ключу API» после сбоя подписки).
+    @Published var noteAction: NoteAction? = nil
 
     // Auto-close delay — persisted
     // Hovering the island opens it (folds shortly after the pointer leaves) — persisted, off by default
@@ -500,6 +555,7 @@ final class AppState: ObservableObject {
         if let v = ud.string(forKey: "claudeModel"),
            !v.trimmingCharacters(in: .whitespaces).isEmpty { claudeModel = v }
         if let v = ud.string(forKey: "chatProvider"), let p = ChatProvider(rawValue: v) { chatProvider = p }
+        if let v = ud.string(forKey: "claudeCodeChatModel"), !v.isEmpty { claudeCodeChatModel = v }
         if let v = ud.string(forKey: "googleChatModel"), !v.isEmpty { googleChatModel = v }
         if let v = ud.string(forKey: "openAIChatModel"), !v.isEmpty { openAIChatModel = v }
         if let v = ud.string(forKey: "ollamaChatModel"), !v.isEmpty { ollamaChatModel = v }
@@ -893,4 +949,13 @@ struct ChatMessage: Identifiable, Equatable {
     let id = UUID()
     let role: ChatRole
     var content: String   // var for streaming updates
+    /// Чем отвечено: «Claude Code · подписка · sonnet». nil — без подписи (сообщения пользователя, старый путь).
+    var source: String? = nil
+}
+
+/// Действие под заметкой: переключить источник чата и повторить вопрос.
+struct NoteAction: Equatable {
+    let title: String
+    let provider: ChatProvider
+    let query: String
 }

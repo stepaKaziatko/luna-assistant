@@ -189,7 +189,22 @@ final class ClaudeService {
 
     func clearConversation() {
         conversationMessages = []
+        #if !APPSTORE
+        // «Новый разговор»: идущий ответ Claude Code прекращается, следующий вопрос — новая сессия.
+        cliRun?.cancel()
+        cliSessionID = Self.newCLISessionID()
+        cliSessionStarted = false
+        #endif
     }
+
+    #if !APPSTORE
+    // Claude Code: своя сессия чата (не чужая идущая сессия агента) и идущий запуск.
+    private var cliSessionID = ClaudeService.newCLISessionID()
+    private var cliSessionStarted = false
+    private var cliRun: ClaudeCLIProcess?
+
+    private static func newCLISessionID() -> String { UUID().uuidString.lowercased() }
+    #endif
 
     /// Resolved once: NSFullUserName() is a system call, and the name cannot change under us
     /// while the app runs.
@@ -224,12 +239,25 @@ final class ClaudeService {
             state.stateOverride = nil
             return
         }
+        if state.chatProvider == .claudeCode {
+            await chatClaudeCode(query: query, context: context, state: state)
+            return
+        }
         guard state.chatProvider == .anthropic else {
             await chatOpenAICompatible(query: query, context: context, state: state)
             return
         }
         guard let key = apiKey, !key.isEmpty else {
-            await showError("API key missing. Open settings.", state: state)
+            // Нет ключа, но Claude Code готов: предлагаем подписку вместо «API key missing».
+            let claude = await state.resolvedClaudeCodeStatus()
+            switch ChatSourceSelection.adviceForMissingAnthropicKey(claude: claude) {
+            case .offerClaudeCode:
+                await showError(ChatCLIMessages.offerClaudeCode, state: state,
+                                action: NoteAction(title: ChatCLIMessages.offerClaudeCodeButton,
+                                                   provider: .claudeCode, query: query))
+            case .keyMissing:
+                await showError("API key missing. Open settings.", state: state)
+            }
             return
         }
 
@@ -275,7 +303,7 @@ final class ClaudeService {
 
     func chatOpenAICompatible(query: String, context: PromptContext?, state: AppState) async {
         let provider = state.chatProvider
-        guard provider != .anthropic else { return }
+        guard provider != .anthropic, provider != .claudeCode else { return }
 
         let baseURL: String
         if provider == .ollama {
@@ -286,7 +314,7 @@ final class ClaudeService {
             switch provider {
             case .google:  baseURL = "https://generativelanguage.googleapis.com/v1beta/openai"
             case .openai:  baseURL = "https://api.openai.com/v1"
-            case .anthropic, .ollama, .lmstudio: baseURL = ""
+            case .anthropic, .claudeCode, .ollama, .lmstudio: baseURL = ""
             }
         }
 
@@ -366,7 +394,7 @@ final class ClaudeService {
 
         if useStream {
             // Add placeholder (hidden until first token via ChatBubble empty-content guard)
-            let placeholder = ChatMessage(role: .assistant, content: "")
+            let placeholder = ChatMessage(role: .assistant, content: "", source: sourceLabel(for: provider, model: state.activeChatModel))
             let msgId = placeholder.id
             state.chatHistory.append(placeholder)
             state.stateOverride = .thinking
@@ -439,7 +467,8 @@ final class ClaudeService {
                 }
                 let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
                 conversationMessages.append(["role": "assistant", "content": trimmed])
-                state.chatHistory.append(ChatMessage(role: .assistant, content: trimmed))
+                state.chatHistory.append(ChatMessage(role: .assistant, content: trimmed,
+                                                     source: sourceLabel(for: provider, model: state.activeChatModel)))
                 state.stateOverride = nil
                 state.view = .prompt
                 NotificationCenter.default.post(name: .triggerEmote, object: BotEmote.happy)
@@ -449,6 +478,109 @@ final class ClaudeService {
             }
         }
     }
+
+
+    // MARK: - Claude Code (подписка)
+
+    #if APPSTORE
+    private func chatClaudeCode(query: String, context: PromptContext?, state: AppState) async {
+        await showError(ChatCLIMessages.text(for: .unavailable, hasAPIKey: false), state: state)
+    }
+    #else
+    /// Вопрос чата → `claude -p` по подписке, ответ стримится в пузырь. Сбои — заметка с подсказкой.
+    private func chatClaudeCode(query: String, context: PromptContext?, state: AppState) async {
+        let hasKey = !(apiKey ?? "").isEmpty
+        func fail(_ error: ClaudeCLIError) async {
+            // Сессия не состоялась — следующий ход начнёт новую, а не «возобновит» несуществующую.
+            if !cliSessionStarted { cliSessionID = Self.newCLISessionID() }
+            let action = ChatCLIMessages.suggestsAPIKey(error) && hasKey
+                ? NoteAction(title: ChatCLIMessages.useAPIKeyButton, provider: .anthropic, query: query) : nil
+            await showError(ChatCLIMessages.text(for: error, hasAPIKey: hasKey), state: state, action: action)
+        }
+
+        // Один запуск за раз: два хода одной сессии одновременно ломают друг друга.
+        while cliRun != nil { try? await Task.sleep(for: .milliseconds(100)) }
+
+        guard let executable = CLIResolver.executable(.claude) else {
+            state.claudeCodeStatus = .missing
+            await fail(.notFound)
+            return
+        }
+        if !state.claudeCodeStatus.isReady {
+            state.claudeCodeStatus = await ClaudeAuthProbe.check()   // для подписи; запуск не блокирует
+        }
+
+        // Контекст окна или файла — только в первом ходе сессии, как у API.
+        var window: (app: String, title: String, url: String?)?
+        var file: ChatCLIPrompt.FileContext?
+        if !cliSessionStarted, let context {
+            switch context {
+            case .window(let app, let title, let url):
+                window = (app, title, url)
+            case .file(let name, let fileURL):
+                file = ChatCLIPrompt.fileContext(
+                    name: name,
+                    fileExtension: fileURL?.pathExtension ?? "",
+                    data: fileURL.flatMap { try? Data(contentsOf: $0) })
+            }
+        }
+        let prompt = ChatCLIPrompt.build(query: query, window: window, file: file)
+
+        let source = ChatSourceLabel.claudeCode(
+            model: state.claudeCodeChatModel, status: state.claudeCodeStatus,
+            subscriptionWord: ChatCLIMessages.subscriptionWord)
+        let placeholder = ChatMessage(role: .assistant, content: "", source: source)
+        let msgId = placeholder.id
+        state.chatHistory.append(placeholder)
+        state.stateOverride = .thinking
+
+        let process = ClaudeCLIProcess()
+        cliRun = process
+        let resume = cliSessionStarted
+        let request = ClaudeCLIRequest(
+            executable: executable,
+            prompt: prompt,
+            systemPrompt: systemPrompt,
+            model: ClaudeCodeModels.cliModel(for: state.claudeCodeChatModel),
+            sessionID: cliSessionID,
+            resume: resume,
+            workingDirectory: ClaudeCLIChatFolder.url,
+            environment: CLIResolver.environment(base: ProcessInfo.processInfo.environment, executable: executable))
+        let result = await process.run(request) { [state] visible in
+            // Очередь main — FIFO: куски ответа приходят в порядке вывода.
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    if !visible.isEmpty, state.stateOverride == .thinking { state.stateOverride = nil }
+                    if let idx = state.chatHistory.firstIndex(where: { $0.id == msgId }) {
+                        state.chatHistory[idx].content = visible
+                    }
+                }
+            }
+        }
+        if cliRun === process { cliRun = nil }
+
+        switch result {
+        case .success(let text):
+            cliSessionStarted = true
+            if let idx = state.chatHistory.firstIndex(where: { $0.id == msgId }) {
+                state.chatHistory[idx].content = text
+            }
+            state.stateOverride = nil
+            state.view = .prompt
+            NotificationCenter.default.post(name: .triggerEmote, object: BotEmote.happy)
+        case .failure(.cancelled):
+            // «Новый разговор» или выход: история уже очищена, состояние принадлежит новому вопросу.
+            state.chatHistory.removeAll { $0.id == msgId }
+            if cliRun == nil, state.stateOverride == .thinking { state.stateOverride = nil }
+        case .failure(let error):
+            state.chatHistory.removeAll { $0.id == msgId }
+            state.stateOverride = nil
+            if error == .notFound { state.claudeCodeStatus = .missing }
+            if error == .notLoggedIn { state.claudeCodeStatus = .notLoggedIn }
+            await fail(error)
+        }
+    }
+    #endif
 
     // MARK: - Structured search (M8 — window attach + web search)
 
@@ -641,7 +773,8 @@ final class ClaudeService {
         }
 
         // Add to display history
-        state.chatHistory.append(ChatMessage(role: .assistant, content: text))
+        state.chatHistory.append(ChatMessage(role: .assistant, content: text,
+                                             source: sourceLabel(for: .anthropic, model: model)))
 
         state.stateOverride = nil
         state.view = .prompt
@@ -698,10 +831,16 @@ final class ClaudeService {
         NotificationCenter.default.post(name: .triggerEmote, object: BotEmote.proud)
     }
 
-    private func showError(_ message: String, state: AppState) async {
+    private func showError(_ message: String, state: AppState, action: NoteAction? = nil) async {
         state.stateOverride = .error
         state.noteMessage = message
+        state.noteAction = action
         state.view = .note
+    }
+
+    /// Подпись под ответом: чем отвечено. Ключевые API — «Anthropic API · модель», локальные — «Ollama · модель».
+    private func sourceLabel(for provider: ChatProvider, model: String) -> String {
+        ChatSourceLabel.api(name: provider.displayName, isLocal: provider.isLocal, model: model)
     }
 
     // MARK: - File content block builder

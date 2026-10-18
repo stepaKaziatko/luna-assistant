@@ -27294,6 +27294,470 @@
           }
         }
       }
+    },
+    "chat.cli.description": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luna runs the Claude Code you installed (`claude -p`) for each chat question, in its own session. Web search is on; your files and shell are not available to it. The conversation is saved by Claude Code in ~/.claude/projects."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luna запускает установленный у вас Claude Code (`claude -p`) на каждый вопрос чата, в отдельной сессии. Поиск в сети включён; ваши файлы и оболочка ему недоступны. Разговор Claude Code сохраняет в ~/.claude/projects."
+          }
+        }
+      }
+    },
+    "chat.cli.error.api": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code error: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ошибка Claude Code: %@"
+          }
+        }
+      }
+    },
+    "chat.cli.error.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code returned an empty answer."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code вернул пустой ответ."
+          }
+        }
+      }
+    },
+    "chat.cli.error.failed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code stopped unexpectedly: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code неожиданно завершился: %@"
+          }
+        }
+      }
+    },
+    "chat.cli.error.failed-code": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code stopped unexpectedly (code %lld)."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code неожиданно завершился (код %lld)."
+          }
+        }
+      }
+    },
+    "chat.cli.error.not-found": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code not found. Install the CLI, run `claude` and sign in with /login."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code не найден. Установите CLI и выполните `claude` → /login."
+          }
+        }
+      }
+    },
+    "chat.cli.error.not-logged-in": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code is not signed in. In Terminal: `claude auth login`."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code не вошёл. В терминале: `claude auth login`."
+          }
+        }
+      }
+    },
+    "chat.cli.error.rate-limit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription limit reached."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Лимит подписки исчерпан."
+          }
+        }
+      }
+    },
+    "chat.cli.error.rate-limit-at": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription limit reached, resets at %@."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Лимит подписки исчерпан, сброс в %@."
+          }
+        }
+      }
+    },
+    "chat.cli.error.timeout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code did not answer in time and was stopped."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code не ответил вовремя, запрос остановлен."
+          }
+        }
+      }
+    },
+    "chat.cli.error.unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code chat is not available in this build."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "В этой сборке чат через Claude Code недоступен."
+          }
+        }
+      }
+    },
+    "chat.cli.hint.add-key": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Or add an API key in Settings → Chat."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Или добавьте ключ API в Настройках → Чат."
+          }
+        }
+      }
+    },
+    "chat.cli.hint.switch-to-key": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can switch to your API key."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Можно переключиться на ключ API."
+          }
+        }
+      }
+    },
+    "chat.cli.model.default": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default (CLI setting)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "По умолчанию (настройка CLI)"
+          }
+        }
+      }
+    },
+    "chat.cli.offer.button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Claude Code"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Через Claude Code"
+          }
+        }
+      }
+    },
+    "chat.cli.offer.text": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No API key. Answer through Claude Code with your subscription?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет ключа API. Ответить через Claude Code по подписке?"
+          }
+        }
+      }
+    },
+    "chat.cli.recheck": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check again"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проверить снова"
+          }
+        }
+      }
+    },
+    "chat.cli.settings.checking": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проверяю…"
+          }
+        }
+      }
+    },
+    "chat.cli.settings.missing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code not found. Install the CLI, then run `claude` and sign in."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code не найден. Установите CLI, затем выполните `claude` и войдите."
+          }
+        }
+      }
+    },
+    "chat.cli.settings.not-logged-in": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code is installed but not signed in. In Terminal: `claude auth login`."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code установлен, но не вошёл. В терминале: `claude auth login`."
+          }
+        }
+      }
+    },
+    "chat.cli.settings.ready-other": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed in (%@). This is not a subscription login."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вход выполнен (%@). Это не вход по подписке."
+          }
+        }
+      }
+    },
+    "chat.cli.settings.ready-subscription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed in with your Claude subscription."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вход выполнен по подписке Claude."
+          }
+        }
+      }
+    },
+    "chat.cli.status.missing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "not installed"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "не установлен"
+          }
+        }
+      }
+    },
+    "chat.cli.status.not-logged-in": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "not signed in"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "не вошёл"
+          }
+        }
+      }
+    },
+    "chat.cli.subscription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "subscription"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "подписка"
+          }
+        }
+      }
+    },
+    "chat.cli.terms": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personal use under your own subscription. Check the Anthropic terms before sharing a Luna build that relies on other people's subscriptions."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для личного использования по своей подписке. Прежде чем раздавать сборку Luna, которая опирается на чужие подписки, сверьтесь с условиями Anthropic."
+          }
+        }
+      }
+    },
+    "chat.cli.use-key.button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Answer with API key"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ответить по ключу API"
+          }
+        }
+      }
+    },
+    "chat.source.description": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Who answers in the chat: your subscription through Claude Code, your API key, or a local model. Each answer shows its source. Luna never switches between them on its own."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Кто отвечает в чате: ваша подписка через Claude Code, ключ API или локальная модель. Под каждым ответом видно источник. Luna сама между ними не переключается."
+          }
+        }
+      }
+    },
+    "chat.source.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat source"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Источник чата"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

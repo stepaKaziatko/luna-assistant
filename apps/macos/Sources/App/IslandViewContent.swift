@@ -1416,10 +1416,14 @@ struct PromptView: View {
             .padding(.bottom, 14)
         }
         .padding(.bottom, 10)
-        .onAppear { focused = true }
+        .onAppear {
+            focused = true
+            state.refreshClaudeCodeStatus()
+        }
         .onChange(of: state.view) { _, view in
             if view == .prompt {
                 state.fetchModelsIfNeeded(for: state.chatProvider)
+                state.refreshClaudeCodeStatus()
             }
         }
         .onChange(of: state.chatProvider) { _, provider in
@@ -1503,6 +1507,9 @@ struct ModelPickerView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Provider chips — wrap; hide local providers when not connected and not already active
             let visibleProviders = ChatProvider.allCases.filter { p in
+                #if APPSTORE
+                if p == .claudeCode { return false }   // песочница не даёт запускать CLI
+                #endif
                 if p == .ollama   { return !AppState.shared.ollamaServerURL.isEmpty   || state.chatProvider == .ollama }
                 if p == .lmstudio { return !AppState.shared.lmstudioServerURL.isEmpty || state.chatProvider == .lmstudio }
                 return true
@@ -1523,6 +1530,11 @@ struct ModelPickerView: View {
                                 .frame(width: 7, height: 7)
                             Text(provider.displayName)
                                 .font(.system(size: 12, weight: state.chatProvider == provider ? .semibold : .regular))
+                            if provider.isCLI, let hint = Self.statusHint(state.claudeCodeStatus) {
+                                Text(hint)
+                                    .font(.system(size: 10))
+                                    .foregroundColor(Color(hex: "#8A8F98"))
+                            }
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
@@ -1555,6 +1567,7 @@ struct ModelPickerView: View {
                 state.providerModelFetchError[state.chatProvider] = nil
             }
             state.fetchModelsIfNeeded(for: state.chatProvider)
+            state.refreshClaudeCodeStatus()
         }
         .onChange(of: state.chatProvider) { _, provider in
             if provider.isLocal {
@@ -1562,6 +1575,16 @@ struct ModelPickerView: View {
                 state.providerModelFetchError[provider] = nil
             }
             state.fetchModelsIfNeeded(for: provider)
+        }
+    }
+
+    /// Состояние CLI-источника на чипе: «подписка», «не вошёл», «нет CLI».
+    private static func statusHint(_ status: CLIStatus) -> String? {
+        switch status {
+        case .unknown:       return nil
+        case .missing:       return String(localized: "chat.cli.status.missing", defaultValue: "not installed")
+        case .notLoggedIn:   return String(localized: "chat.cli.status.not-logged-in", defaultValue: "not signed in")
+        case .ready:         return status.isSubscription ? ChatCLIMessages.subscriptionWord : nil
         }
     }
 
@@ -1588,6 +1611,7 @@ struct ModelPickerView: View {
                         Button {
                             switch state.chatProvider {
                             case .anthropic: state.claudeModel = model.id
+                            case .claudeCode: state.claudeCodeChatModel = model.id
                             case .google:    state.googleChatModel = model.id
                             case .openai:    state.openAIChatModel = model.id
                             case .ollama:    state.ollamaChatModel = model.id
@@ -1641,7 +1665,16 @@ struct ChatBubble: View {
                         .background(Color.white.opacity(0.13))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 } else {
-                    ChatMarkdownView(markdown: message.content)
+                    VStack(alignment: .leading, spacing: 3) {
+                        ChatMarkdownView(markdown: message.content)
+                        // Чем отвечено: источник и модель (подписка и ключ не смешиваются молча).
+                        if let source = message.source {
+                            Text(source)
+                                .font(.system(size: 9.5))
+                                .foregroundColor(Color(hex: "#6B7079"))
+                                .textSelection(.enabled)
+                        }
+                    }
                     Spacer(minLength: 8)
                 }
             }
@@ -1763,9 +1796,21 @@ struct NoteView: View {
     var body: some View {
         ZStack(alignment: .leading) {
             CardBackground(wash: nil)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(state.noteMessage ?? "")
                     .font(.system(size: 15, weight: .semibold))
+                if let action = state.noteAction {
+                    SecondaryButton(verbatim: action.title) {
+                        // Источник меняет сам пользователь этим кликом; вопрос уходит заново.
+                        state.noteAction = nil
+                        state.chatProvider = action.provider
+                        state.stateOverride = .thinking
+                        state.view = .prompt
+                        Task {
+                            await ClaudeService.shared.chat(query: action.query, context: state.promptContext, state: state)
+                        }
+                    }
+                }
             }
             .padding(.leading, 98)
         }

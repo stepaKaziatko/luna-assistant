@@ -1001,7 +1001,84 @@ struct SettingsView: View {
 
     // MARK: - Chat section
 
+    /// Источники, которые можно выбрать для чата: локальные — только подключённые или уже выбранные.
+    private var selectableChatProviders: [ChatProvider] {
+        ChatProvider.allCases.filter { p in
+            #if APPSTORE
+            if p == .claudeCode { return false }
+            #endif
+            if p == .ollama   { return !state.ollamaServerURL.isEmpty   || state.chatProvider == .ollama }
+            if p == .lmstudio { return !state.lmstudioServerURL.isEmpty || state.chatProvider == .lmstudio }
+            return true
+        }
+    }
+
+    private var claudeCodeStatusText: String {
+        switch state.claudeCodeStatus {
+        case .unknown:
+            return String(localized: "chat.cli.settings.checking", defaultValue: "Checking…")
+        case .missing:
+            return String(localized: "chat.cli.settings.missing",
+                          defaultValue: "Claude Code not found. Install the CLI, then run `claude` and sign in.")
+        case .notLoggedIn:
+            return String(localized: "chat.cli.settings.not-logged-in",
+                          defaultValue: "Claude Code is installed but not signed in. In Terminal: `claude auth login`.")
+        case .ready(let method):
+            return state.claudeCodeStatus.isSubscription
+                ? String(localized: "chat.cli.settings.ready-subscription", defaultValue: "Signed in with your Claude subscription.")
+                : String(localized: "chat.cli.settings.ready-other", defaultValue: "Signed in (\(method ?? "?")). This is not a subscription login.")
+        }
+    }
+
     @ViewBuilder private var chatSection: some View {
+        GroupBox(String(localized: "chat.source.title", defaultValue: "Chat source")) {
+            VStack(alignment: .leading, spacing: 8) {
+                Picker(String(localized: "chat.source.title", defaultValue: "Chat source"), selection: $state.chatProvider) {
+                    ForEach(selectableChatProviders, id: \.self) { Text($0.displayName).tag($0) }
+                }
+                .labelsHidden()
+                Text(String(localized: "chat.source.description",
+                            defaultValue: "Who answers in the chat: your subscription through Claude Code, your API key, or a local model. Each answer shows its source. Luna never switches between them on its own."))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            .padding(6)
+        }
+
+        #if !APPSTORE
+        GroupBox("Claude Code") {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(state.claudeCodeStatus.isReady ? Color(hex: "#22C55E") : Color(hex: "#8A8F98"))
+                        .frame(width: 8, height: 8)
+                    Text(claudeCodeStatusText).font(.system(size: 12))
+                    Spacer()
+                    Button(String(localized: "chat.cli.recheck", defaultValue: "Check again")) {
+                        state.refreshClaudeCodeStatus(force: true)
+                    }
+                }
+                Picker(String(localized: "chat.model"), selection: $state.claudeCodeChatModel) {
+                    ForEach(ClaudeCodeModels.ids, id: \.self) { id in
+                        Text(id == ClaudeCodeModels.defaultID
+                             ? String(localized: "chat.cli.model.default", defaultValue: "Default (CLI setting)")
+                             : id).tag(id)
+                    }
+                }
+                Text(String(localized: "chat.cli.description",
+                            defaultValue: "Luna runs the Claude Code you installed (`claude -p`) for each chat question, in its own session. Web search is on; your files and shell are not available to it. The conversation is saved by Claude Code in ~/.claude/projects."))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                Text(String(localized: "chat.cli.terms",
+                            defaultValue: "Personal use under your own subscription. Check the Anthropic terms before sharing a Luna build that relies on other people's subscriptions."))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            .padding(6)
+        }
+        .onAppear { state.refreshClaudeCodeStatus() }
+        #endif
+
         GroupBox(String(localized: "chat.anthropic-api.title")) {
             VStack(alignment: .leading, spacing: 8) {
                 SecureField(String(localized: "chat.api-key.claude"), text: $apiKey)
