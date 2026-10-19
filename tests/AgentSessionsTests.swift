@@ -359,6 +359,10 @@ enum AgentSessionsTests {
                   s.waiting == 1 && s.working == 1 && s.finished == 1 && s.errors == 1)
             check("counters match the tiles", s.total == list.count - 1)
             check("empty summary", AgentsSummary([]).total == 0)
+            // «Готово» — только непросмотренные (LUNA-68).
+            b.markFinishedSeen(for: d)
+            check("a seen finished turn is not counted as finished",
+                  AgentsSummary(b.snapshot(waits: [w: .question], now: at(3))).finished == 0)
         }
 
         // ── seen ────────────────────────────────────────────────────────────────
@@ -437,6 +441,47 @@ enum AgentSessionsTests {
             check("a new turn that ends is news again", info(b, a, now: at(6))?.finishedUnseen == true)
             check("the whole-page mark still clears everyone", b.markFinishedSeen()
                   && b.snapshot(now: at(7)).allSatisfy { !$0.finishedUnseen })
+        }
+
+        // ── LUNA-68: корень проекта сессии ──────────────────────────────────────
+        print("\nProject folder of a session")
+        do {
+            func w(cwd: String, dir: String = "") -> AgentSessionWho {
+                AgentSessionWho(project: "p", agent: "Claude Code", hostBundleId: "com.microsoft.VSCode",
+                                cwd: cwd, projectDir: dir)
+            }
+            var b = AgentSessionBook()
+            let k = key("dir")
+            b.apply(event: "SessionStart", key: k, who: w(cwd: "/p", dir: "/p"), now: at(0))
+            b.apply(event: "PreToolUse", key: k, who: w(cwd: "/p/.worktrees/X/apps", dir: "/p"), tool: "Bash", step: "cd", now: at(1))
+            var i = info(b, k, now: at(2))
+            check("project_dir is the folder of the session, cwd follows cd",
+                  i?.who.projectDir == "/p" && i?.who.cwd == "/p/.worktrees/X/apps")
+            b.apply(event: "PreToolUse", key: k, who: w(cwd: "/q", dir: "/q"), tool: "Read", step: "r", now: at(3))
+            i = info(b, k, now: at(4))
+            check("a later event with another project_dir or cwd does not move it", i?.who.projectDir == "/p")
+            b.apply(event: "PreToolUse", key: k, who: w(cwd: "", dir: ""), tool: "Read", step: "r", now: at(5))
+            check("an event without a folder keeps it", info(b, k, now: at(6))?.who.projectDir == "/p")
+
+            var c = AgentSessionBook()
+            let n = key("nodir")
+            c.apply(event: "UserPromptSubmit", key: n, who: w(cwd: "/p"), step: "x", now: at(0))
+            c.apply(event: "PreToolUse", key: n, who: w(cwd: "/p/sub"), tool: "Bash", step: "cd", now: at(1))
+            check("without project_dir: the cwd of the first event", info(c, n, now: at(2))?.who.projectDir == "/p")
+            c.apply(event: "PreToolUse", key: n, who: w(cwd: "/p/sub", dir: "/other"), tool: "Bash", step: "x", now: at(3))
+            check("a project_dir that comes later does not move it either", info(c, n, now: at(4))?.who.projectDir == "/p")
+
+            var e = AgentSessionBook()
+            let m = key("empty")
+            e.apply(event: "Notification", key: m, who: w(cwd: ""), message: "hi", now: at(0))
+            check("no folder yet: empty", info(e, m, now: at(1))?.who.projectDir == "")
+            e.apply(event: "PreToolUse", key: m, who: w(cwd: "/late"), tool: "Read", step: "r", now: at(2))
+            check("the first event with a folder sets it", info(e, m, now: at(3))?.who.projectDir == "/late")
+
+            check("projectDir(known:event:): known wins, then project_dir, then cwd",
+                  AgentSessionBook.projectDir(known: "/a", event: w(cwd: "/b", dir: "/c")) == "/a"
+                  && AgentSessionBook.projectDir(known: "", event: w(cwd: "/b", dir: "/c")) == "/c"
+                  && AgentSessionBook.projectDir(known: "", event: w(cwd: "/b")) == "/b")
         }
 
         // ── keys and hosts ──────────────────────────────────────────────────────

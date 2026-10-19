@@ -158,16 +158,32 @@ final class HookServer: @unchecked Sendable {
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.72)) { state.focusId = prev }
             }
         }
-        // On the preview page the person stays where they are: the page says the request is gone.
-        if state.view == .agentPreview { return }
-        if let note {
-            state.noteMessage = note
+        // Следующего запроса нет: с карточки шторка сворачивается, страница агента и другие
+        // страницы остаются на месте (`IslandHome.afterRequest`).
+        closeRequestCard(note: note, nextWaits: false)
+    }
+
+    /// Что делает остров, когда запрос ушёл и карточка ему больше не нужна: решает
+    /// `IslandHome.afterRequest`, здесь только исполнение. Очередь запросов не трогается:
+    /// `nextWaits` — уже решённое ею «ждёт ли ещё запрос».
+    @MainActor
+    private func closeRequestCard(note: String?, nextWaits: Bool) {
+        let state = AppState.shared
+        let next = IslandHome.afterRequest(on: state.view, nextWaits: nextWaits, note: note != nil,
+                                           canCollapse: !state.holdsIslandOpen)
+        switch next {
+        case .stay:
+            break
+        case .showNext, .home:
+            state.goHome()
+        case .noteThenCollapse:
+            state.noteMessage = note ?? ""
             state.view = .note
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 NotificationCenter.default.post(name: .islandCollapse, object: nil)
             }
-        } else {
-            state.goHome()
+        case .collapse:
+            NotificationCenter.default.post(name: .islandCollapse, object: nil)
         }
     }
 
@@ -196,18 +212,9 @@ final class HookServer: @unchecked Sendable {
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.72)) { state.focusId = prev }
             }
         }
-        // On the preview page the person stays where they are: the page itself says the request
-        // is gone. Anywhere else the card closes into the home page, as before.
-        if state.view == .agentPreview { return }
-        if !note.isEmpty {
-            state.noteMessage = note
-            state.view = .note
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                NotificationCenter.default.post(name: .islandCollapse, object: nil)
-            }
-        } else {
-            state.goHome()
-        }
+        // Ждёт разрешение — его карточка (как раньше, через `goHome`); иначе с карточки вопроса
+        // шторка сворачивается, страница агента и другие страницы остаются на месте.
+        closeRequestCard(note: note.isEmpty ? nil : note, nextWaits: state.pendingApproval != nil)
     }
 
     /// Called by QuestionView and the preview page. Sends answers JSON and cleans up.
@@ -947,7 +954,7 @@ final class HookServer: @unchecked Sendable {
             let s = AppState.shared
             s.pendingApproval = nil
             s.isPinned = false
-            if s.view != .agentPreview { s.goHome() }
+            closeRequestCard(note: nil, nextWaits: false)
             return
         }
         guard approvals.accepts(decisionFor: id) else {
@@ -1111,7 +1118,9 @@ final class HookServer: @unchecked Sendable {
                                   agent: Self.agentLabel(pill: pill),
                                   hostBundleId: AgentHost.bundleId(pill: pill, reported: hostApp ?? bundleId),
                                   cwd: AgentJumpPlan.validFolder(cwd) ?? "",
-                                  tty: AgentJumpPlan.validTTY(payload[Self.peerTTYKey] as? String ?? "") ?? "")
+                                  tty: AgentJumpPlan.validTTY(payload[Self.peerTTYKey] as? String ?? "") ?? "",
+                                  // Корень проекта (`CLAUDE_PROJECT_DIR`, его кладёт релей): папка «Перейти к агенту».
+                                  projectDir: AgentJumpPlan.validFolder(payload["project_dir"] as? String ?? "") ?? "")
         agentBook.apply(event: name,
                         key: AgentSessionKey.make(pill: pill, sessionId: sessionId, cwd: cwd),
                         who: who, tool: tool, step: step, finalText: finalText,
@@ -3448,6 +3457,7 @@ def main():
         payload.setdefault('iterm_session_id', env.get('ITERM_SESSION_ID', ''))
         payload.setdefault('term_session_id', env.get('TERM_SESSION_ID', ''))
         payload.setdefault('bundle_id', env.get('__CFBundleIdentifier', ''))
+        payload.setdefault('project_dir', env.get('CLAUDE_PROJECT_DIR', ''))
         if 'cwd' not in payload or not payload['cwd']:
             paths = payload.get('workspacePaths') or payload.get('workspace_roots', [])
             if isinstance(paths, list) and paths:
@@ -3515,6 +3525,7 @@ def main():
     payload.setdefault('iterm_session_id', env.get('ITERM_SESSION_ID', ''))
     payload.setdefault('term_session_id', env.get('TERM_SESSION_ID', ''))
     payload.setdefault('bundle_id', env.get('__CFBundleIdentifier', ''))
+    payload.setdefault('project_dir', env.get('CLAUDE_PROJECT_DIR', ''))
     if 'cwd' not in payload or not payload['cwd']:
         paths = payload.get('workspacePaths') or payload.get('workspace_roots', [])
         if isinstance(paths, list) and paths:
@@ -3755,6 +3766,7 @@ def main():
         payload.setdefault('iterm_session_id', env.get('ITERM_SESSION_ID', ''))
         payload.setdefault('term_session_id', env.get('TERM_SESSION_ID', ''))
         payload.setdefault('bundle_id', env.get('__CFBundleIdentifier', ''))
+        payload.setdefault('project_dir', env.get('CLAUDE_PROJECT_DIR', ''))
         if 'cwd' not in payload or not payload['cwd']:
             paths = payload.get('workspacePaths') or payload.get('workspace_roots', [])
             if isinstance(paths, list) and paths:
@@ -3821,6 +3833,7 @@ def main():
     payload.setdefault('iterm_session_id', env.get('ITERM_SESSION_ID', ''))
     payload.setdefault('term_session_id', env.get('TERM_SESSION_ID', ''))
     payload.setdefault('bundle_id', env.get('__CFBundleIdentifier', ''))
+    payload.setdefault('project_dir', env.get('CLAUDE_PROJECT_DIR', ''))
     if 'cwd' not in payload or not payload['cwd']:
         paths = payload.get('workspacePaths') or payload.get('workspace_roots', [])
         if isinstance(paths, list) and paths:

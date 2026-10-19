@@ -10,3 +10,17 @@ swiftc apps/macos/Sources/App/AgentJumpPlan.swift \
     apps/macos/Sources/App/ClaudeHost.swift \
     tests/AgentJumpTests.swift -o "$TEST_DIR/agent-jump-tests"
 "$TEST_DIR/agent-jump-tests"
+
+# LUNA-68: каждый вариант релея кладёт корень проекта рядом с bundle_id, а между папкой и
+# ссылкой на сессию нет фиксированной паузы.
+HOOKS=apps/macos/Sources/App/HookServer.swift
+bundle=$(grep -c "payload.setdefault('bundle_id', env.get('__CFBundleIdentifier', ''))" "$HOOKS")
+project=$(grep -c "payload.setdefault('project_dir', env.get('CLAUDE_PROJECT_DIR', ''))" "$HOOKS")
+if [ "$bundle" -lt 4 ] || [ "$bundle" != "$project" ]; then
+    echo "  ✗ relay: bundle_id $bundle, project_dir $project"; exit 1
+fi
+echo "  ✓ relay: project_dir in all $project variants"
+if grep -n "asyncAfter(deadline: .now() + 0.3)" apps/macos/Sources/App/AgentJump.swift; then
+    echo "  ✗ AgentJump: a fixed 0.3 s pause before the session link"; exit 1
+fi
+echo "  ✓ AgentJump: the link waits for the editor, no fixed pause"

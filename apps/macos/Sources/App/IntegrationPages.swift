@@ -19,6 +19,38 @@ enum IslandHome {
     static func view(pendingApproval: Bool) -> IslandView {
         pendingApproval ? .approval : .agents
     }
+
+    /// Что делает остров, когда запрос агента ушёл (ответ, апрув, ответ в терминале, таймаут).
+    ///
+    /// - Parameters:
+    ///   - view: страница на экране.
+    ///   - nextWaits: ждёт ли ещё запрос — его показывает очередь, как и раньше.
+    ///   - note: есть ли заметка «запрос снят без ответа».
+    ///   - canCollapse: можно ли свернуть шторку (её не удерживает черновик письма голосом).
+    static func afterRequest(on view: IslandView, nextWaits: Bool, note: Bool,
+                             canCollapse: Bool) -> AfterRequest {
+        // Страница агента сама показывает, что запрос ушёл.
+        if view == .agentPreview { return .stay }
+        // На других страницах пользователь остаётся где был: на главную его больше не уводит.
+        guard view == .approval || view == .question else { return .stay }
+        if nextWaits { return .showNext }
+        if note { return .noteThenCollapse }
+        return canCollapse ? .collapse : .home
+    }
+}
+
+/// Итог `IslandHome.afterRequest`.
+enum AfterRequest: Equatable {
+    /// Ждёт следующий запрос: его показывает очередь (порядок не меняется).
+    case showNext
+    /// Пользователь остаётся на своей странице.
+    case stay
+    /// Заметка на 3 с, потом шторка сворачивается.
+    case noteThenCollapse
+    /// Шторка сворачивается в остров.
+    case collapse
+    /// Свернуть нельзя — главная страница, а не пустая карточка.
+    case home
 }
 
 // MARK: Integration pages

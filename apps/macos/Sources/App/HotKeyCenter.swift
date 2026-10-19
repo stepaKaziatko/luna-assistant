@@ -56,6 +56,10 @@ final class HotKeyCenter {
     /// Actions whose `RegisterEventHotKey` call failed (system conflict).
     private(set) var conflicts: Set<ShortcutAction> = []
 
+    /// Раскрыта ли шторка: от этого зависят действия «только при раскрытой шторке»
+    /// (`ShortcutLogic.registersWhileExpandedOnly`, сейчас — «Свернуть шторку», `⌘⎋`).
+    private var islandExpanded = false
+
     // MARK: - Lifecycle
 
     /// Start the hot-key engine and fire `onAction` whenever the user presses a registered shortcut.
@@ -98,8 +102,20 @@ final class HotKeyCenter {
             #if APPSTORE
             if action.isNonAppStore { continue }
             #endif
-            if !ShortcutLogic.isEnabled(action) { continue }
+            if !ShortcutLogic.shouldRegister(action, enabled: ShortcutLogic.isEnabled(action),
+                                             islandExpanded: islandExpanded) { continue }
             registerOne(action)
+        }
+    }
+
+    /// Шторка раскрылась или свернулась: действия «только при раскрытой шторке» регистрируются
+    /// или снимаются. Вызывается по событию смены режима острова, не по таймеру; повтор того же
+    /// состояния ничего не делает.
+    func setIslandExpanded(_ expanded: Bool) {
+        guard expanded != islandExpanded else { return }
+        islandExpanded = expanded
+        for action in ShortcutAction.allCases where ShortcutLogic.registersWhileExpandedOnly(action) {
+            reregister(action)
         }
     }
 
@@ -117,7 +133,8 @@ final class HotKeyCenter {
         #if APPSTORE
         if action.isNonAppStore { return }
         #endif
-        if !ShortcutLogic.isEnabled(action) { return }
+        if !ShortcutLogic.shouldRegister(action, enabled: ShortcutLogic.isEnabled(action),
+                                         islandExpanded: islandExpanded) { return }
         registerOne(action)
     }
 

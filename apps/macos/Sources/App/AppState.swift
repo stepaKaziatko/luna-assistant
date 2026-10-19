@@ -90,6 +90,10 @@ final class AppState: ObservableObject {
     /// Back to the home page. The one place that knows what "home" is.
     func goHome() { view = homeView }
 
+    /// Шторку держит раскрытой ждущее разрешение или черновик письма голосом: тогда она не
+    /// сворачивается сама (`IslandStateMachine.isHeldOpen`).
+    var holdsIslandOpen: Bool { pendingApproval != nil || voiceMailDraft != nil }
+
     private static let githubPillId = "integration_github"
 
     // Tasks
@@ -696,6 +700,8 @@ final class AppState: ObservableObject {
     func goToAgent(_ session: AgentSessionInfo) {
         let sessionId = session.id
         agentJumpNote = nil
+        // Переход к агенту — это просмотр: его законченный ход больше не новость.
+        HookServer.shared.markAgentsSeen(for: session.key)
         AgentJump.open(session) { [weak self] hint in
             self?.agentJumpNote = hint.map { AgentJumpNote(sessionId: sessionId, hint: $0) }
         }

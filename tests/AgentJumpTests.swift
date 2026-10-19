@@ -141,6 +141,92 @@ enum AgentJumpTests {
                                who(host: vsCode))) == nil)
         }
 
+        // ── LUNA-68: папка проекта и шаги перехода в редактор ─────────────────
+        print("\nProject folder and editor steps")
+        do {
+            // События сессии: project_dir=/p, cwd=/p, затем cwd=/p/.worktrees/X/apps.
+            var book = AgentSessionBook()
+            let key = AgentSessionKey(pill: claude, session: uuid)
+            let t = Date(timeIntervalSince1970: 1_800_000_000)
+            book.apply(event: "SessionStart", key: key,
+                       who: AgentSessionWho(project: "p", agent: "Claude Code", hostBundleId: vsCode, cwd: "/p", projectDir: "/p"),
+                       now: t)
+            book.apply(event: "PreToolUse", key: key,
+                       who: AgentSessionWho(project: "apps", agent: "Claude Code", hostBundleId: vsCode,
+                                            cwd: "/p/.worktrees/X/apps", projectDir: "/p"),
+                       tool: "Bash", step: "cd", now: t.addingTimeInterval(1))
+            if let s = book.snapshot(now: t.addingTimeInterval(2)).first {
+                check("the folder of the plan is the project root, not the last cwd",
+                      AgentJumpPlan.make(pill: s.pill, sessionId: s.key.session, who: s.who).action
+                      == .editor(bundleId: vsCode, folder: "/p",
+                                 sessionLink: URL(string: "vscode://anthropic.claude-code/open?session=\(uuid)")))
+            } else {
+                check("the session is in the book", false)
+            }
+            // Без project_dir: cwd первого события.
+            var noDir = AgentSessionBook()
+            noDir.apply(event: "UserPromptSubmit", key: key,
+                        who: AgentSessionWho(project: "p", agent: "Claude Code", hostBundleId: vsCode, cwd: "/p"),
+                        step: "x", now: t)
+            noDir.apply(event: "PreToolUse", key: key,
+                        who: AgentSessionWho(project: "sub", agent: "Claude Code", hostBundleId: vsCode, cwd: "/p/sub"),
+                        tool: "Bash", step: "cd", now: t.addingTimeInterval(1))
+            if let s = noDir.snapshot(now: t.addingTimeInterval(2)).first {
+                check("without project_dir the folder is the cwd of the first event",
+                      AgentJumpPlan.make(pill: s.pill, sessionId: s.key.session, who: s.who).action
+                      == .editor(bundleId: vsCode, folder: "/p",
+                                 sessionLink: URL(string: "vscode://anthropic.claude-code/open?session=\(uuid)")))
+            }
+            // project_dir проходит ту же проверку, что папка.
+            for bad in ["p", "relative/dir", "/a\nb", "/a\u{0}b", "~/p"] {
+                let w = AgentSessionWho(project: "p", agent: "Claude Code", hostBundleId: vsCode,
+                                        cwd: "/fallback", projectDir: bad)
+                check("project_dir \(bad.debugDescription) is dropped, the cwd is taken",
+                      AgentJumpPlan.folder(of: w) == "/fallback")
+            }
+            check("a valid project_dir wins over the cwd",
+                  AgentJumpPlan.folder(of: AgentSessionWho(project: "p", agent: "a", cwd: "/p/sub", projectDir: "/p")) == "/p")
+            check("no folder at all: nil",
+                  AgentJumpPlan.folder(of: AgentSessionWho(project: "p", agent: "a")) == nil)
+
+            let link = URL(string: "vscode://anthropic.claude-code/open?session=\(uuid)")!
+            check("editor not running: the folder only, no link",
+                  AgentJumpPlan.editorSteps(folder: "/p", link: link, editorRunning: false) == [.openFolder("/p")])
+            check("editor running and a link: the folder, then the link",
+                  AgentJumpPlan.editorSteps(folder: "/p", link: link, editorRunning: true)
+                  == [.openFolder("/p"), .openSessionLink(link)])
+            check("no link: the folder only",
+                  AgentJumpPlan.editorSteps(folder: "/p", link: nil, editorRunning: true) == [.openFolder("/p")])
+            check("no folder, editor running, a link: the link alone",
+                  AgentJumpPlan.editorSteps(folder: nil, link: link, editorRunning: true) == [.openSessionLink(link)])
+            check("no folder, editor not running: the app only, no link",
+                  AgentJumpPlan.editorSteps(folder: nil, link: link, editorRunning: false) == [.activateApp])
+            check("nothing at all: the app only",
+                  AgentJumpPlan.editorSteps(folder: nil, link: nil, editorRunning: true) == [.activateApp])
+            // Шага «новая сессия» нет: любая ссылка в шагах — ссылка на ту же сессию.
+            let all = [true, false].flatMap { running in
+                [("/p" as String?), nil].flatMap { f in
+                    [link as URL?, nil].map { AgentJumpPlan.editorSteps(folder: f, link: $0, editorRunning: running) } } }
+            check("no branch opens anything but the folder, the session link or the app",
+                  all.allSatisfy { $0.allSatisfy { step in
+                      switch step {
+                      case .openFolder(let f): return f == "/p"
+                      case .openSessionLink(let u): return u == link
+                      case .activateApp: return true
+                      }
+                  } })
+
+            check("link ready: the editor is in front and its top window changed",
+                  AgentJumpPlan.linkReady(editorFrontmost: true, topWindowBefore: 10, topWindowNow: 11)
+                  && AgentJumpPlan.linkReady(editorFrontmost: true, topWindowBefore: nil, topWindowNow: 11))
+            check("link not ready: the editor is not in front",
+                  !AgentJumpPlan.linkReady(editorFrontmost: false, topWindowBefore: 10, topWindowNow: 11))
+            check("link not ready: the same window is still on top (the wait limit sends it)",
+                  !AgentJumpPlan.linkReady(editorFrontmost: true, topWindowBefore: 10, topWindowNow: 10)
+                  && !AgentJumpPlan.linkReady(editorFrontmost: true, topWindowBefore: 10, topWindowNow: nil))
+            check("the wait limit is at most 1.5 s", AgentJumpPlan.linkWaitLimit > 0 && AgentJumpPlan.linkWaitLimit <= 1.5)
+        }
+
         // ── tty and folder checks ───────────────────────────────────────────────
         print("\nChecks")
         do {

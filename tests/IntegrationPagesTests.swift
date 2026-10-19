@@ -112,6 +112,32 @@ enum IntegrationPagesTests {
                   IslandView.allCases.filter(\.hidesBigLuna) == [.agents, .agentPreview, .github])
         }
 
+        // ── LUNA-68: что после ответа на запрос ────────────────────────────────
+        print("\nAfter a request is gone")
+        do {
+            func after(_ v: IslandView, next: Bool = false, note: Bool = false, can: Bool = true) -> AfterRequest {
+                IslandHome.afterRequest(on: v, nextWaits: next, note: note, canCollapse: can)
+            }
+            check("approval card, nothing waits: collapse", after(.approval) == .collapse)
+            check("question card, nothing waits: collapse", after(.question) == .collapse)
+            check("a card and another request waits: the next one, no collapse",
+                  after(.approval, next: true) == .showNext && after(.question, next: true) == .showNext)
+            check("the page of an agent: stay", after(.agentPreview) == .stay
+                  && after(.agentPreview, next: true) == .stay && after(.agentPreview, note: true) == .stay)
+            let others = IslandView.allCases.filter { ![.approval, .question, .agentPreview].contains($0) }
+            check("any other page: stay, not home (\(others.count) pages)",
+                  others.allSatisfy { after($0) == .stay && after($0, next: true) == .stay
+                      && after($0, note: true) == .stay && after($0, can: false) == .stay })
+            check("gone without an answer, with a note: the note, then collapse",
+                  after(.approval, note: true) == .noteThenCollapse && after(.question, note: true) == .noteThenCollapse)
+            check("gone without an answer, no note: collapse", after(.approval, note: false) == .collapse)
+            check("cannot collapse (held open): home, not an empty card",
+                  after(.approval, can: false) == .home && after(.question, can: false) == .home)
+            check("never home while it can collapse",
+                  IslandView.allCases.allSatisfy { v in
+                      [true, false].allSatisfy { n in [true, false].allSatisfy { after(v, next: n, note: $0) != .home } } })
+        }
+
         print(failures == 0 ? "\nAll integration page checks passed" : "\n\(failures) check(s) FAILED")
         exit(failures == 0 ? 0 : 1)
     }

@@ -55,10 +55,21 @@ enum IslandKeysTests {
             ("⌘E", "shortcut.island.diff"), ("⌘↩", "shortcut.island.send"), ("⌘K", "shortcut.island.new-convo"),
             ("⌘,", "shortcut.island.settings"), ("⌘P", "shortcut.island.pin"), ("⎋", "shortcut.island.close"),
         ]
-        let rows = IslandKeyTable.rows()
+        // Таблица сама по себе — без глобального «Свернуть шторку» (его сочетание приписывается к «Закрыть»).
+        let table = IslandKeyTable.rows(area: nil, collapseKeys: nil)
         for (keys, desc) in before {
-            check("old row \(keys) is in the table", rows.contains { $0.keys == keys && $0.descriptionKey == desc })
+            check("old row \(keys) is in the table", table.contains { $0.keys == keys && $0.descriptionKey == desc })
         }
+        let rows = IslandKeyTable.rows()
+        check("by default the close row also shows ⌘⎋ (LUNA-68)",
+              rows.contains { $0.keys == "⎋ / ⌘⎋" && $0.descriptionKey == "shortcut.island.close" })
+        check("with the action off the close row is ⎋ alone",
+              table.contains { $0.keys == "⎋" && $0.descriptionKey == "shortcut.island.close" })
+        check("the hint of a page shows ⌘⎋ next to ⎋ too",
+              IslandKeyTable.rows(area: .agents, collapseKeys: "⌘⎋").contains { $0.keys == "⎋ / ⌘⎋" })
+        check("apart from the close row the rows do not depend on the action",
+              zip(rows, table).allSatisfy { $0.descriptionKey == $1.descriptionKey
+                  && ($0.keys == $1.keys || $0.descriptionKey == "shortcut.island.close") })
         check("every binding has a description key and a group",
               IslandKeyTable.bindings.allSatisfy { $0.descriptionKey.hasPrefix("shortcut.island.") && !$0.areas.isEmpty })
         check("ShortcutLogic.islandShortcuts is the table", ShortcutLogic.islandShortcuts.map(\.key) == rows.map(\.keys))
@@ -151,7 +162,7 @@ enum IslandKeysTests {
         for page in IslandView.allCases {
             check("⎋ on \(page) is not taken", resolve(key(esc), ctx(page)) == nil)
         }
-        check("⎋ is still in the table for the hint", IslandKeyTable.rows().contains { $0.keys == "⎋" })
+        check("⎋ is still in the table for the hint", IslandKeyTable.rows().contains { $0.keys.hasPrefix("⎋") })
 
         // ?
         for page in IslandView.allCases {

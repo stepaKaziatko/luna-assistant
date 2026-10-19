@@ -269,7 +269,7 @@ enum IslandKeyTable {
             bind("⌘,", .code(43), cmd, all, .openSettings, "shortcut.island.settings", .everywhere),
             bind("⌘P", .code(35), cmd, all, .togglePin, "shortcut.island.pin", .everywhere),
             // ⎋ stays with the responder chain (a field or a card first, then the island closes).
-            bind("⎋", .code(IslandKeyCode.escape), none, all, nil, "shortcut.island.close", .everywhere),
+            bind("⎋", .code(IslandKeyCode.escape), none, all, nil, closeDescriptionKey, .everywhere),
             bind("?", .character("?"), shift, all, .toggleHelp, "shortcut.island.help", .everywhere),
         ]
 
@@ -366,7 +366,29 @@ enum IslandKeyTable {
 
     /// The rows of the table, a binding per key merged with its siblings of the same
     /// description and block: "⌘→ / ⌘←". `area` keeps only the rows that work on that area.
+    /// В строке «Закрыть» рядом с `⎋` — глобальное «Свернуть шторку» из настроек (`⎋ / ⌘⎋`).
     static func rows(area: IslandKeyArea? = nil) -> [IslandKeyRow] {
+        rows(area: area, collapseKeys: ShortcutLogic.collapseIslandKeys)
+    }
+
+    /// Описание строки «Закрыть»: к ней приписывается сочетание «Свернуть шторку».
+    static let closeDescriptionKey = "shortcut.island.close"
+
+    /// То же с явным сочетанием «Свернуть шторку» (nil — выключено): тест не зависит от настроек.
+    /// Само сочетание в `bindings` не входит — его ловит Carbon, а не монитор острова.
+    static func rows(area: IslandKeyArea?, collapseKeys: String?) -> [IslandKeyRow] {
+        var rows = tableRows(area: area)
+        if let extra = collapseKeys, !extra.isEmpty,
+           let i = rows.firstIndex(where: { $0.descriptionKey == closeDescriptionKey }) {
+            let old = rows[i]
+            if !old.keys.split(separator: "/").map({ $0.trimmingCharacters(in: .whitespaces) }).contains(extra) {
+                rows[i] = IslandKeyRow(keys: old.keys + " / " + extra, descriptionKey: old.descriptionKey, group: old.group)
+            }
+        }
+        return rows
+    }
+
+    private static func tableRows(area: IslandKeyArea?) -> [IslandKeyRow] {
         var rows: [IslandKeyRow] = []
         for binding in bindings where area.map({ binding.areas.contains($0) }) ?? true {
             let shown = binding.display

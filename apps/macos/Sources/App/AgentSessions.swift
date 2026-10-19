@@ -141,6 +141,11 @@ struct AgentSessionWho: Equatable, Sendable {
     /// The controlling terminal of the process that sent the hook (`/dev/ttys003`), found by Luna
     /// itself (`ProcessTTY`). Empty when unknown or not a valid device name.
     var tty: String = ""
+    /// Корень проекта сессии — папка, которую открывает «Перейти к агенту». В событии это
+    /// `CLAUDE_PROJECT_DIR` из окружения хука (релей кладёт его в `project_dir`); книга запоминает
+    /// её один раз — первое непустое `project_dir`, иначе `cwd` первого события — и больше не
+    /// меняет: `cwd` идёт за `cd` агента, а окно редактора открыто на корне. Пусто, если неизвестно.
+    var projectDir: String = ""
 }
 
 // MARK: - Snapshot
@@ -197,7 +202,8 @@ struct AgentsSummary: Equatable, Sendable {
             if s.wait != nil { waiting += 1; continue }
             switch s.phase {
             case .working:  working += 1
-            case .finished: finished += 1
+            // «Готово» — только непросмотренные: просмотренный ход новостью не считается.
+            case .finished: if s.finishedUnseen { finished += 1 }
             case .error:    errors += 1
             case .idle:     break
             }
@@ -306,12 +312,13 @@ struct AgentSessionBook: Sendable {
         let before = rec.phase
 
         // The name and the host follow the latest event; a missing host, folder or terminal
-        // keeps the known one.
+        // keeps the known one. Корень проекта задаётся один раз и поздними событиями не меняется.
         rec.who = AgentSessionWho(
             project: who.project, agent: who.agent,
             hostBundleId: who.hostBundleId.isEmpty ? rec.who.hostBundleId : who.hostBundleId,
             cwd: who.cwd.isEmpty ? rec.who.cwd : who.cwd,
-            tty: who.tty.isEmpty ? rec.who.tty : who.tty)
+            tty: who.tty.isEmpty ? rec.who.tty : who.tty,
+            projectDir: Self.projectDir(known: rec.who.projectDir, event: who))
         rec.lastEvent = now
 
         switch transition {
@@ -350,6 +357,13 @@ struct AgentSessionBook: Sendable {
         if rec.steps.count > Self.maxSteps { rec.steps.removeFirst(rec.steps.count - Self.maxSteps) }
         if rec.phase != before { rec.since = now }
         records[key] = rec
+    }
+
+    /// Корень проекта после события: уже известный не меняется; иначе `project_dir` события,
+    /// а без него — его `cwd`. Пустое значение остаётся пустым до первого события с папкой.
+    static func projectDir(known: String, event who: AgentSessionWho) -> String {
+        if !known.isEmpty { return known }
+        return who.projectDir.isEmpty ? who.cwd : who.projectDir
     }
 
     /// `Notification` and the subagent events: they add a line or a flag, never a phase.

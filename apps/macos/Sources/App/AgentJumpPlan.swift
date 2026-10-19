@@ -45,7 +45,7 @@ struct AgentJumpPlan: Equatable, Sendable {
     ///   - pill: the pill of the session (`integration_claude`, `agent_cursor`, `agent_codex`…).
     ///   - sessionId: `AgentSessionKey.session`; a key made of pill and cwd is not an id.
     static func make(pill: String, sessionId: String, who: AgentSessionWho) -> AgentJumpPlan {
-        let folder = validFolder(who.cwd)
+        let folder = folder(of: who)
         let host = who.hostBundleId
 
         if let editor = AgentEditors.editor(bundleId: host) {
@@ -67,6 +67,51 @@ struct AgentJumpPlan: Equatable, Sendable {
     }
 
     var isAvailable: Bool { action != .unavailable }
+
+    /// Папка перехода: корень проекта сессии, а не её текущая папка. VS Code поднимает своё окно,
+    /// только если открываемая папка совпадает с папкой окна в точности; подпапка или worktree,
+    /// куда агент сделал `cd`, открыла бы новое окно. Без корня — `cwd`.
+    static func folder(of who: AgentSessionWho) -> String? {
+        validFolder(who.projectDir) ?? validFolder(who.cwd)
+    }
+
+    // MARK: Editor steps
+
+    /// Один шаг перехода в редактор. Шага «новая сессия» нет и быть не может: Luna только
+    /// открывает папку (редактор поднимает окно с ней) и ссылку на уже идущую сессию.
+    enum EditorStep: Equatable, Sendable {
+        /// Открыть папку проекта в редакторе: он поднимает окно, где она открыта.
+        case openFolder(String)
+        /// Ссылка расширения на сессию — когда редактор стал активным (см. `linkReady`).
+        case openSessionLink(URL)
+        /// Только поднять или запустить сам редактор.
+        case activateApp
+    }
+
+    /// Шаги перехода в редактор. `folder` — существующая папка проекта (nil, если её нет),
+    /// `link` — ссылка на сессию, `editorRunning` — запущен ли редактор. Не запущен — вкладки
+    /// этой сессии в нём нет, а ссылка подняла бы её заново: тогда только папка.
+    static func editorSteps(folder: String?, link: URL?, editorRunning: Bool) -> [EditorStep] {
+        let session = editorRunning ? link : nil
+        if let folder {
+            return [.openFolder(folder)] + (session.map { [.openSessionLink($0)] } ?? [])
+        }
+        if let session { return [.openSessionLink(session)] }
+        return [.activateApp]
+    }
+
+    /// Сколько ждать, пока редактор поднимет окно с папкой, прежде чем отправить ссылку всё равно.
+    static let linkWaitLimit: TimeInterval = 1.5
+
+    /// Можно ли отправлять ссылку на сессию. Ссылку редактор отдаёт последнему активному окну,
+    /// поэтому она уходит, когда редактор впереди и его верхнее окно сменилось (поднялось окно с
+    /// папкой). `topWindowBefore` / `topWindowNow` — номер верхнего окна редактора до открытия
+    /// папки и сейчас. Окно не сменилось (нужное и так было сверху) — ссылка уйдёт по
+    /// `linkWaitLimit`.
+    static func linkReady(editorFrontmost: Bool, topWindowBefore: Int?, topWindowNow: Int?) -> Bool {
+        guard editorFrontmost, let now = topWindowNow else { return false }
+        return now != topWindowBefore
+    }
 
     // MARK: Session link
 

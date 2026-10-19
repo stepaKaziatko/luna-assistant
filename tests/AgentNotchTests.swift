@@ -1,5 +1,9 @@
 import Foundation
 
+// Заглушка для IslandTypes.swift (настоящий EyeShape — в BotEngine.swift, он тянет SwiftUI):
+// тест собирает настоящий BotState, чтобы проверить аватар плитки (AgentLook.botState).
+enum EyeShape: String { case round }
+
 @main
 enum AgentNotchTests {
 
@@ -157,6 +161,65 @@ enum AgentNotchTests {
             check("log line", AgentNotchSummary([waiting("w"), failed("e"), done("d"), busy("b"), busy("c"), idle("i")]).logLine
                   == "notch: waiting=1 error=1 finished=1 working=2 minis=4")
             check("log line of nobody", AgentNotchSummary([]).logLine == "notch: waiting=0 error=0 finished=0 working=0 minis=0")
+        }
+
+        // ── LUNA-68: просмотр снимает «готово» везде ───────────────────────────
+        print("\nSeen: no more «finished» anywhere")
+        do {
+            var b = AgentSessionBook()
+            let k = AgentSessionKey(pill: "integration_claude", session: "a")
+            let other = AgentSessionKey(pill: "integration_claude", session: "b")
+            let who = AgentSessionWho(project: "p", agent: "Claude Code")
+            func now(_ s: Double) -> Date { t0.addingTimeInterval(s) }
+            func info(_ key: AgentSessionKey, _ at: Double) -> AgentSessionInfo? {
+                b.snapshot(now: now(at)).first { $0.key == key }
+            }
+            b.apply(event: "UserPromptSubmit", key: k, who: who, step: "x", now: now(0))
+            b.apply(event: "Stop", key: k, who: who, finalText: "x", now: now(1))
+            var s = info(k, 2)
+            check("after Stop: unseen, rank finishedUnseen, the avatar is «finished», the frame is green",
+                  s?.finishedUnseen == true && s?.rank == .finishedUnseen
+                  && s.map(AgentLook.botState) == .finished && s.flatMap(AgentLook.accentHex) == AgentLook.finished)
+            var n = AgentNotchSummary(b.snapshot(now: now(2)))
+            check("after Stop: a mini on the notch, the notch Luna is «finished»",
+                  ids(n.minis) == ["a"] && n.finishedUnseen == 1 && n.dominant == .finishedUnseen)
+            check("after Stop: «Finished» on the Agents page counts it", AgentsSummary(b.snapshot(now: now(2))).finished == 1)
+
+            check("markFinishedSeen(for:) reports a change", b.markFinishedSeen(for: k))
+            s = info(k, 3)
+            check("seen: rank quiet, no frame", s?.rank == .quiet && s.flatMap(AgentLook.accentHex) == nil)
+            check("seen: the avatar is calm, not «finished»",
+                  s.map(AgentLook.botState) != .finished && s.map(AgentLook.botState) == .idle)
+            check("seen: the status line still says the turn ended", s?.phase == .finished)
+            n = AgentNotchSummary(b.snapshot(now: now(3)))
+            check("seen: no mini, no finished count, the notch Luna is not «finished»",
+                  n.minis.isEmpty && n.finishedUnseen == 0 && n.dominant != .finishedUnseen)
+            check("seen: «Finished» on the Agents page does not count it", AgentsSummary(b.snapshot(now: now(3))).finished == 0)
+
+            // Две законченные, одна просмотрена → «Готово» = 1.
+            b.apply(event: "UserPromptSubmit", key: other, who: who, step: "y", now: now(4))
+            b.apply(event: "Stop", key: other, who: who, finalText: "y", now: now(5))
+            check("two finished, one seen: «Finished» is 1", AgentsSummary(b.snapshot(now: now(6))).finished == 1)
+
+            // Новый ход снова даёт «готово».
+            b.apply(event: "UserPromptSubmit", key: k, who: who, step: "z", now: now(7))
+            check("a new turn: working, the avatar works", info(k, 8)?.phase == .working
+                  && info(k, 8).map(AgentLook.botState) == .working)
+            b.apply(event: "Stop", key: k, who: who, finalText: "z", now: now(9))
+            s = info(k, 10)
+            check("a new turn that ends is «finished» again",
+                  s?.finishedUnseen == true && s.map(AgentLook.botState) == .finished
+                  && AgentsSummary(b.snapshot(now: now(10))).finished == 2)
+
+            // Ожидание, ошибка и лимит аватара не меняются.
+            check("waiting and error keep their avatars",
+                  AgentLook.botState(waiting("w")) == .question && AgentLook.botState(failed("e")) == .error
+                  && AgentLook.botState(session("q", phase: .working, wait: .permission(tool: "Bash"))) == .approval)
+            check("the priority is unchanged: waiting > error > finished(unseen) > working",
+                  AgentNotchSummary([busy("b"), done("d")]).dominant == .finishedUnseen
+                  && AgentNotchSummary([done("d"), failed("e")]).dominant == .error
+                  && AgentNotchSummary([failed("e"), waiting("w")]).dominant == .waiting
+                  && AgentNotchSummary([busy("b"), seen("s")]).dominant == .working)
         }
 
         print(failures == 0 ? "\nAll agent notch checks passed" : "\n\(failures) check(s) FAILED")

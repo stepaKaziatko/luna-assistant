@@ -289,6 +289,8 @@ final class IslandWindowController: NSWindowController {
         // (Entering compact is the pointer arriving at a hidden island: that is how the block starts.)
         modeSubscription = state.$mode.dropFirst().sink { [weak self] mode in
             if mode != .compact { self?.dismissPeek() }
+            // «Свернуть шторку» (⌘⎋) держится в системе, только пока шторка раскрыта.
+            HotKeyCenter.shared.setIslandExpanded(mode == .expanded)
         }
 
         fsm.onTransition = { [weak self] from, to in
@@ -349,7 +351,7 @@ final class IslandWindowController: NSWindowController {
         }
 
         // An approval, or an email prepared by voice, stays open until I click.
-        fsm.isHeldOpen = { AppState.shared.pendingApproval != nil || AppState.shared.voiceMailDraft != nil }
+        fsm.isHeldOpen = { AppState.shared.holdsIslandOpen }
 
         // Voice: wake phrase detected → open listening island
         #if !APPSTORE
@@ -805,6 +807,11 @@ final class IslandWindowController: NSWindowController {
             VoiceSpeaker.shared.stop()
             VoiceEngine.shared.startListeningDirectly()
             #endif
+
+        case .collapseIsland:
+            // Регистрируется только при раскрытой шторке; фокус не забирается: ни makeKey, ни
+            // активации — сворачивает так же, как закрывающая ветка ⌘⇧N.
+            if state.mode == .expanded { collapse(allowPendingApproval: true) }
 
         case .openAgents:
             openPage(.agents)

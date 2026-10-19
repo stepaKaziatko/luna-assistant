@@ -21,6 +21,7 @@ enum ShortcutAction: String, CaseIterable, Sendable {
     case wardrobeToggle    = "wardrobeToggle"     // ⌃⌥G — open / close wardrobe
     case openAgents        = "openAgents"         // ⌃⌥S — open the Agents page (sessions)
     case openTabs          = "openTabs"           // ⌃⌥P — open the Active tabs page (pills)
+    case collapseIsland    = "collapseIsland"     // ⌘⎋ — свернуть раскрытую шторку (только пока она раскрыта)
     case talkToLuna      = "talkToLuna"       // (unset) — start listening without wake phrase (non-AppStore)
 
     // MARK: UserDefaults keys
@@ -54,6 +55,7 @@ enum ShortcutAction: String, CaseIterable, Sendable {
         case .wardrobeToggle:    return String(localized: "shortcut.wardrobe")
         case .openAgents:        return String(localized: "shortcut.open-agents")
         case .openTabs:          return String(localized: "shortcut.open-tabs")
+        case .collapseIsland:    return String(localized: "shortcut.collapse-island")
         case .talkToLuna:      return String(localized: "shortcut.talk-to-luna")
         }
     }
@@ -113,6 +115,7 @@ enum ShortcutLogic {
         .wardrobeToggle:    ShortcutSpec(keyCode: 5,  nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥G
         .openAgents:        ShortcutSpec(keyCode: 1,  nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥S
         .openTabs:          ShortcutSpec(keyCode: 35, nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥P
+        .collapseIsland:    ShortcutSpec(keyCode: 53, nsFlags: ShortcutSpec.cmdBit),   // ⌘⎋
         .talkToLuna:      ShortcutSpec(keyCode: 9,  nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥V (disabled by default)
     ]
 
@@ -145,6 +148,21 @@ enum ShortcutLogic {
         let def = defaults[action]!
         save(def, for: action)
         setEnabled(action.enabledByDefault, for: action)
+    }
+
+    // MARK: - Registration policy
+
+    /// Действия, которые регистрируются только пока шторка раскрыта. `⌘⎋` в свёрнутом состоянии
+    /// остаётся у других приложений (в VS Code это фокус ввода Claude Code): Carbon поглощает
+    /// зарегистрированное сочетание во всей системе.
+    static func registersWhileExpandedOnly(_ action: ShortcutAction) -> Bool {
+        action == .collapseIsland
+    }
+
+    /// Регистрировать ли `action` сейчас: включено и, если оно только для раскрытой шторки,
+    /// шторка раскрыта. Остальные действия — как раньше, всегда.
+    static func shouldRegister(_ action: ShortcutAction, enabled: Bool, islandExpanded: Bool) -> Bool {
+        enabled && (!registersWhileExpandedOnly(action) || islandExpanded)
     }
 
     // MARK: - Carbon modifier conversion
@@ -229,6 +247,15 @@ enum ShortcutLogic {
     }
 
     // MARK: - Island-local shortcut table (read-only, shown in Settings)
+
+    /// Сочетание «Свернуть шторку» для строки «Закрыть» рядом с `⎋`, nil — действие выключено.
+    static var collapseIslandKeys: String? {
+        collapseKeys(spec: hotKey(for: .collapseIsland), enabled: isEnabled(.collapseIsland))
+    }
+
+    static func collapseKeys(spec: ShortcutSpec, enabled: Bool) -> String? {
+        enabled ? displayString(for: spec) : nil
+    }
 
     /// Island-local keys for the Settings view: built from the one table in `IslandKeys.swift`,
     /// so Settings, the `?` hint and the monitor can never disagree.

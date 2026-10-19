@@ -17799,6 +17799,22 @@
         }
       }
     },
+    "shortcut.collapse-island": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse the island"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Свернуть шторку"
+          }
+        }
+      }
+    },
     "shortcut.conflict.duplicate": {
       "localizations": {
         "ar": {

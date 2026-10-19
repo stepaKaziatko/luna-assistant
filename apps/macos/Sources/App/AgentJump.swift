@@ -65,38 +65,85 @@ enum AgentJump {
             completion(folder.map(reveal(folder:)) ?? .unavailable)
             return
         }
-        let folderURL = folder.flatMap { isDirectory($0) ? URL(fileURLWithPath: $0, isDirectory: true) : nil }
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.activates = true
-
+        let existing = folder.flatMap { isDirectory($0) ? $0 : nil }
         // The link of the extension, if the plan has one. The scheme is checked once more here:
         // nothing but the editors' own schemes is ever opened.
         let session: URL? = link.flatMap { url in
             guard let scheme = url.scheme, AgentEditors.allowedSchemes.contains(scheme) else { return nil }
             return url
         }
+        let running = workspace.runningApplications.contains { $0.bundleIdentifier == bundleId }
+        let steps = AgentJumpPlan.editorSteps(folder: existing, link: session, editorRunning: running)
+        // Папки проекта больше нет — страница скажет об этом.
+        let hint: AgentJumpHint? = (folder != nil && existing == nil) ? .folderMissing : nil
 
-        if let folderURL {
-            workspace.open([folderURL], withApplicationAt: appURL, configuration: configuration) { _, error in
+        switch (steps.first, steps.dropFirst().first) {
+        case (.openFolder(let path), let next):
+            // Верхнее окно редактора до открытия папки: ссылка ждёт, пока его сменит окно с папкой.
+            let topBefore = topWindow(of: bundleId)
+            let linkAfter: URL?
+            if case .openSessionLink(let url)? = next { linkAfter = url } else { linkAfter = nil }
+            workspace.open([URL(fileURLWithPath: path, isDirectory: true)], withApplicationAt: appURL,
+                           configuration: activating()) { _, error in
                 if let error { jumpLog("Go to agent: the editor did not open the folder: \(error.localizedDescription)") }
-                guard let session else { return }
-                // The window with the folder is up: the extension opens the tab in it.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    let again = NSWorkspace.OpenConfiguration()
-                    again.activates = true
-                    NSWorkspace.shared.open([session], withApplicationAt: appURL, configuration: again) { _, error in
-                        if let error { jumpLog("Go to agent: the session link was not opened: \(error.localizedDescription)") }
-                    }
+                guard let linkAfter else { return }
+                DispatchQueue.main.async {
+                    sendWhenEditorIsUp(linkAfter, appURL: appURL, bundleId: bundleId, topBefore: topBefore,
+                                       deadline: Date().addingTimeInterval(AgentJumpPlan.linkWaitLimit))
                 }
             }
-            completion(nil)
-        } else if let session {
-            workspace.open([session], withApplicationAt: appURL, configuration: configuration, completionHandler: nil)
-            completion(folder == nil ? nil : .folderMissing)
-        } else {
-            workspace.openApplication(at: appURL, configuration: configuration, completionHandler: nil)
-            completion(folder == nil ? nil : .folderMissing)
+        case (.openSessionLink(let url), _):
+            openLink(url, appURL: appURL)
+        case (.activateApp, _), (nil, _):
+            workspace.openApplication(at: appURL, configuration: activating(), completionHandler: nil)
         }
+        completion(hint)
+    }
+
+    private static func activating() -> NSWorkspace.OpenConfiguration {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        return configuration
+    }
+
+    private static func openLink(_ url: URL, appURL: URL) {
+        NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: activating()) { _, error in
+            if let error { jumpLog("Go to agent: the session link was not opened: \(error.localizedDescription)") }
+        }
+    }
+
+    /// Отправляет ссылку на сессию, когда редактор впереди и поднял окно с папкой
+    /// (`AgentJumpPlan.linkReady`), но не позже `deadline`. Опрос раз в 0,1 с идёт только эти
+    /// полторы секунды после явного «Перейти».
+    private static func sendWhenEditorIsUp(_ url: URL, appURL: URL, bundleId: String, topBefore: Int?,
+                                           deadline: Date) {
+        let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier == bundleId
+        let ready = AgentJumpPlan.linkReady(editorFrontmost: frontmost, topWindowBefore: topBefore,
+                                            topWindowNow: frontmost ? topWindow(of: bundleId) : nil)
+        if ready || Date() >= deadline {
+            if !ready { jumpLog("Go to agent: the editor window did not change in time, the link goes anyway") }
+            openLink(url, appURL: appURL)
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            sendWhenEditorIsUp(url, appURL: appURL, bundleId: bundleId, topBefore: topBefore, deadline: deadline)
+        }
+    }
+
+    /// Номер верхнего обычного окна приложения на экране (порядок окон спереди назад). Номер и
+    /// владелец окна доступны без разрешений; заголовков Luna не читает.
+    private static func topWindow(of bundleId: String) -> Int? {
+        let pids = Set(NSWorkspace.shared.runningApplications
+            .filter { $0.bundleIdentifier == bundleId }.map(\.processIdentifier))
+        guard !pids.isEmpty,
+              let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
+                                                    kCGNullWindowID) as? [[String: Any]] else { return nil }
+        for window in list {
+            guard let pid = window[kCGWindowOwnerPID as String] as? Int32, pids.contains(pid),
+                  (window[kCGWindowLayer as String] as? Int) == 0 else { continue }
+            return window[kCGWindowNumber as String] as? Int
+        }
+        return nil
     }
 
     // MARK: Terminals

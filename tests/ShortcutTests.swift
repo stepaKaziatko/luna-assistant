@@ -16,6 +16,7 @@ enum ShortcutTests {
         testCardNavigation()
         testPageHotkeys()
         testIslandShortcutsFromTable()
+        testCollapseIsland()
         print("ShortcutLogic: all cases passed")
     }
 
@@ -286,5 +287,64 @@ enum ShortcutTests {
         for (a, b) in zip(list, rows) {
             precondition(a.key == b.keys, "islandShortcuts key must come from the table: \(a.key) vs \(b.keys)")
         }
+    }
+
+    // MARK: - testCollapseIsland (LUNA-68)
+
+    static func testCollapseIsland() {
+        let spec = ShortcutLogic.defaults[.collapseIsland]
+        precondition(spec == ShortcutSpec(keyCode: 53, nsFlags: ShortcutSpec.cmdBit), "collapseIsland must default to ⌘⎋")
+        precondition(ShortcutLogic.displayString(for: spec!) == "⌘⎋", "⌘⎋ display")
+        precondition(ShortcutAction.collapseIsland.enabledByDefault, "collapseIsland is on by default")
+        precondition(!ShortcutAction.collapseIsland.isNonAppStore, "collapseIsland exists in the App Store build too")
+        precondition(ShortcutAction.collapseIsland.udKeyCode == "shortcut.collapseIsland.keyCode"
+                     && ShortcutAction.collapseIsland.udFlags == "shortcut.collapseIsland.flags"
+                     && ShortcutAction.collapseIsland.udEnabled == "shortcut.collapseIsland.enabled",
+                     "collapseIsland is stored under the common scheme")
+        // Без бандла String(localized:) отдаёт сам ключ: так видно, что ключ свой.
+        precondition(ShortcutAction.collapseIsland.displayName == "shortcut.collapse-island",
+                     "collapseIsland has its own localization key")
+        if let data = FileManager.default.contents(atPath: "apps/macos/Resources/Localizable.xcstrings"),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let strings = json["strings"] as? [String: Any] {
+            let entry = (strings["shortcut.collapse-island"] as? [String: Any])?["localizations"] as? [String: Any]
+            precondition(entry?["en"] != nil && entry?["ru"] != nil, "shortcut.collapse-island is translated (en, ru)")
+        } else {
+            preconditionFailure("Localizable.xcstrings must be readable")
+        }
+        precondition(ShortcutLogic.duplicates(in: ShortcutLogic.defaults).isEmpty, "⌘⎋ clashes with no other default")
+
+        // Регистрация: «Свернуть шторку» — только при раскрытой шторке, остальные — всегда.
+        precondition(ShortcutLogic.registersWhileExpandedOnly(.collapseIsland), "collapseIsland is expanded-only")
+        for action in ShortcutAction.allCases where action != .collapseIsland {
+            precondition(!ShortcutLogic.registersWhileExpandedOnly(action), "\(action.rawValue) is registered always")
+            precondition(ShortcutLogic.shouldRegister(action, enabled: true, islandExpanded: false)
+                         && ShortcutLogic.shouldRegister(action, enabled: true, islandExpanded: true),
+                         "\(action.rawValue): enabled → registered, collapsed or not")
+            precondition(!ShortcutLogic.shouldRegister(action, enabled: false, islandExpanded: true),
+                         "\(action.rawValue): disabled → not registered")
+        }
+        precondition(ShortcutLogic.shouldRegister(.collapseIsland, enabled: true, islandExpanded: true),
+                     "collapseIsland: registered while expanded")
+        precondition(!ShortcutLogic.shouldRegister(.collapseIsland, enabled: true, islandExpanded: false),
+                     "collapseIsland: not registered while collapsed (⌘⎋ stays with VS Code)")
+        precondition(!ShortcutLogic.shouldRegister(.collapseIsland, enabled: false, islandExpanded: true),
+                     "collapseIsland: off → never registered")
+
+        // Строка «Закрыть» таблицы острова.
+        let on = ShortcutLogic.collapseKeys(spec: spec!, enabled: true)
+        precondition(on == "⌘⎋", "collapse keys when on")
+        precondition(ShortcutLogic.collapseKeys(spec: spec!, enabled: false) == nil, "no collapse keys when off")
+        func close(_ keys: String?) -> String? {
+            IslandKeyTable.rows(area: nil, collapseKeys: keys).first { $0.descriptionKey == "shortcut.island.close" }?.keys
+        }
+        precondition(close("⌘⎋") == "⎋ / ⌘⎋", "the close row shows ⎋ and ⌘⎋ when the action is on")
+        precondition(close(nil) == "⎋", "the close row shows only ⎋ when the action is off")
+        let other = ShortcutLogic.displayString(for: ShortcutSpec(keyCode: 53, nsFlags: ShortcutSpec.ctrlOpt))
+        precondition(close(other) == "⎋ / ⌃⌥⎋", "another combination is shown as set")
+        // Строки по умолчанию (без сохранённых настроек) — с ⌘⎋, и Settings читает ту же таблицу.
+        precondition(ShortcutLogic.islandShortcuts.contains { $0.key == "⎋ / ⌘⎋" }, "islandShortcuts lists ⎋ / ⌘⎋")
+        // Само сочетание острову не принадлежит: его ловит Carbon, а не монитор.
+        precondition(!IslandKeyTable.bindings.contains { $0.display == "⌘⎋" }, "⌘⎋ is not a binding of the monitor")
     }
 }
