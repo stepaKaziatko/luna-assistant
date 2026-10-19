@@ -120,7 +120,7 @@ steps as icons (newest on the right) and a status line.
 |---|---|
 | Waits for you (a permission request or a question the notch holds) | first, orange frame, "Waiting: permission Bash" / "Waiting: question" |
 | Error (`StopFailure`) | red frame |
-| Turn finished (`Stop`, Gemini's `AfterAgent`) | green frame until the page has been shown, then quiet |
+| Turn finished (`Stop`, Gemini's `AfterAgent`) | green frame and a green mark on the avatar until the agent has been looked at, then quiet (a calm avatar, "Turn finished · 5 min ago" stays as text) |
 | Working (`UserPromptSubmit`, `PreToolUse`…) | blue frame, the last step as the status |
 | Open, no turn (`SessionStart`, `Interrupt`) | quiet |
 
@@ -128,7 +128,13 @@ Where the data comes from: the hook events in this document (`PillSessionRegistr
 what a turn-ending event may do to a pill; `AgentSessionBook` in `AgentSessions.swift` keeps the
 sessions and their steps). "Waits for you" is read off the approval queue and the question on the
 card when the tiles are built, so it goes away on its own when the request is answered, times out
-or is taken back by the agent. Only requests the notch actually holds count: a terminal session
+or is taken back by the agent.
+
+"Finished, not seen" (`finishedUnseen`) goes off when the agent is looked at: its page is shown, "Go to
+the agent" is done for it, or the Agents page is left (for everyone it showed). Hovering the notch and
+the block under the cursor is not a look. Everything follows the flag, not the phase: the frame, the
+avatar (`AgentLook.botState`), the mini on the notch and the "Finished" counter at the top of the Agents
+page (`AgentsSummary`), which counts only unseen turns. The next turn that ends is news again. Only requests the notch actually holds count: a terminal session
 asks the notch only with "Answer questions and permissions from terminal sessions" on, and a
 third-party agent never does.
 
@@ -157,6 +163,11 @@ list. The page follows the session by its tile id: when the session ends it says
   gone does nothing and does not move you off the page. The order does not change: only the head
   of the queue is answered, a request behind it shows "In the queue: 2 of 3". A request that
   arrives while the page is open still brings its card forward, as before.
+- **After the answer.** Answered on the card (or gone while its card is on screen), the island folds into
+  the notch — or shows the next waiting request, which the queue picks as before; gone without an answer,
+  a note shows for three seconds first. The page of an agent stays and says the request is gone; on any
+  other page you stay where you are. Only when the island cannot fold (a mail draft by voice holds it) does
+  it go home rather than show an empty card. One pure rule, `IslandHome.afterRequest`.
 - **Same buttons.** "Always" is hidden for Codex, Copilot CLI and Muse Code by one function
   (`ApprovalChoices`) used by the card and the page. A session whose requests Luna does not get
   (a terminal session with the terminal setting off, an observed-only agent) says so instead of
@@ -167,7 +178,11 @@ list. The page follows the session by its tile id: when the session ends it says
 The page of Agents, the page of an agent and the cards of a request and of a question are driven with
 the keys once the island has the keyboard (a page hotkey — `⌃⌥S` Agents, `⌃⌥P` Active pills, `⌃⌥A` the
 waiting request, `⌃⌥Space` the chat — or a click). The user's app stays the active one; `⎋` folds the
-island and the keys go back to it. All keys are one table (`IslandKeys.swift`, `IslandKeyTable`) that the
+island and the keys go back to it. `⌘⎋` ("Collapse the island", `ShortcutAction.collapseIsland`) folds
+it from any app without the keyboard: a Carbon hotkey registered only while the island is expanded
+(`ShortcutLogic.registersWhileExpandedOnly`, switched by the island's mode), so while it is folded `⌘⎋`
+stays with other apps (in VS Code it focuses the input of Claude Code). A waiting request stays in the
+queue. It can be changed or switched off in Settings → Shortcuts; the `?` hint shows it next to `⎋`. All keys are one table (`IslandKeys.swift`, `IslandKeyTable`) that the
 monitor, the `?` hint and Settings → Shortcuts read; the pure parts are tested without a window
 (`scripts/test-island-keys.sh`).
 
@@ -193,11 +208,23 @@ The button on the page is the only place where Luna hands the focus to another a
 
 | Host of the session | What happens |
 |---|---|
-| VS Code, VS Code Insiders, VSCodium | The project folder is opened in that app (its window with the folder comes up), then `<scheme>://anthropic.claude-code/open?session=<id>` opens the Claude Code tab. The scheme is from a fixed list and the id must be a UUID; otherwise only the folder is opened. |
+| VS Code, VS Code Insiders, VSCodium | The **project root** of the session is opened in that app (its window with the folder comes up), then `<scheme>://anthropic.claude-code/open?session=<id>` makes the extension reveal the session's tab in that window. The link goes once the editor is in front and its top window changed (`AgentJumpPlan.linkReady`), at the latest after 1.5 s. Editor not running: the folder only, no link — the link would start the session again in a new tab. The scheme is from a fixed list and the id must be a UUID; otherwise only the folder is opened. |
 | Cursor | The folder only: Claude Code and the agent of Cursor reach Luna under the same pill and cannot be told apart. |
 | Terminal.app, iTerm2 | The app is activated and the tab with the session's tty is selected through AppleScript (build from GitHub only). macOS asks for the **Automation** permission the first time you press the button, never at launch; without it the app is only activated and the page says where to allow it (System Settings → Privacy & Security → Automation). |
 | Other terminals (Warp, Ghostty, kitty, Alacritty, WezTerm…) | The app is activated; they have no scripting for tabs. |
+| Claude desktop, Codex desktop | The app is activated; Luna does not open a session in it (the session id of the desktop app is not the one of the hook). |
 | Unknown host | The project folder in Finder; with no folder known, the button is off. |
+
+**Which folder.** VS Code raises an existing window only for the exact folder that window has open; a
+subfolder or a worktree the agent `cd`-ed into opens a new window. So the jump opens the project root,
+not the current `cwd`: `CLAUDE_PROJECT_DIR` of the hook's environment (the relay puts it into the event as
+`project_dir`), or, for agents that do not set it, the `cwd` of the first event Luna saw. The book keeps it
+once (`AgentSessionWho.projectDir`) and later events do not move it. Left as they are: a window opened on
+another folder or on a multi-root `.code-workspace` — VS Code opens a new window then (Luna does not
+read the windows of other apps, so it cannot know which folders they have open).
+
+**Seen.** The jump is a look at the agent: like opening its page, it takes the "finished, not seen"
+mark off that session (`AppState.goToAgent` → `HookServer.markAgentsSeen(for:)`).
 
 The tty is found by Luna itself: the pid of the process on the other end of the hook's socket
 (`LOCAL_PEERPID`), then the nearest process up the parent chain that has a terminal

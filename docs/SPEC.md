@@ -384,10 +384,12 @@ Ces raccourcis fonctionnent en arrière-plan sans permission Accessibilité.
 | Ouvrir la garde-robe (`openWardrobe`) | ⌃⌥G | `shortcut.openWardrobe.keyCode` / `.flags` | Oui |
 | Ouvrir la page Agents (`openAgents`) | ⌃⌥S | `shortcut.openAgents.keyCode` / `.flags` | Oui |
 | Ouvrir « Pilules actives » (`openTabs`) | ⌃⌥P | `shortcut.openTabs.keyCode` / `.flags` | Oui |
+| Replier l'île (`collapseIsland`) | ⌘⎋ | `shortcut.collapseIsland.keyCode` / `.flags` | Oui (enregistré seulement pendant que l'île est ouverte) |
 
 - Si Carbon ne peut pas enregistrer un raccourci (conflit système), l'action est marquée `.conflict` dans `HotKeyCenter` et un indicateur apparaît dans Réglages → Raccourcis.
 - `toggleIsland` conserve les clés UserDefaults historiques (`hotkeyCode`, `hotkeyFlags`, `hotkeyEnabled`) pour ne pas casser les préférences existantes.
 - Les actions marquées `isNonAppStore` (`attachFrontWindow`) sont omises du build App Store.
+- `collapseIsland` n'est enregistré auprès de Carbon que tant que l'île est ouverte (`ShortcutLogic.registersWhileExpandedOnly`, basculé au changement de mode) : île repliée, ⌘⎋ reste aux autres apps (dans VS Code, le focus de saisie de Claude Code). Il replie l'île sans prendre le focus ; l'aide `?` l'affiche à côté de ⎋.
 
 ### 14.2 Raccourcis locaux (actifs quand l'île a le focus)
 
