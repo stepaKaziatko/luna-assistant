@@ -2085,6 +2085,8 @@ struct SettingsView: View {
         saveKey("stripe-api-key",  value: stripeKey)
         saveKey("calcom-api-key",  value: calcomKey)
         saveKey("notion-api-key",  value: notionKey)
+        // A page of an integration (GitHub) appears or goes away with its key.
+        AppState.shared.refreshCredentials()
         statusMessage = String(localized: "status.integrations-saved")
     }
 

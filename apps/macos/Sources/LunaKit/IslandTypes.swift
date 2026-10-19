@@ -14,8 +14,14 @@ enum IslandView: String, CaseIterable {
     case searching, result, note, settings, greeting, wardrobe, recap
     case agents       // live agent sessions: one tile per session
     case agentPreview // one agent session in detail: steps, its question or request, "go to the agent"
+    case github       // page of the GitHub integration: my PRs, to review, default-branch CI
     case listening    // voice wake detected — "À l'écoute…" with live transcript
     case voiceResult  // voice command executed — "✓ Musique lancée" for ~2 s
+}
+
+extension IslandView {
+    /// Pages over the full width: there is no room for the big Luna on the left, she steps aside.
+    var hidesBigLuna: Bool { self == .agents || self == .agentPreview || self == .github }
 }
 
 // MARK: - Bot State
@@ -220,6 +226,8 @@ enum IslandConst {
         .agents:    ViewLayout(height: 240, botX: 56,  botY: nil, botDiameter: 46, agentMode: .none),
         // Preview of one agent: like the list, full width, the big Luna is hidden.
         .agentPreview: ViewLayout(height: 240, botX: 56, botY: nil, botDiameter: 46, agentMode: .none),
+        // GitHub: three columns over the full width, like the list; the big Luna is hidden.
+        .github:    ViewLayout(height: 240, botX: 56,  botY: nil, botDiameter: 46, agentMode: .none),
         .prompt:    ViewLayout(height: 160, botX: 52,  botY: nil, botDiameter: 44, agentMode: .column),
         .searching: ViewLayout(height: 160, botX: 52,  botY: nil, botDiameter: 44, agentMode: .column),
         .result:    ViewLayout(height: 160, botX: 52,  botY: nil, botDiameter: 44, agentMode: .column),

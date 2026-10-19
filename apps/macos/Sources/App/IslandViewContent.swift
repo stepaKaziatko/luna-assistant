@@ -20,6 +20,7 @@ struct IslandViewContent: View {
         case .choose:    ChooseView(state: state)
         case .mail:      MailView(state: state)
         case .agents:    AgentsView(state: state)
+        case .github:    GitHubPageView(state: state)
         case .agentPreview: AgentPreviewView(state: state)
         case .prompt:    PromptView(state: state)
         case .searching: SearchingView(state: state)
@@ -1809,7 +1810,7 @@ struct ResultView: View {
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(text, forType: .string)
                         }
-                        SecondaryButton("Close") { state.view = state.tasks.isEmpty ? .empty : .overview }
+                        SecondaryButton("Close") { state.goHome() }
                     }
                 }
                 .padding(.leading, 84)
@@ -3120,7 +3121,7 @@ private func contributionColor(_ level: Int) -> Color {
     }
 }
 
-private func ghCIDot(_ ci: CIState) -> Color {
+func ghCIDot(_ ci: CIState) -> Color {
     switch ci {
     case .failure: return Color(hex: "#F4505E")
     case .pending: return Color(hex: "#F5A524")
@@ -4520,7 +4521,7 @@ struct WardrobeView: View {
         }
         .onExitCommand {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                state.view = .overview
+                state.goHome()
             }
         }
     }

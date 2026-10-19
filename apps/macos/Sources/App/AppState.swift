@@ -9,10 +9,22 @@ final class AppState: ObservableObject {
 
     // Island state
     @Published var mode: IslandMode = .hidden
-    @Published var view: IslandView = .overview {
-        // Leaving the preview page forgets whose it was.
-        didSet { if oldValue == .agentPreview, view != .agentPreview { previewAgentId = nil } }
+    @Published var view: IslandView = .agents {
+        didSet {
+            // Leaving the preview page forgets whose it was.
+            if oldValue == .agentPreview, view != .agentPreview { previewAgentId = nil }
+            // Opening the GitHub page is seeing its news: the dot on the tab and the badge of the pill go out.
+            if view == .github, oldValue != .github { clearPillBadge(id: Self.githubPillId) }
+        }
     }
+
+    /// The page the island opens on and returns to: Agents; a request that waits comes first.
+    var homeView: IslandView { IslandHome.view(pendingApproval: pendingApproval != nil) }
+
+    /// Back to the home page. The one place that knows what "home" is.
+    func goHome() { view = homeView }
+
+    private static let githubPillId = "integration_github"
 
     // Tasks
     @Published var tasks: [AgentTask] = []
@@ -398,7 +410,33 @@ final class AppState: ObservableObject {
                 githubPulse = nil
                 githubActivity = nil
             }
+            leavePageWhoseTabIsGone()
         }
+    }
+
+    /// Keys in the Keychain that decide whether an integration has a page (see `IntegrationPages`).
+    /// The Keychain itself is not observable: the app reads it at launch and when Settings saves.
+    @Published private(set) var savedCredentialKeys: Set<String> = [] {
+        didSet { leavePageWhoseTabIsGone() }
+    }
+
+    /// Tabs of integrations in the header: the pill is on and the key is saved.
+    var integrationPages: [IntegrationPage] {
+        IntegrationPages.visible(active: activeIntegrations, credentials: savedCredentialKeys)
+    }
+
+    /// Reads which keys are saved. Called at launch and after Settings saves the keys.
+    func refreshCredentials() {
+        savedCredentialKeys = Set(IntegrationPages.credentialKeys.filter {
+            !(KeychainStore.shared.get($0) ?? "").isEmpty
+        })
+    }
+
+    /// The tab of the page on screen went away (pill off, key erased): back home.
+    private func leavePageWhoseTabIsGone() {
+        let next = IntegrationPages.resolved(view, visible: integrationPages,
+                                             pendingApproval: pendingApproval != nil)
+        if next != view { view = next }
     }
 
     // Pending API result
@@ -738,6 +776,7 @@ final class AppState: ObservableObject {
 
         // Always load integration pills
         loadIntegrationTasks()
+        refreshCredentials()
     }
 
     // MARK: - Computed
@@ -809,6 +848,16 @@ final class AppState: ObservableObject {
         tasks[idx].pillBadge = badge
     }
 
+    func clearPillBadge(id: String) {
+        guard let idx = tasks.firstIndex(where: { $0.id == id }), tasks[idx].pillBadge != nil else { return }
+        tasks[idx].pillBadge = nil
+    }
+
+    /// Unseen news of GitHub (CI failed, review asked, CI passed): the dot on the tab of its page.
+    var githubPageBadge: PillBadge? {
+        tasks.first(where: { $0.id == Self.githubPillId })?.pillBadge
+    }
+
     /// Called on main thread after each GitHub pulse poll. Fires badge + sound based on events.
     func handleGitHubEvents(_ events: [GitHubEvent]) {
         guard !events.isEmpty else { return }
@@ -826,8 +875,9 @@ final class AppState: ObservableObject {
                 if level < 1 { level = 1; badge = .finished; sound = "finish"   }
             }
         }
-        // Only set badge when the GitHub pill is not currently in focus
-        if let b = badge, focusId != "integration_github" { setPillBadge(b, for: "integration_github") }
+        // Only set badge when the GitHub pill is not currently in focus and its page is not open
+        let onGitHubPage = mode == .expanded && view == .github
+        if let b = badge, focusId != Self.githubPillId, !onGitHubPage { setPillBadge(b, for: Self.githubPillId) }
         if let s = sound { SoundEngine.shared.play(s) }
     }
 
@@ -842,6 +892,7 @@ final class AppState: ObservableObject {
 
     func syncView() {
         guard mode == .expanded else { return }
+        // The "Active pills" page and its empty twin follow whether there are any pills at all.
         if view == .empty && !tasks.isEmpty { view = .overview }
         else if view == .overview && tasks.isEmpty { view = .empty }
     }

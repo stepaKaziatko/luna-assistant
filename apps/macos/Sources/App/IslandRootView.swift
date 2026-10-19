@@ -336,8 +336,8 @@ struct BotPlacement: View {
         let canvasSize = diameter / 0.6
         let overhang: CGFloat = 40
         let isUploading = state.view == .uploading
-        // The Agents page is a wall of tiles with a Luna each: the big one steps aside.
-        let hiddenByPage = state.mode == .expanded && (state.view == .agents || state.view == .agentPreview)
+        // The pages over the full width (agents, GitHub) leave no room for the big Luna: she steps aside.
+        let hiddenByPage = state.mode == .expanded && state.view.hidesBigLuna
 
         Group {
             // No glow in uploading mode — the tiny dot doesn't need it
@@ -550,7 +550,7 @@ struct IslandContentView: View {
                     // Views that fill available height instead of the fixed 98pt content frame:
                     // chat (prompt) is always flexible; mail is flexible only when active so
                     // it doesn't push the ZStack taller when inactive.
-                    let isTall = v == .prompt || ((v == .mail || v == .agents || v == .agentPreview) && active)
+                    let isTall = v == .prompt || ((v == .mail || v.hidesBigLuna) && active)
                     let anim: Animation = active
                         ? .spring(response: 0.4, dampingFraction: 0.8).delay(0.16)
                         : .easeIn(duration: 0.16)
@@ -591,8 +591,8 @@ struct IslandHeader: View {
         HStack(spacing: 0) {
             // Left: tab capsules
             HStack(spacing: 5) {
-                TabButton(icon: "house.fill", view: .overview, state: state)
-                TabButton(icon: "square.grid.2x2.fill", view: .agents, state: state)
+                // Home: the Agents page (and the page of one agent below it).
+                TabButton(icon: "house.fill", view: .agents, state: state)
                 TabButton(icon: "bubble.left.fill", view: .prompt, state: state, preAction: {
                     #if !APPSTORE
                     if state.promptContext == nil {
@@ -601,6 +601,15 @@ struct IslandHeader: View {
                     #endif
                 })
                 TabButton(icon: "plus", view: .upload, state: state)
+                // "Active pills": the overview of the pills the person chose (workspace, agents, AI, services).
+                TabButton(icon: "square.grid.2x2.fill", view: .overview, state: state,
+                          help: String(localized: "Active pills"))
+                // Pages of connected integrations: there while the integration is on and its key is saved.
+                ForEach(state.integrationPages, id: \.view) { page in
+                    TabButton(icon: page.icon, view: page.view, state: state,
+                              badge: page.view == .github ? state.githubPageBadge : nil,
+                              help: page.title)
+                }
             }
             .padding(.leading, 14)
 
@@ -664,6 +673,9 @@ struct TabButton: View {
     let view: IslandView
     @ObservedObject var state: AppState
     var preAction: (() -> Void)? = nil
+    /// Unseen news of the page: a dot on the corner of the tab.
+    var badge: PillBadge? = nil
+    var help: String? = nil
     @State private var isHovered = false
 
     private var isOn: Bool {
@@ -689,9 +701,31 @@ struct TabButton: View {
                     isHovered ? Color.white.opacity(0.07) : Color.clear
                 )
                 .clipShape(Capsule())
+                .overlay(alignment: .topTrailing) {
+                    if let badge {
+                        Circle()
+                            .fill(TabBadgeColor.color(badge))
+                            .frame(width: 7, height: 7)
+                            .overlay(Circle().stroke(Color(hex: "#0B0C0E"), lineWidth: 1.5))
+                            .offset(x: 1, y: -1)
+                            .accessibilityLabel(String(localized: "github.tab.news", defaultValue: "GitHub has news"))
+                    }
+                }
         }
         .buttonStyle(.plain)
+        .help(help ?? "")
         .onHover { isHovered = $0 }
+    }
+}
+
+/// Colours of the dot on a tab: the same as the badge of the pill.
+enum TabBadgeColor {
+    static func color(_ badge: PillBadge) -> Color {
+        switch badge {
+        case .approval: return Color(hex: "#F5A524")
+        case .finished: return Color(hex: "#22C55E")
+        case .error:    return Color(hex: "#F4505E")
+        }
     }
 }
 

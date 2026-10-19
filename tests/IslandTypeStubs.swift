@@ -10,7 +10,7 @@ enum IslandView: String, CaseIterable {
     case overview, empty, approval, question, error, finished
     case confused, upload, uploading, choose, mail, prompt
     case searching, result, note, settings, greeting, wardrobe, recap
-    case agents
+    case agents, agentPreview, github
     case listening
     case voiceResult
 }

@@ -991,7 +991,7 @@ final class IslandWindowController: NSWindowController {
             guard let self else { return }
             if self.state.mode == .expanded && self.state.view == .wardrobe {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    self.state.view = .overview
+                    self.state.goHome()
                 }
             } else {
                 self.expand(to: .wardrobe)
@@ -1144,7 +1144,7 @@ final class IslandWindowController: NSWindowController {
                 guard !self.state.lunaOnDesktop else { return }
                 if self.state.mode == .expanded && self.state.view == .wardrobe {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        self.state.view = .overview
+                        self.state.goHome()
                     }
                 } else {
                     self.expand(to: .wardrobe)
@@ -1369,8 +1369,7 @@ final class IslandWindowController: NSWindowController {
     // MARK: - Helpers
 
     func defaultView() -> IslandView {
-        if state.pendingApproval != nil { return .approval }
-        return state.tasks.isEmpty ? .empty : .overview
+        state.homeView
     }
 
     func baseMode() -> IslandMode {
@@ -1410,7 +1409,7 @@ final class IslandWindowController: NSWindowController {
             guard let self else { return }
             self.state.stateOverride = nil
             if self.state.view == .confused {
-                let fallback = self.state.tasks.isEmpty ? IslandView.empty : .overview
+                let fallback = self.state.homeView
                 self.state.view = (prevView == .confused) ? fallback : prevView
             }
             NotificationCenter.default.post(name: .triggerEmote, object: BotEmote.happy)

@@ -167,7 +167,7 @@ final class HookServer: @unchecked Sendable {
                 NotificationCenter.default.post(name: .islandCollapse, object: nil)
             }
         } else {
-            state.view = state.tasks.isEmpty ? .empty : .overview
+            state.goHome()
         }
     }
 
@@ -206,7 +206,7 @@ final class HookServer: @unchecked Sendable {
                 NotificationCenter.default.post(name: .islandCollapse, object: nil)
             }
         } else {
-            state.view = state.tasks.isEmpty ? .empty : .overview
+            state.goHome()
         }
     }
 
@@ -219,7 +219,7 @@ final class HookServer: @unchecked Sendable {
         if DemoEngine.shared.isActive, !questionHolder.isHolding, id == nil {
             AppState.shared.pendingQuestion = nil
             AppState.shared.isPinned = false
-            AppState.shared.view = AppState.shared.tasks.isEmpty ? .empty : .overview
+            AppState.shared.goHome()
             DemoEngine.shared.handleQuestionAnswered(answers: answers)
             return
         }
@@ -937,7 +937,7 @@ final class HookServer: @unchecked Sendable {
             let s = AppState.shared
             s.pendingApproval = nil
             s.isPinned = false
-            s.view = s.tasks.isEmpty ? .empty : .overview
+            s.goHome()
             DemoEngine.shared.handleApprovalDecision(decision)
             return
         }
@@ -947,7 +947,7 @@ final class HookServer: @unchecked Sendable {
             let s = AppState.shared
             s.pendingApproval = nil
             s.isPinned = false
-            if s.view != .agentPreview { s.view = s.tasks.isEmpty ? .empty : .overview }
+            if s.view != .agentPreview { s.goHome() }
             return
         }
         guard approvals.accepts(decisionFor: id) else {
