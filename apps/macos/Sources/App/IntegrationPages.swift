@@ -41,7 +41,7 @@ enum IntegrationPages {
     /// new integration gets its page by one more line here (and a view for it).
     static let catalog: [IntegrationPage] = [
         IntegrationPage(pillId: "integration_github", view: .github, title: "GitHub",
-                        icon: "arrow.triangle.pull", credentialKey: "github-token"),
+                        icon: "arrow.triangle.branch", credentialKey: "github-token"),
     ]
 
     /// Keys in the Keychain the catalog cares about: `AppState` reads exactly these.

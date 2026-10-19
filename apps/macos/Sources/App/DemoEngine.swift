@@ -150,7 +150,7 @@ final class DemoEngine: ObservableObject {
             }
 
         // Open island immediately on the demo session
-        NotificationCenter.default.post(name: .hookExpand, object: AppState.shared.homeView)
+        NotificationCenter.default.post(name: .hookExpand, object: IslandView.overview)  // the demo plays on the "Active pills" page
 
         let gen = generation
         demoTask = Task { @MainActor [weak self] in
@@ -700,7 +700,7 @@ final class DemoEngine: ObservableObject {
                 if s.pendingApproval?.sessionId == "demo_session" {
                     s.pendingApproval = nil
                     s.isPinned = false
-                    s.goHome()
+                    s.view = .overview  // the demo plays on the "Active pills" page: its pills carry the steps
                 }
                 c.resume(returning: "allow")
             }
@@ -723,7 +723,7 @@ final class DemoEngine: ObservableObject {
                     let s = AppState.shared
                     s.pendingQuestion = nil
                     s.isPinned = false
-                    s.goHome()
+                    s.view = .overview
                 }
                 c.resume()
             }

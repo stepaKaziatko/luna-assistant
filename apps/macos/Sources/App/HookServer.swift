@@ -219,7 +219,7 @@ final class HookServer: @unchecked Sendable {
         if DemoEngine.shared.isActive, !questionHolder.isHolding, id == nil {
             AppState.shared.pendingQuestion = nil
             AppState.shared.isPinned = false
-            AppState.shared.goHome()
+            AppState.shared.view = .overview  // the demo plays on the "Active pills" page
             DemoEngine.shared.handleQuestionAnswered(answers: answers)
             return
         }
@@ -937,7 +937,7 @@ final class HookServer: @unchecked Sendable {
             let s = AppState.shared
             s.pendingApproval = nil
             s.isPinned = false
-            s.goHome()
+            s.view = .overview  // the demo plays on the "Active pills" page
             DemoEngine.shared.handleApprovalDecision(decision)
             return
         }
