@@ -184,6 +184,44 @@ for the session; until then "Go to the agent" only activates Terminal or iTerm2.
 `/dev/ttysN` ever reaches an AppleScript; the folder, the project name and the session id never do.
 The App Store build has no AppleScript: it activates the app or opens the folder.
 
+## The notch and the block under the cursor
+
+The resting island (the "notch") speaks for the agents. Its right wing shows one little Luna per
+session that has news, the one that waits for you first; the left Luna takes her mood from the
+kind of news that wins. Both come from one pure model, `AgentNotchSummary` (`AgentNotch.swift`),
+a function of `AppState.agentSessions` that is rebuilt only when the sessions change.
+
+- **News and priority.** Waits for you > error > turn finished and not looked at > working. A
+  session that waits and works at once counts as waiting, once. A finished turn that has been
+  seen, and an open session with no turn, are quiet: no mini, no light. The priority is written in
+  one place (`AgentNotchSummary.dominant`).
+- **The wing.** Up to four cells; with more sessions, three minis and a "+N" cell (a digit, "9+"
+  above nine). A mini is one session, not one pill. Waiting is bigger, ringed and lit, and
+  pulses once a second; the marks differ by shape as well as colour (bell, triangle, tick). The
+  integrations of "Active pills" are no longer drawn on the notch (they stay on the home screen).
+- **The mood of the big Luna** in the compact island is that of the first session of the winning
+  kind (`AppState.islandBotState`); with no news, and in every open island, it is as before.
+- **Held on screen.** While a session waits, failed or finished unseen, the notch does not fall to
+  its hidden size on the 60 s timer (`IslandStateMachine.holdsCompact`); this blocks nothing else.
+  Working alone does not hold it. When the news is gone, the usual 60 s start.
+- **Seen.** A finished turn stops being news when the Agents page was shown and left, or when the
+  page of that agent is shown (`AgentSessionBook.markFinishedSeen(for:)`). Hovering is not looking.
+- **The block under the cursor.** Keep the pointer on the resting island for 450 ms and the same
+  black figure grows downward: counters, "All agents" and a tile for each of the most urgent
+  sessions (all of them up to four, otherwise three and "+N"). It folds 500 ms after the pointer
+  leaves the figure, and at once on a click or when the island opens. No block with "Open on hover"
+  on (that opens the whole island), with no sessions, while Luna is dragged, in voice mode, or
+  while a request card waits. When and where is `AgentPeek.swift` (`AgentPeekPolicy`,
+  `AgentPeekLayout`), fed by the pointer poll that already runs: no timer of its own.
+- **Clicks.** A tile opens the page of that agent, "+N" and "All agents" the Agents page; a click
+  on the notch itself opens the island as before. The click is read from the layout by
+  `IslandWindowController` and swallowed there: the panel never takes the key, and the app you work
+  in stays active.
+- **Cost.** Wing and block are still pictures; the only motion is the waiting pulse, one step a
+  second, off with the screen and while the island is hidden. `apps/macos/scripts/measure-cpu.sh`
+  measures a running Luna (it refuses a sleeping or locked screen). Each change of the summary
+  writes one line to `~/Library/Logs/Luna/luna.log`: `notch: waiting=… error=… finished=… working=… minis=…`.
+
 ## Real-world examples
 
 ### Gemini CLI (macOS)
