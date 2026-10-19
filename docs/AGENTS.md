@@ -138,6 +138,52 @@ nothing for 30 minutes no longer counts as working. A `Stop` of a session Luna n
 start creates no tile. Claude Code in an editor or terminal Luna does not know (JetBrains,
 Windsurf…) is ignored, as everywhere.
 
+## The agent preview
+
+A click on a tile opens the preview page of that session (`AgentPreviewView.swift`; `AppState.openAgent(id:)`
+is the single entry point, `⌃⌥A` still opens the card of the waiting request). Back leads to the
+list. The page follows the session by its tile id: when the session ends it says "Session closed".
+
+- **Left:** the agent's Luna, the project, the agent and its host app, the folder, the status and
+  the last answer of a finished turn. **Right:** the last 20 steps of the session (the tile shows
+  the last five) — or, when the session waits, its question or request.
+- **One queue, not two.** The page owns no queue. A permission request is read off
+  `HookServer.approvals` (`AppState.agentRequests`), a question off the one the card holds
+  (`pendingQuestion`, with `pendingQuestionId` and `pendingQuestionOwner`). An answer goes through
+  the same `sendApprovalDecision(_:for:)` / `sendQuestionAnswers(_:for:)` as the card's, **with the
+  id of the request on screen**; the server accepts it only while that id is still the current
+  one (`QuestionHolder`, `ApprovalQueue.accepts(decisionFor:)`). Answering on the card takes the
+  buttons off the page and the other way round; a second click or a click on a request that is
+  gone does nothing and does not move you off the page. The order does not change: only the head
+  of the queue is answered, a request behind it shows "In the queue: 2 of 3". A request that
+  arrives while the page is open still brings its card forward, as before.
+- **Same buttons.** "Always" is hidden for Codex, Copilot CLI and Muse Code by one function
+  (`ApprovalChoices`) used by the card and the page. A session whose requests Luna does not get
+  (a terminal session with the terminal setting off, an observed-only agent) says so instead of
+  showing buttons.
+
+### Go to the agent
+
+The button on the page is the only place where Luna hands the focus to another app, on a click
+(`AgentJump.open`; the plan is a pure function, `AgentJumpPlan`). The island folds afterwards.
+
+| Host of the session | What happens |
+|---|---|
+| VS Code, VS Code Insiders, VSCodium | The project folder is opened in that app (its window with the folder comes up), then `<scheme>://anthropic.claude-code/open?session=<id>` opens the Claude Code tab. The scheme is from a fixed list and the id must be a UUID; otherwise only the folder is opened. |
+| Cursor | The folder only: Claude Code and the agent of Cursor reach Luna under the same pill and cannot be told apart. |
+| Terminal.app, iTerm2 | The app is activated and the tab with the session's tty is selected through AppleScript (build from GitHub only). macOS asks for the **Automation** permission the first time you press the button, never at launch; without it the app is only activated and the page says where to allow it (System Settings → Privacy & Security → Automation). |
+| Other terminals (Warp, Ghostty, kitty, Alacritty, WezTerm…) | The app is activated; they have no scripting for tabs. |
+| Unknown host | The project folder in Finder; with no folder known, the button is off. |
+
+The tty is found by Luna itself: the pid of the process on the other end of the hook's socket
+(`LOCAL_PEERPID`), then the nearest process up the parent chain that has a terminal
+(`ProcessTTY.swift`). The installed `luna-hook` is not touched. A hook that only fires and forgets
+may be gone by the time Luna looks, so the tty is learned from the first event that finds it alive
+(a permission request or a question always does, other events do within a few tool calls) and kept
+for the session; until then "Go to the agent" only activates Terminal or iTerm2. Only a checked
+`/dev/ttysN` ever reaches an AppleScript; the folder, the project name and the session id never do.
+The App Store build has no AppleScript: it activates the app or opens the folder.
+
 ## Real-world examples
 
 ### Gemini CLI (macOS)
