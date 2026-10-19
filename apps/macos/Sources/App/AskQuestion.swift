@@ -14,9 +14,73 @@ struct AskQuestionItem: Equatable {
     var multiSelect: Bool
 }
 
+// MARK: - The question the app holds
+
+/// The one question the app holds open for an answer: its socket and who asked. Pure state, no
+/// I/O — `HookServer` owns the sockets and the timers and drives this value on the main actor.
+///
+/// Every question gets an id when it is held, and an answer is accepted only together with the id
+/// of the question the surface that answers had on screen. Two surfaces show the same question
+/// (the card and the preview page), so a second answer, a click on a stale button or an answer
+/// to a question that has been displaced by a newer one arrives with an id that is no longer
+/// current and is refused — with no effect on anything else.
+struct QuestionHolder: Equatable, Sendable {
+
+    struct Held: Equatable, Sendable {
+        let id: UUID
+        /// The luna-hook connection kept open until the answer.
+        let fd: Int32
+        /// `AgentSessionKey.id` of the session that asks.
+        let ownerId: String
+    }
+
+    private(set) var current: Held? = nil
+
+    var fd: Int32 { current?.fd ?? -1 }
+    var isHolding: Bool { current != nil }
+
+    func isCurrent(_ id: UUID) -> Bool { current?.id == id }
+
+    /// Holds a new question; the question held before, if any, is displaced and returned.
+    mutating func hold(fd: Int32, ownerId: String, id: UUID = UUID()) -> (held: Held, displaced: Held?) {
+        let displaced = current
+        let held = Held(id: id, fd: fd, ownerId: ownerId)
+        current = held
+        return (held, displaced)
+    }
+
+    /// Takes the question out to answer it. Only the current question can be taken, and only
+    /// once: a stale id, a second call and a call with nothing held give nil.
+    mutating func claim(id: UUID) -> Held? {
+        guard let held = current, held.id == id else { return nil }
+        current = nil
+        return held
+    }
+
+    /// Takes the question out whatever its id: the surface left the screen, the agent hung
+    /// up or the time ran out.
+    @discardableResult
+    mutating func release() -> Held? {
+        let held = current
+        current = nil
+        return held
+    }
+
+    /// Takes the question out only if the socket is still the one it was held with: a timer or a
+    /// hang-up of a displaced question must not touch the question that came after it.
+    @discardableResult
+    mutating func release(fd: Int32) -> Held? {
+        guard let held = current, held.fd == fd else { return nil }
+        current = nil
+        return held
+    }
+}
+
 /// Island height of the pending question, readable from the nonisolated `islandSize`. Written on the main actor only.
 enum QuestionLayout {
     nonisolated(unsafe) static var height: CGFloat?
+    /// The same for the preview page of the session that asks: its text column is narrower.
+    nonisolated(unsafe) static var previewHeight: CGFloat?
 }
 
 extension AskQuestionItem {
@@ -28,9 +92,15 @@ struct AskQuestion: Equatable {
     var questions: [AskQuestionItem]   // 1–4 questions
 
     /// Island height that fits the tallest question without truncation (rough estimate, text wraps at ~500 pt).
-    var estimatedIslandHeight: CGFloat {
+    var estimatedIslandHeight: CGFloat { estimatedHeight(textWidth: 500) }
+
+    /// Island height of the preview page that shows this question: the text column is the width
+    /// of the island less the column that says who asks, and the page has a header of its own.
+    var estimatedPreviewHeight: CGFloat { min(max(estimatedHeight(textWidth: 380) + 28, 240), 560) }
+
+    private func estimatedHeight(textWidth: CGFloat) -> CGFloat {
         func lines(_ text: String, charWidth: CGFloat) -> CGFloat {
-            max(1, (CGFloat(text.count) * charWidth / 500).rounded(.up))
+            max(1, (CGFloat(text.count) * charWidth / textWidth).rounded(.up))
         }
         let tallest = questions.map { item -> CGFloat in
             var h: CGFloat = 20 + lines(item.question, charWidth: 7) * 17 + 64

@@ -126,6 +126,71 @@ enum AskQuestionTests {
         let tall = AskQuestion(questions: [shortQ, longQ]).estimatedIslandHeight
         checkTrue("tallest question wins, within cap",     tall > 160 && tall <= 560)
 
+        // ── the question the app holds: one id per question ──────────────────────
+        print("\nQuestionHolder")
+        do {
+            var h = QuestionHolder()
+            checkTrue("nothing held at first", !h.isHolding && h.fd == -1 && h.current == nil)
+
+            let first = h.hold(fd: 7, ownerId: "integration_claude|a")
+            checkTrue("a held question has an id, its socket and its owner",
+                      h.isHolding && h.fd == 7 && h.current?.id == first.held.id
+                      && h.current?.ownerId == "integration_claude|a" && first.displaced == nil)
+            checkTrue("the id is the current one", h.isCurrent(first.held.id))
+
+            // An answer with a stale id is refused and changes nothing.
+            let before = h
+            checkTrue("an unknown id is refused", h.claim(id: UUID()) == nil)
+            checkTrue("a refused answer has no effect", h == before && h.fd == 7)
+
+            // The first answer is accepted; a second one with the same id is not.
+            let claimed = h.claim(id: first.held.id)
+            checkTrue("the first answer takes the question", claimed?.fd == 7 && !h.isHolding && h.fd == -1)
+            checkTrue("a second answer with the same id is refused", h.claim(id: first.held.id) == nil)
+            checkTrue("nothing is held after the answer", h.current == nil)
+
+            // A newer question displaces the older: the older id is no longer accepted.
+            let a = h.hold(fd: 10, ownerId: "integration_claude|a")
+            let b = h.hold(fd: 11, ownerId: "agent_codex|b")
+            checkTrue("the older question is displaced and handed back",
+                      b.displaced?.id == a.held.id && b.displaced?.fd == 10)
+            checkTrue("the older id is not current any more", !h.isCurrent(a.held.id) && h.isCurrent(b.held.id))
+            checkTrue("an answer to the displaced question is refused", h.claim(id: a.held.id) == nil)
+            checkTrue("the newer question is still held after that", h.fd == 11 && h.current?.ownerId == "agent_codex|b")
+            checkTrue("the newer question can be answered", h.claim(id: b.held.id)?.fd == 11)
+
+            // Release: any id, but not a socket that is not the held one.
+            let c = h.hold(fd: 20, ownerId: "x|c")
+            checkTrue("release(fd:) of another socket does nothing", h.release(fd: 99) == nil && h.fd == 20)
+            checkTrue("release(fd:) of the held socket takes it", h.release(fd: 20)?.id == c.held.id && !h.isHolding)
+            let d = h.hold(fd: 21, ownerId: "x|d")
+            checkTrue("release takes the question whatever its id", h.release()?.id == d.held.id && !h.isHolding)
+            checkTrue("a released question cannot be answered", h.claim(id: d.held.id) == nil)
+            checkTrue("release with nothing held is nil", h.release() == nil)
+
+            // Two questions get two ids.
+            let e = h.hold(fd: 30, ownerId: "x|e"), f = h.hold(fd: 31, ownerId: "x|e")
+            checkTrue("every held question has an id of its own", e.held.id != f.held.id)
+        }
+
+        // ── preview height ──────────────────────────────────────────────────────
+        print("\nPreview height")
+        do {
+            let shortQ = AskQuestionItem(question: "Which one?", header: "", options: [
+                AskQuestionOption(label: "A", description: ""), AskQuestionOption(label: "B", description: "")
+            ], multiSelect: false)
+            let longQ = AskQuestionItem(question: String(repeating: "very long question ", count: 12), header: "Test", options: [
+                AskQuestionOption(label: "A", description: String(repeating: "explanation ", count: 12)),
+                AskQuestionOption(label: "B", description: "short"),
+                AskQuestionOption(label: "C", description: "short"),
+                AskQuestionOption(label: "D", description: "short")
+            ], multiSelect: true)
+            let q = AskQuestion(questions: [shortQ, longQ])
+            checkTrue("a preview is never lower than its page", AskQuestion(questions: [shortQ]).estimatedPreviewHeight == 240)
+            checkTrue("a tall question gets room on the preview, within the cap",
+                      q.estimatedPreviewHeight >= q.estimatedIslandHeight && q.estimatedPreviewHeight <= 560)
+        }
+
         // ── finish ─────────────────────────────────────────────────────────────
         if failures == 0 {
             print("\nAll tests passed.")
