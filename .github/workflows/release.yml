@@ -1,9 +1,11 @@
 name: Release
 
-# Коммит в main с версией, у которой ещё нет тега, — это выпуск: бандл собирается здесь
-# и выкладывается релизом в репозиторий релизов (stepaKaziatko/luna-releases). Тег ставится
-# последним шагом, поэтому упавший выпуск повторяется перезапуском прогона.
-# Ручной запуск собирает бандл без публикации — его можно скачать из прогона.
+# Коммит в main с версией, у которой ещё нет тега, — это выпуск. Бандл собирается здесь и
+# выкладывается релизом этого же репозитория через GITHUB_TOKEN:
+#   сборка → черновик релиза с архивом и проверка установки (macos-15, macos-26)
+#   → публикация (тег vX.Y.Z ставится ею, последним шагом) → проверка скачивания.
+# Сломанная сборка не становится последним релизом, а упавший выпуск повторяется перезапуском.
+# Ручной запуск — сухой прогон: сборка и проверка установки, без черновика, публикации и тега.
 on:
   push:
     branches: [main]
@@ -13,9 +15,6 @@ on:
 concurrency:
   group: release
   cancel-in-progress: false
-
-env:
-  RELEASES_REPO: stepaKaziatko/luna-releases
 
 permissions:
   contents: read
@@ -69,18 +68,64 @@ jobs:
         run: |
           lipo apps/macos/build/Luna.app/Contents/MacOS/Luna -verify_arch arm64 x86_64
           apps/macos/scripts/smoke.sh
+      # Архив и суммы — ровно те файлы, которые проверит установка и получит пользователь.
       - name: Упаковать
         run: |
           mkdir dist
           ditto -c -k --keepParent apps/macos/build/Luna.app "dist/Luna-$VERSION-macos-universal.zip"
+          (cd dist && shasum -a 256 -- *.zip > checksums.txt)
       - uses: actions/upload-artifact@v7
         with:
           name: macos-universal
           path: dist/
           if-no-files-found: error
 
-  publish:
-    name: Выложить релиз
+  # Установка так, как её получит пользователь: install.sh из этого коммита ставит собранный
+  # архив (вместо адреса релиза — каталог с файлами), затем подпись, архитектуры, запуск и
+  # минимум macOS.
+  verify:
+    name: Установка и запуск (${{ matrix.os }})
+    needs: [version, macos]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Минимальная macOS приложения и самая новая из доступных раннеров.
+        os: [macos-15, macos-26]
+    env:
+      TAG: v${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos-universal
+          path: dist
+      - name: Установить скриптом
+        run: |
+          LUNA_VERSION="$TAG" LUNA_DOWNLOAD_BASE="file://$PWD/dist" \
+            LUNA_INSTALL_DIR="$RUNNER_TEMP/Applications" sh install.sh
+      - name: Подпись и обе архитектуры
+        run: |
+          app="$RUNNER_TEMP/Applications/Luna.app"
+          codesign --verify --strict "$app"
+          lipo "$app/Contents/MacOS/Luna" -verify_arch arm64 x86_64
+      - name: Приложение запускается и завершается
+        # Чистый HOME, SIGTERM и SIGKILL, 5 с на выход — правила smoke.sh.
+        run: apps/macos/scripts/smoke.sh "$RUNNER_TEMP/Applications/Luna.app"
+      # Последним: расхождение минимума не должно прятать результат запуска.
+      - name: Минимум macOS в бандле совпадает с install.sh
+        run: |
+          app="$RUNNER_TEMP/Applications/Luna.app"
+          want=$(sed -n 's/^min_macos=//p' install.sh)
+          have=$(plutil -extract LSMinimumSystemVersion raw "$app/Contents/Info.plist")
+          echo "install.sh: macOS $want; LSMinimumSystemVersion бандла: $have"
+          if [ -z "$want" ] || [ "${have%%.*}" != "$want" ]; then
+            echo "✗ минимум macOS в бандле ($have) не совпал с min_macos в install.sh ($want): поправьте install.sh и README.md" >&2
+            exit 1
+          fi
+
+  draft:
+    name: Черновик релиза
     needs: [version, macos]
     if: needs.version.outputs.publish == 'true'
     runs-on: ubuntu-latest
@@ -92,14 +137,45 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
+          name: macos-universal
           path: dist
-          merge-multiple: true
-      - name: Бандл — в публичный репозиторий
-        env:
-          GH_TOKEN: ${{ secrets.LUNA_RELEASES_TOKEN }}
-        run: scripts/publish-release.sh "$TAG" dist
-      # Здесь у релиза только тег и заметки: сборки и установщик лежат в репозитории релизов.
-      - name: Тег и заметки — в этом репозитории
+      - name: Архив и заметки — в черновик
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$TAG" --target "$GITHUB_SHA" --generate-notes --title "Luna $TAG"
+        run: scripts/publish-release.sh "$TAG" dist
+
+  publish:
+    name: Опубликовать релиз
+    needs: [version, verify, draft]
+    if: needs.version.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: v${{ needs.version.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      # Публикация черновика ставит тег на коммит выпуска — это последний шаг выпуска.
+      - name: Черновик → релиз, тег
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+
+  downloads:
+    name: Релиз скачивается
+    needs: [version, publish]
+    runs-on: ubuntu-latest
+    env:
+      TAG: v${{ needs.version.outputs.version }}
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Последний релиз, архив и суммы по публичным адресам
+        run: |
+          latest=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$GITHUB_REPOSITORY/releases/latest")
+          echo "последний релиз: $latest"
+          case "$latest" in
+            */tag/"$TAG") ;;
+            *) echo "✗ последний релиз — не $TAG" >&2; exit 1 ;;
+          esac
+          base="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
+          curl -fsSLO "$base/Luna-$VERSION-macos-universal.zip"
+          curl -fsSLO "$base/checksums.txt"
+          sha256sum -c checksums.txt

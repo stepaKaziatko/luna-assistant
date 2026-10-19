@@ -11,7 +11,8 @@
 | `apps/macos/Sources/LunaKit/` | Общее с iPhone: персонаж (`BotEngine`, `LunaStill`, `LunaWardrobe`), `PillCatalog.swift` — единственный источник правды о pill (ID, цвет, категория), diff, модели |
 | `apps/macos/Sources/Phone/`, `Widgets/`, `NotificationContent/` | iPhone-таргеты. Переносятся как есть, не собираются (нужны команда Apple Developer, CloudKit, relay) |
 | `tests/`, `scripts/test-*.sh` | Тесты на `swiftc`: скрипт собирает нужные файлы и запускает проверки |
-| `docs/` | `SPEC.md` (остров, по-французски), `INTEGRATIONS.md`, `AGENTS.md`, `VOICE.md`, `IPHONE.md` |
+| `docs/` | `USER-GUIDE.md` (руководство пользователя), `SPEC.md` (остров, по-французски), `INTEGRATIONS.md`, `AGENTS.md`, `VOICE.md`, `IPHONE.md` |
+| `install.sh` | Установщик готовой сборки (однострочник из README) |
 | `scripts/`, `apps/macos/scripts/` | Версия и выпуск; сборка бандла, проверка запуска, генерация иконок и звуков |
 
 ## Команды
@@ -63,8 +64,9 @@ scripts/bump-version.sh minor               # поднять версию (minor
 ## CI и релизы
 
 - `.github/workflows/ci.yml` — на PR не в статусе черновика (открытие, ready, каждый пуш), на push в `main` и вручную: проверка версии на Linux; тесты, debug-бандл и smoke на `macos-26` (только если изменение может затронуть приложение). На черновике PR задания пропускаются.
-- `.github/workflows/release.yml` — коммит в `main` с версией, у которой ещё нет тега, собирает `Luna.app` (arm64 + x86_64) на `macos-26`, выкладывает его релизом в `stepaKaziatko/luna-releases` (сборки и установщик) и ставит тег `vX.Y.Z` здесь. Ручной запуск Release собирает бандл без публикации.
+- `.github/workflows/release.yml` — коммит в `main` с версией, у которой ещё нет тега, — выпуск в релизы этого репозитория через `GITHUB_TOKEN`, секретов не нужно. Job'ы по порядку: `version` → `macos` (тесты, universal-бандл, smoke, архив `Luna-X.Y.Z-macos-universal.zip` и `checksums.txt`) → параллельно `verify` (матрица macos-15 и macos-26: `install.sh` из этого коммита ставит собранный архив через `LUNA_DOWNLOAD_BASE=file://…`, `codesign`, `lipo`, `smoke.sh`, `min_macos` = `LSMinimumSystemVersion`) и `draft` (`scripts/publish-release.sh`: черновик релиза с архивом, суммами и заметками из раздела `CHANGELOG.md`) → `publish` (черновик публикуется, этим ставится тег `vX.Y.Z`) → `downloads` (последний релиз — этот, архив скачивается, суммы сходятся). Ручной запуск Release (`gh workflow run release.yml --ref <ветка>`) — сухой прогон: `version`, `macos` и `verify`, без черновика, публикации и тега.
+- Установщик — `install.sh` в корне: `curl -fsSL https://raw.githubusercontent.com/stepaKaziatko/luna-assistant/main/install.sh | sh`. Файлы релизов до v1.0.0 включительно он берёт из архива `stepaKaziatko/luna-releases`, новее — из релизов этого репозитория; проверяется `scripts/test-install.sh`, публикация — `scripts/test-publish-release.sh`. Руководство пользователя — `docs/USER-GUIDE.md`.
 - Версия: эпик-версия с новой возможностью — `minor`, только с исправлениями — `patch`. Служебные правки (документация, CI, тесты) идут кандидатами в открытый эпик-версию; прямой коммит в `main` без версии — только по решению человека.
 - Заметные пользователю изменения копятся в разделе «Дальше» файла `CHANGELOG.md`; `scripts/bump-version.sh` отдаёт его новой версии, и раздел уходит в заметки публичного релиза.
-- Упавший выпуск повторяется перезапуском прогона (`gh run rerun <id> --failed`): тег ставится последним шагом. Публикации нужен секрет `LUNA_RELEASES_TOKEN` — токен с правом Contents на `luna-releases`.
-- Репозиторий релизов `luna-releases` (`README.md`, `install.sh`, проверка релиза) правится своим PR; версии Luna он не меняет.
+- Упавший выпуск повторяется перезапуском прогона (`gh run rerun <id> --failed`) или следующим коммитом той же версии: тег ставится последним шагом, публикацией черновика. Упала проверка установки — релиз остаётся черновиком, тега нет; повторный `draft` заменяет файлы, заметки и коммит черновика.
+- `stepaKaziatko/luna-releases` — архив: там релизы v0.2–v1.0 и прежний адрес установщика, который ставит релизы этого репозитория. После выпуска 1.1.0 он архивируется, больше не правится и в область задач не добавляется.
