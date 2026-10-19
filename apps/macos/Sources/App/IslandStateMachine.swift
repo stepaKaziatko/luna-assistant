@@ -21,6 +21,12 @@ final class IslandStateMachine {
     /// When non-nil and returns true, timers and mouse-leave never auto-collapse or hide the island.
     var isHeldOpen: (() -> Bool)?
 
+    /// When non-nil and returns true, the compact island does not fall to `.hidden` on its timer:
+    /// an agent waits for the person, failed, or finished a turn they have not looked at. Unlike
+    /// `isHeldOpen` it blocks nothing else: collapse, click and external opening work as usual.
+    /// Call `holdChanged()` when the answer may have changed.
+    var holdsCompact: (() -> Bool)?
+
     /// home → petit delay (seconds), kept in sync with the auto-close preference.
     var homeToPetitDelay: TimeInterval = 15 {
         didSet {
@@ -44,6 +50,11 @@ final class IslandStateMachine {
     /// True while the island is open because of a hover, until the user clicks inside it.
     private(set) var openedByHover = false
 
+    /// The pointer is on the island: a hold that ends meanwhile starts no hide timer (the exit will).
+    private var pointerInside = false
+    /// What `holdsCompact` said last, to see a hold end.
+    private var wasHoldingCompact = false
+
     private var petitHideWork: DispatchWorkItem?
     private var homeCollapseWork: DispatchWorkItem?
     private var greetCollapseWork: DispatchWorkItem?
@@ -59,6 +70,7 @@ final class IslandStateMachine {
 
     /// Mouse entered the island notch area
     func mouseEntered() {
+        pointerInside = true
         if openOnHover, state == .hidden || state == .petit, isHeldOpen?() != true {
             cancelTimers()
             openedByHover = true
@@ -96,6 +108,7 @@ final class IslandStateMachine {
 
     /// Mouse left the island notch area
     func mouseLeft() {
+        pointerInside = false
         switch state {
         case .hidden:
             break
@@ -201,12 +214,33 @@ final class IslandStateMachine {
         schedulePetitHide()
     }
 
+    /// The answer of `holdsCompact` may have changed (the agents' state moved). When a hold has
+    /// just ended, the compact island gets the usual hide timer, once; a hold that begins only
+    /// stops the pending one from firing.
+    func holdChanged() {
+        let holding = holdsCompact?() ?? false
+        defer { wasHoldingCompact = holding }
+        guard holding != wasHoldingCompact else { return }
+        if holding {
+            petitHideWork?.cancel()
+            petitHideWork = nil
+        } else if state == .petit, !pointerInside {
+            schedulePetitHide()
+        }
+    }
+
     // MARK: – Timers
 
     private func schedulePetitHide() {
         petitHideWork?.cancel()
         let item = DispatchWorkItem { [weak self] in
             guard let self, self.state == .petit, !(self.isHeldOpen?() ?? false) else { return }
+            // Someone needs the person: the island stays until `holdChanged()` says it ended.
+            if self.holdsCompact?() == true {
+                self.wasHoldingCompact = true
+                self.petitHideWork = nil
+                return
+            }
             self.transition(to: .hidden)
         }
         petitHideWork = item
