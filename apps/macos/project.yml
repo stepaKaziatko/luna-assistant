@@ -129,7 +129,7 @@ targets:
         CFBundleDisplayName: Luna
         CFBundleIdentifier: dev.luna.Luna
         CFBundleVersion: "15"
-        CFBundleShortVersionString: "0.7.0"
+        CFBundleShortVersionString: "1.0.0"
         CFBundlePackageType: APPL
         LSUIElement: YES
         NSHighResolutionCapable: YES
