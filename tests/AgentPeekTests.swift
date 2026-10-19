@@ -168,6 +168,11 @@ enum AgentPeekTests {
             let l = AgentPeekLayout(stripHeight: 32, restingWidth: 344, cells: 3)
             check("a tile is hit by its middle", (0..<3).allSatisfy { i in
                 let f = l.tileFrame(i); return l.hit(at: CGPoint(x: f.midX, y: f.midY)) == .tile(i) })
+            // The most urgent tile comes first in the reading order: top left, then to the right, then the next row.
+            let four = AgentPeekLayout(stripHeight: 32, restingWidth: 344, cells: 4)
+            check("tiles read left to right, top to bottom (the most urgent top left)",
+                  four.tileFrame(0).minX < four.tileFrame(1).minX && four.tileFrame(0).minY == four.tileFrame(1).minY
+                  && four.tileFrame(2).minX == four.tileFrame(0).minX && four.tileFrame(2).minY > four.tileFrame(0).minY)
             let b = l.allAgentsButton
             check("the button is hit", l.hit(at: CGPoint(x: b.midX, y: b.midY)) == .allAgents)
             check("the strip is not the block: a click there is a click on the island",
