@@ -31,7 +31,22 @@ struct IslandScreenGeometry {
 }
 
 /// Shared by the compact view and the greeting's collapse destination.
+///
+/// `height` is the height of the resting strip (the notch's, or the bar's), never the height of
+/// the figure: while the block under the cursor grows the figure downward, everything in the
+/// strip (Luna, the minis) stays where it is.
 struct IslandRestingLayout {
+    /// Room on each side of the notch for Luna (left) and the minis (right).
+    static let wing: CGFloat = 80
+
+    /// The width of the compact figure: the notch and a wing on each side.
+    static func compactWidth(notchWidth: CGFloat) -> CGFloat { notchWidth + 2 * wing }
+
+    /// The layout of the compact island resting on a notch (or a bar) of this size.
+    static func compact(notchWidth: CGFloat, stripHeight: CGFloat) -> IslandRestingLayout {
+        IslandRestingLayout(width: compactWidth(notchWidth: notchWidth), height: stripHeight)
+    }
+
     let width: CGFloat
     let height: CGFloat
 

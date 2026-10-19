@@ -48,6 +48,25 @@ enum IslandScreenGeometryTests {
             precondition(compact.miniGridCenterX == 200)
             precondition(compact.miniGridScale * 28 <= height - 4)
         }
-        print("Island screen geometry and resting layout: 13 cases passed")
+        // The block under the cursor grows the figure, not the strip: what sits in the strip is
+        // computed from the strip, so it is the same with the block and without it.
+        for (nw, strip): (CGFloat, CGFloat) in [(184, 32), (192, 32), (200, 38), (184, 38), (80, 24)] {
+            let bare = IslandRestingLayout.compact(notchWidth: nw, stripHeight: strip)
+            precondition(bare.width == nw + 160, "compact figure without the block is the notch and two wings")
+            precondition(IslandRestingLayout.compactWidth(notchWidth: nw) == nw + 160)
+            // The same call is made while the block is open: the strip height is what is passed.
+            let withBlock = IslandRestingLayout.compact(notchWidth: nw, stripHeight: strip)
+            precondition(withBlock.botCenterY == bare.botCenterY && withBlock.botCenterY == strip / 2)
+            precondition(withBlock.botDiameter == bare.botDiameter)
+            precondition(withBlock.miniGridScale == bare.miniGridScale)
+            precondition(withBlock.miniGridCenterX == bare.miniGridCenterX && bare.miniGridCenterX == nw + 160 - 40)
+            // A layout wrongly fed the figure's height with the block would move Luna to its middle.
+            let wrong = IslandRestingLayout(width: bare.width, height: strip + 120)
+            precondition(wrong.botCenterY != bare.botCenterY)
+        }
+        // On a screen without a notch the bar is 80 wide: compact is 240 and the minis shrink by the strip.
+        let bar = IslandRestingLayout.compact(notchWidth: 80, stripHeight: 24)
+        precondition(bar.width == 240 && bar.miniGridScale == 20.0 / 28.0 && bar.botCenterY == 12)
+        print("Island screen geometry, resting layout and strip under the block: all cases passed")
     }
 }

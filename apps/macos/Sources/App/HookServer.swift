@@ -1169,6 +1169,12 @@ final class HookServer: @unchecked Sendable {
         if agentBook.markFinishedSeen() { publishAgentSessions() }
     }
 
+    /// The page of one agent was shown: what that session finished is no longer news.
+    @MainActor
+    func markAgentsSeen(for key: AgentSessionKey) {
+        if agentBook.markFinishedSeen(for: key) { publishAgentSessions() }
+    }
+
     /// "VS Code", "Warp"… — where the Claude Code pill's current session runs.
     @MainActor
     private var claudeHostName: String {

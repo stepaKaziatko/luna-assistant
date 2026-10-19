@@ -414,6 +414,31 @@ enum AgentSessionsTests {
             check("the flag clears on the next prompt", info(b, k, now: at(8))?.rateLimited == false)
         }
 
+        // ── seen: one session ───────────────────────────────────────────────────
+        print("\nFinished: seen on the page of one agent")
+        do {
+            var b = AgentSessionBook()
+            let a = key("a"), c = key("c"), idle = key("i")
+            for k in [a, c] {
+                b.apply(event: "UserPromptSubmit", key: k, who: who("p"), step: "x", now: at(0))
+                b.apply(event: "Stop", key: k, who: who("p"), finalText: "x", now: at(1))
+            }
+            b.apply(event: "SessionStart", key: idle, who: who("i"), now: at(0))
+            check("markFinishedSeen(for:) reports a change", b.markFinishedSeen(for: a))
+            check("the named session is no longer news", info(b, a, now: at(2))?.finishedUnseen == false
+                  && info(b, a, now: at(2))?.phase == .finished)
+            check("the other one stays green", info(b, c, now: at(2))?.finishedUnseen == true)
+            check("a second call changes nothing and says so", !b.markFinishedSeen(for: a))
+            check("a session that never finished: nothing to mark", !b.markFinishedSeen(for: idle))
+            check("an unknown session: false", !b.markFinishedSeen(for: key("nobody")))
+            check("the other one is still green after those", info(b, c, now: at(3))?.finishedUnseen == true)
+            b.apply(event: "UserPromptSubmit", key: a, who: who("p"), step: "y", now: at(4))
+            b.apply(event: "Stop", key: a, who: who("p"), finalText: "y", now: at(5))
+            check("a new turn that ends is news again", info(b, a, now: at(6))?.finishedUnseen == true)
+            check("the whole-page mark still clears everyone", b.markFinishedSeen()
+                  && b.snapshot(now: at(7)).allSatisfy { !$0.finishedUnseen })
+        }
+
         // ── keys and hosts ──────────────────────────────────────────────────────
         print("\nKeys and hosts")
         do {

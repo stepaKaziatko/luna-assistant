@@ -380,6 +380,15 @@ struct AgentSessionBook: Sendable {
         return changed
     }
 
+    /// The page of one agent was shown: only what that session finished is no longer news.
+    /// Returns whether anything changed (false for a session that is not known).
+    @discardableResult
+    mutating func markFinishedSeen(for key: AgentSessionKey) -> Bool {
+        guard records[key]?.finishedUnseen == true else { return false }
+        records[key]?.finishedUnseen = false
+        return true
+    }
+
     // MARK: Reading
 
     /// The tiles, in display order. `waits` is what the hook server holds right now.
