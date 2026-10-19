@@ -382,6 +382,8 @@ Ces raccourcis fonctionnent en arrière-plan sans permission Accessibilité.
 | Couper le son (`toggleMute`) | ⌃⌥M | `shortcut.toggleMute.keyCode` / `.flags` | Oui |
 | Luna sur le bureau (`toggleDesktopLuna`) | ⌃⌥D | `shortcut.toggleDesktopLuna.keyCode` / `.flags` | Oui |
 | Ouvrir la garde-robe (`openWardrobe`) | ⌃⌥G | `shortcut.openWardrobe.keyCode` / `.flags` | Oui |
+| Ouvrir la page Agents (`openAgents`) | ⌃⌥S | `shortcut.openAgents.keyCode` / `.flags` | Oui |
+| Ouvrir « Pilules actives » (`openTabs`) | ⌃⌥P | `shortcut.openTabs.keyCode` / `.flags` | Oui |
 
 - Si Carbon ne peut pas enregistrer un raccourci (conflit système), l'action est marquée `.conflict` dans `HotKeyCenter` et un indicateur apparaît dans Réglages → Raccourcis.
 - `toggleIsland` conserve les clés UserDefaults historiques (`hotkeyCode`, `hotkeyFlags`, `hotkeyEnabled`) pour ne pas casser les préférences existantes.
@@ -389,22 +391,32 @@ Ces raccourcis fonctionnent en arrière-plan sans permission Accessibilité.
 
 ### 14.2 Raccourcis locaux (actifs quand l'île a le focus)
 
-Ces raccourcis sont gérés par `NSEvent.addLocalMonitorForEvents`. L'île prend le focus clavier quand elle est ouverte via un raccourci global (jamais au survol ni à l'alerte).
+Ces raccourcis sont gérés par `NSEvent.addLocalMonitorForEvents`, à partir d'une seule table (`IslandKeys.swift`, `IslandKeyTable`) : le moniteur, l'aide `?` et Réglages → Raccourcis la lisent, ils ne peuvent donc pas diverger. L'île prend le focus clavier (la fenêtre du notch devient *key*) seulement par un geste explicite : un raccourci global qui ouvre une page (⌃⌥S, ⌃⌥P, ⌃⌥Espace, ⌃⌥A, ⌃⌥G, ⌘⇧N) ou un clic — jamais au survol ni à l'alerte. L'application de l'utilisateur reste active ; ⎋ ferme l'île et rend le clavier.
 
-| Raccourci | Action |
-|-----------|--------|
-| ⌘→ | Pilule suivante |
-| ⌘← | Pilule précédente |
-| ⌘1…⌘9 | Passe directement à la pilule n° 1–9 |
-| ⌘↓ | Descend dans la liste de la carte active |
-| ⌘↑ | Monte dans la liste de la carte active |
-| ⌘O | Ouvre/développe l'élément sélectionné |
-| ⌘E | Modifier le prompt courant |
-| ⌘↩ | Envoyer le message (vue Prompt) |
-| ⌘K | Nouvelle conversation (vue Prompt) |
-| ⌘, | Ouvrir les Réglages |
-| ⌘P | Copier le dernier message |
-| ⌘⇧D | Afficher/masquer le diff |
+Règles communes : une touche sans ⌘ ⌃ ⌥ n'est prise que si aucun champ de texte n'a le clavier (le chat, « Autre… » et le courrier gardent leurs touches) ; ↩, Espace et ⌘↩ ne se répètent pas quand on les maintient ; un modificateur en trop (⌥↩, ⇧⌫, ⌃←) laisse la touche passer ; une touche inconnue n'est pas absorbée.
+
+| Page | Touche | Action |
+|------|--------|--------|
+| Toutes | ⌘→ / ⌘← | Onglet suivant / précédent (mène à « Pilules actives ») |
+| Toutes | ⌘1…⌘9 | Onglet n° 1–9 |
+| Toutes | ⌘↓ / ⌘↑, ⌘O | Parcourir la liste de la carte, ouvrir la ligne choisie |
+| Toutes | ⌘, ⌘P | Réglages, épingler |
+| Toutes | ? | Aide : les touches de la page |
+| Toutes | ⎋ | Ferme d'abord l'aide ou le champ, puis l'île |
+| Agents | ← → ↑ ↓ | Choisir une tuile (grille de 4 ; rien ne boucle) |
+| Agents | ↩ | Ouvrir la page de l'agent choisi |
+| Agents, page d'un agent | ⌘↩ | Aller à la fenêtre de l'agent (`AgentJump`) : la seule touche qui cède le focus |
+| Page d'un agent | ⌫ | Retour à la liste (la tuile reste choisie) |
+| Demande de permission | ← → | Choisir Refuser / Autoriser / Toujours (la première flèche tombe sur Refuser) |
+| Demande de permission | ↩ | Envoyer le choix ; sans choix, rien |
+| Question | ← → ↑ ↓, 1…4 | Choisir une réponse ou « Autre… » (un chiffre ne fait que choisir) |
+| Question | Espace, ↩ | Cocher (choix multiple) ; répondre, continuer ou envoyer |
+| Pilules actives | ← → ↑ ↓ ↩ | Pilule précédente / suivante, lignes de la carte, ouvrir |
+| Pilules actives, GitHub, garde-robe | ⌫ | Retour aux Agents |
+| GitHub | ← → ↑ ↓ ↩ | Choisir une ligne, l'ouvrir dans le navigateur |
+| Chat | ⌘↩, ⌘K | Envoyer, nouvelle conversation |
+
+Réponse en deux temps : le choix (flèche, chiffre) est lié à l'identifiant de la demande affichée ; si la demande change, est retirée ailleurs ou si la question avance, le choix tombe et ↩ ne fait rien. L'envoi passe par les mêmes entrées que le clic (`sendApprovalDecision(_:for:)`, `sendQuestionAnswers(_:for:)`), avec cet identifiant. ⌫ n'est pas lié sur les cartes d'alerte (quitter la carte d'une question la rend au terminal).
 
 ### 14.3 Personnalisation
 

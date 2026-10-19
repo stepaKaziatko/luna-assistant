@@ -162,6 +162,30 @@ list. The page follows the session by its tile id: when the session ends it says
   (a terminal session with the terminal setting off, an observed-only agent) says so instead of
   showing buttons.
 
+### Keyboard
+
+The page of Agents, the page of an agent and the cards of a request and of a question are driven with
+the keys once the island has the keyboard (a page hotkey — `⌃⌥S` Agents, `⌃⌥P` Active pills, `⌃⌥A` the
+waiting request, `⌃⌥Space` the chat — or a click). The user's app stays the active one; `⎋` folds the
+island and the keys go back to it. All keys are one table (`IslandKeys.swift`, `IslandKeyTable`) that the
+monitor, the `?` hint and Settings → Shortcuts read; the pure parts are tested without a window
+(`scripts/test-island-keys.sh`).
+
+- **Agents:** the arrows pick a tile (rows of four, nothing wraps; the pick is kept by session id, so it
+  follows its agent and goes with it), `↩` opens the page of the picked agent, `⌘↩` goes to its window.
+  **Page of an agent:** `⌫` back to the list (the tile stays picked), `⌘↩` goes to the agent.
+- **Answering takes two steps.** Arrows (or a digit in a question) pick a button or a variant — the first
+  arrow on a permission request lands on Deny — and `↩` sends the pick. `↩` with nothing picked, a held
+  key, or a pick made for a request that is no longer the one on screen sends nothing: the pick carries
+  the id of the request (and the number of the question) and is void as soon as either changes. The answer
+  goes through the same `sendApprovalDecision(_:for:)` / `sendQuestionAnswers(_:for:)` as a click, with that
+  id. In a multiple choice `Space` marks a variant and `↩` goes on or sends once something is marked; `↩` on
+  "Other…" opens the field (the field then has the keys). A digit only picks; it no longer answers at once.
+- `⌫` is not bound on the cards of a request or a question: leaving a question card hands the question
+  back to its terminal.
+- A text field with the keyboard keeps its keys (the chat, "Other…", the mail draft), but only on a page
+  that shows one: the chat field no longer keeps the keyboard while the chat is not the page on screen.
+
 ### Go to the agent
 
 The button on the page is the only place where Luna hands the focus to another app, on a click
