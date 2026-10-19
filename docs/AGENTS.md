@@ -198,7 +198,7 @@ a function of `AppState.agentSessions` that is rebuilt only when the sessions ch
 - **The wing.** Up to four cells; with more sessions, three minis and a "+N" cell (a digit, "9+"
   above nine). A mini is one session, not one pill. Waiting is bigger, ringed and lit, and
   pulses once a second; the marks differ by shape as well as colour (bell, triangle, tick). The
-  integrations of "Active pills" are no longer drawn on the notch (they stay on the home screen).
+  integrations of "Active pills" are no longer drawn on the notch (they stay on the "Active pills" page).
 - **The mood of the big Luna** in the compact island is that of the first session of the winning
   kind (`AppState.islandBotState`); with no news, and in every open island, it is as before.
 - **Held on screen.** While a session waits, failed or finished unseen, the notch does not fall to

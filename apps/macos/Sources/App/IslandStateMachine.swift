@@ -8,7 +8,7 @@ final class IslandStateMachine {
     enum State: Equatable {
         case hidden    // island invisible (notch size)
         case petit     // compact island (notch + ears)
-        case home      // expanded, overview
+        case home      // expanded, on the home page (Agents)
         case luna    // expanded, greeting animation
         case listening // expanded, voice listening («OK Luna» detected)
     }
@@ -96,7 +96,7 @@ final class IslandStateMachine {
             // Mouse hovering during greeting — cancel short auto-collapse, extend to hover delay
             scheduleGreetCollapse(delay: greetHoverCollapseDelay)
         case .listening:
-            // Voice is active; if openOnHover, expand to show the overview.
+            // Voice is active; if openOnHover, expand to show the home page.
             if openOnHover {
                 cancelTimers()
                 openedByHover = true
@@ -131,7 +131,7 @@ final class IslandStateMachine {
     /// Also accepts `.hidden`: after an alert the island can be on screen while the
     /// FSM never saw the mouse enter (it was already there), and the click must still open it.
     /// Also accepts `.listening`: the user can open the island while voice is active; voice
-    /// continues uninterrupted and the island expands to the overview.
+    /// continues uninterrupted and the island expands to the home page.
     func click() {
         openedByHover = false
         guard state == .petit || state == .hidden || state == .listening else { return }
