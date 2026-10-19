@@ -28222,6 +28222,54 @@
           }
         }
       }
+    },
+    "notch.a11y": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agents: waiting for you %lld, errors %lld, finished %lld, working %lld"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Агентов: ждут вас %lld, ошибок %lld, готово %lld, работают %lld"
+          }
+        }
+      }
+    },
+    "peek.all": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All agents"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все агенты"
+          }
+        }
+      }
+    },
+    "peek.more.a11y": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld more agents"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ещё агентов: %lld"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -120,11 +120,23 @@ struct IslandContainer: View {
                     .animation(.spring(response: 0.3, dampingFraction: 0.8), value: demoEngine.isActive)
             }
 
+            // The block under the cursor: the same black figure grown downward, content under the strip.
+            if state.agentsPeek && state.mode == .compact {
+                AgentPeekView(state: state)
+                    .frame(width: islandWidth, height: max(0, islandHeight - state.notchHeight), alignment: .top)
+                    .offset(y: state.notchHeight)
+                    .clipShape(IslandShape(width: islandWidth, height: islandHeight,
+                                           cornerRadius: cornerRadius, topRadius: islandTopRadius))
+                    .transition(.opacity)
+            }
+
             Group {
                 if state.mode == .compact {
+                    // The wing is placed by the resting strip, not by the figure: it stays put while the block grows.
+                    let resting = IslandRestingLayout.compact(notchWidth: state.notchWidth, stripHeight: state.notchHeight)
                     CompactMiniGrid(state: state)
-                        .scaleEffect(IslandRestingLayout(width: islandWidth, height: islandHeight).miniGridScale)
-                        .position(x: islandWidth - 40, y: islandHeight / 2)
+                        .scaleEffect(resting.miniGridScale)
+                        .position(x: (islandWidth - resting.width) / 2 + resting.miniGridCenterX, y: resting.botCenterY)
                         .transition(.opacity)
                 }
             }
@@ -145,6 +157,11 @@ struct IslandContainer: View {
                 cornerRadius     = cr
                 islandTopRadius  = tr
             }
+        }
+        .onChange(of: state.agentsPeek) { _, _ in applyPeek() }
+        .onChange(of: state.agentNotch.tiles.count) { _, _ in
+            // A session came or went while the block is open: it takes the size of what it holds.
+            if state.agentsPeek { applyPeek() }
         }
         .onChange(of: state.view) { _, newView in
             guard state.mode == .expanded else { return }
@@ -195,6 +212,26 @@ struct IslandContainer: View {
                                     nw: state.notchWidth, nh: state.notchHeight)
             islandWidth  = w
             islandHeight = (state.mode == .expanded && state.view == .prompt) ? chatPromptHeight : h
+        }
+    }
+
+    /// The figure grows into the block under the cursor, or folds back to the resting island.
+    private func applyPeek() {
+        guard state.mode == .compact else { return }
+        if state.agentsPeek {
+            let layout = state.agentPeekLayout
+            withAnimation(openSpring) {
+                islandWidth = layout.width
+                islandHeight = layout.height
+                cornerRadius = IslandConst.expandedCorner
+            }
+        } else {
+            let (w, h) = islandSize(mode: .compact, view: state.view, nw: state.notchWidth, nh: state.notchHeight)
+            withAnimation(closeEase) {
+                islandWidth = w
+                islandHeight = h
+                cornerRadius = IslandConst.roundedCorner
+            }
         }
     }
 
@@ -291,7 +328,11 @@ struct BotPlacement: View {
     let islandH: CGFloat
 
     var body: some View {
-        let (cx, cy, diameter, opacity) = botPosition(mode: state.mode, view: state.view, islandW: islandW, islandH: islandH, uploadProgress: state.uploadProgress, hasNotch: state.hasNotch)
+        // While the block under the cursor grows the figure downward, Luna stays in the strip:
+        // her place is computed from the strip's height and the resting width, not from the figure's.
+        let (cx, cy, diameter, opacity) = botPosition(mode: state.mode, view: state.view, islandW: islandW, islandH: islandH, uploadProgress: state.uploadProgress, hasNotch: state.hasNotch,
+                                                      restingWidth: IslandRestingLayout.compactWidth(notchWidth: state.notchWidth),
+                                                      restingHeight: state.notchHeight)
         let canvasSize = diameter / 0.6
         let overhang: CGFloat = 40
         let isUploading = state.view == .uploading
@@ -381,13 +422,17 @@ struct BotPlacement: View {
     }
 }
 
-func botPosition(mode: IslandMode, view: IslandView, islandW: CGFloat, islandH: CGFloat, uploadProgress: Double, hasNotch: Bool = true) -> (CGFloat, CGFloat, CGFloat, Double) {
-    let resting = IslandRestingLayout(width: islandW, height: islandH)
+/// `restingWidth` and `restingHeight` are those of the resting strip when the figure is bigger than
+/// it (the block under the cursor): the compact Luna keeps her place in the strip. Without them
+/// the figure's own size is the strip's.
+func botPosition(mode: IslandMode, view: IslandView, islandW: CGFloat, islandH: CGFloat, uploadProgress: Double, hasNotch: Bool = true,
+                 restingWidth: CGFloat? = nil, restingHeight: CGFloat? = nil) -> (CGFloat, CGFloat, CGFloat, Double) {
+    let resting = IslandRestingLayout(width: restingWidth ?? islandW, height: restingHeight ?? islandH)
     switch mode {
     case .hidden:
         return hasNotch ? (46, 16, 6, 0)
             : (islandW / 2, resting.botCenterY, resting.botDiameter, 1)
-    case .compact: return (40, resting.botCenterY, resting.botDiameter, 1)
+    case .compact: return ((islandW - resting.width) / 2 + 40, resting.botCenterY, resting.botDiameter, 1)
     case .expanded:
         let layout = IslandConst.viewLayouts[view]!
         let diameter = layout.botDiameter
@@ -715,25 +760,3 @@ struct ClaudePlanHeaderPill: View {
     }
 }
 #endif
-
-// MARK: - Compact mini Luna grid (2×2 to the right of the notch)
-
-struct CompactMiniGrid: View {
-    @ObservedObject var state: AppState
-
-    private var others: [AgentTask] {
-        Array(state.tasks.filter { $0.id != state.focusId }.prefix(4))
-    }
-
-    var body: some View {
-        let cols = [GridItem(.fixed(12), spacing: 4), GridItem(.fixed(12), spacing: 4)]
-        LazyVGrid(columns: cols, spacing: 4) {
-            ForEach(others) { task in
-                MiniBotCanvasView(task: task)
-                    .frame(width: 12 / 0.6, height: 12 / 0.6)
-                    .frame(width: 12, height: 12, alignment: .center)
-            }
-        }
-        .frame(width: 28, height: 28)
-    }
-}

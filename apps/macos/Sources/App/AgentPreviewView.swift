@@ -28,6 +28,13 @@ struct AgentPreviewView: View {
         return state.agentSessions.first { $0.id == id }
     }
 
+    /// What this session finished is no longer news once its page is on screen. Hovering the block
+    /// under the cursor is not looking: only the page does this.
+    private func markSeen() {
+        guard let session, session.finishedUnseen else { return }
+        HookServer.shared.markAgentsSeen(for: session.key)
+    }
+
     private func request(for session: AgentSessionInfo) -> AgentPreviewLogic.Request {
         AgentPreviewLogic.request(sessionKey: session.id, requests: state.agentRequests,
                                   questionOwner: state.pendingQuestionOwner,
@@ -56,7 +63,14 @@ struct AgentPreviewView: View {
         }
         .padding(.top, 2)
         .padding(.horizontal, 4)
-        .onChange(of: viewActive) { _, active in if active { now = Date() } }
+        .onChange(of: viewActive) { _, active in
+            if active { now = Date(); markSeen() }
+        }
+        .onAppear { if viewActive { markSeen() } }
+        // The page of an agent that is shown is the page that looked at what it finished: a turn
+        // that ends while it is open, or another agent opened on it, is seen too.
+        .onChange(of: session?.finishedUnseen) { _, unseen in if unseen == true, viewActive { markSeen() } }
+        .onChange(of: state.previewAgentId) { _, _ in if viewActive { markSeen() } }
         // The clock of the page: "5 min ago" and sessions gone silent, every 30 s, only while the
         // page is the one on screen.
         .task(id: viewActive) {

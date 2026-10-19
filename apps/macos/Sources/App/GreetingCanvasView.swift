@@ -583,20 +583,20 @@ private func drawHeader(_ ctx: CGContext, alpha: Double) {
     ctx.restoreGState()
 }
 
-private let miniColors = ["#E86A6A","#3E86E0","#EFAE5A","#8C73F2"]
-
-private func drawMinis(_ ctx: CGContext, alpha: Double, compact: IslandRestingLayout) {
-    guard alpha > 0.01 else { return }
+/// The little Luna the greeting leaves on the island: one dot for each mini the resting island will
+/// show (an agent with news), in the same places and colours, so that nothing appears or vanishes
+/// when the greeting folds into the compact island. No agents: no dots. `colors` is one hex each.
+private func drawMinis(_ ctx: CGContext, alpha: Double, compact: IslandRestingLayout, colors: [String]) {
+    guard alpha > 0.01, !colors.isEmpty else { return }
     let cx = 320 - compact.width/2 + compact.miniGridCenterX
     let cy = compact.botCenterY
-    let sp: CGFloat = 6 * compact.miniGridScale
-    let offsets: [(CGFloat, CGFloat)] = [(-sp,-sp),(sp,-sp),(-sp,sp),(sp,sp)]
-    for (i,(dx,dy)) in offsets.enumerated() {
+    let offsets = AgentWing.offsets(count: colors.count)
+    for (i, o) in offsets.enumerated() {
         ctx.saveGState()
-        ctx.translateBy(x: cx+dx, y: cy+dy)
+        ctx.translateBy(x: cx + o.x * compact.miniGridScale, y: cy + o.y * compact.miniGridScale)
         let scale = CGFloat(alpha) * compact.miniGridScale
         ctx.scaleBy(x: scale, y: scale)
-        ctx.setFillColor(gHex(miniColors[i]))
+        ctx.setFillColor(gHex(colors[i]))
         // та же форма, что у главного персонажа, по высоте 10 pt
         ctx.addPath(lunaPath(hw: 5 * LunaLook.aspect, hh: 5)); ctx.fillPath()
         ctx.restoreGState()
@@ -606,7 +606,7 @@ private func drawMinis(_ ctx: CGContext, alpha: Double, compact: IslandRestingLa
 // MARK: - Full draw
 
 private func drawGreeting(_ ctx: CGContext, size: CGSize, t: Double,
-                          tc: Double, compact: IslandRestingLayout) {
+                          tc: Double, compact: IslandRestingLayout, minis: [String]) {
     let p = pose(t, tc: tc, compact: compact)
 
     if p.card > 0 {
@@ -627,7 +627,7 @@ private func drawGreeting(_ ctx: CGContext, size: CGSize, t: Double,
         ctx.restoreGState()
     }
 
-    drawMinis(ctx, alpha: p.minis, compact: compact)
+    drawMinis(ctx, alpha: p.minis, compact: compact, colors: minis)
     drawLuna(ctx, p: p)
 }
 
@@ -644,11 +644,13 @@ struct GreetingCanvasView: View {
     var body: some View {
         TimelineView(.animation) { timeline in
             let t = timeline.date.timeIntervalSince(startDate)
+            let minis = Self.miniColors(state.agentNotch)
             Canvas { context, size in
                 context.withCGContext { cgCtx in
                     drawGreeting(cgCtx, size: size, t: t, tc: tc,
-                                 compact: IslandRestingLayout(width: state.notchWidth + 160,
-                                                              height: state.notchHeight))
+                                 compact: IslandRestingLayout.compact(notchWidth: state.notchWidth,
+                                                                      stripHeight: state.notchHeight),
+                                 minis: minis)
                 }
             }
             .onChange(of: !greetFired && t >= GT.end && tc >= GT.autoLeave) { _, trigger in
@@ -678,6 +680,16 @@ struct GreetingCanvasView: View {
             if tc.isInfinite || tc > t { tc = t }
             doneWork?.cancel(); doneWork = nil
             SoundEngine.shared.fadeOut("greeting", duration: 0.25)
+        }
+    }
+
+    /// The colours of the dots the greeting folds into: those of the minis the island will show.
+    private static func miniColors(_ notch: AgentNotchSummary) -> [String] {
+        notch.minis.map { cell in
+            switch cell {
+            case .session(let s): return AgentLook.accentHex(s) ?? "#C0C4CC"
+            case .more:           return "#8E939C"
+            }
         }
     }
 

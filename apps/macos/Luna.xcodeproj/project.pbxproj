@@ -48,6 +48,7 @@
 		1BD30A327F38F34C8AA3D187 /* AppLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DFF648B3AFA7A00691A495 /* AppLog.swift */; };
 		1BD9C89C68F6E77B6AD0A299 /* PillColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535DF74B2C536D2388CDFE34 /* PillColors.swift */; };
 		1F0839A7CE493BD83423BDAF /* ServiceSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71DEDB8B17317FDD5F24D6B9 /* ServiceSnapshot.swift */; };
+		1F2043DDA8163C58FBAE1B44 /* AgentNotchViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3F259EEBB0C246479863A0B /* AgentNotchViews.swift */; };
 		1FDB17C0DF5A2D5F3AA3E952 /* LunaLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9573F4E2855355F0EC8AF88F /* LunaLook.swift */; };
 		200228D0487321E8C03AF622 /* MacDictation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 539F8DFECCAA0962C8AB5406 /* MacDictation.swift */; };
 		203EACA0E83F1EEF0906AD75 /* LiveVoiceControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E4C266FAE979366B2800115 /* LiveVoiceControls.swift */; };
@@ -145,6 +146,7 @@
 		5FC5B20F0919968FECA6E3C2 /* GitHubPulse.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFB70DF3315F52BC4F715ECF /* GitHubPulse.swift */; };
 		615157841F1882D220C8A5D3 /* LunaActivityState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93FDFAAB4F6C83692B04083D /* LunaActivityState.swift */; };
 		6388038F6F5E674CC748A43C /* PillCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82A6CB5BB952DD82E4169759 /* PillCatalog.swift */; };
+		64F3EBDA1E6BBC4462E53E3C /* AgentPeek.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81ECF42AB7A03CB76FFE977 /* AgentPeek.swift */; };
 		654561D7F68DF0AF5A0F97A7 /* LunaWardrobe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 635C26B4AA8D155D8F7786FA /* LunaWardrobe.swift */; };
 		65DB50A8F8BBB3F9A1D3EEB8 /* VoiceGenderNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7DC4344A3F486BFFD8201B0 /* VoiceGenderNames.swift */; };
 		6610CCACA8C5D9323D02B82C /* IslandTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45C3645A0656DEE9A65B915 /* IslandTypes.swift */; };
@@ -158,6 +160,7 @@
 		6D6D48A3AA6285EB99E54AB9 /* WakeWindowBackoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D648120C61BAB8822B67B2 /* WakeWindowBackoff.swift */; };
 		6DA62E1A6B8B63A635DC7DE4 /* ProcessTTY.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA4C8841CDABB68612AB952C /* ProcessTTY.swift */; };
 		6E895F8385FA1932F12D015C /* QuestionPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16589E556CE71C24F1997921 /* QuestionPayload.swift */; };
+		6E963D586A9968693BAEA5F2 /* AgentPeek.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81ECF42AB7A03CB76FFE977 /* AgentPeek.swift */; };
 		6FA5496C1AF9E499AD8946A4 /* CloudProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAF9CB6CCD7B3802335DE90B /* CloudProbe.swift */; };
 		6FDC1E26F244DD12B68D9767 /* ChatMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6DBE14071DAC16C4AA76D46 /* ChatMarkdownView.swift */; };
 		6FEF74659A1EDBD63A6295C1 /* MacStubs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36A5522CD4E7C718170A6B6B /* MacStubs.swift */; };
@@ -187,6 +190,7 @@
 		8538535C5A1D137CFE66DBF0 /* CodexPlanGauge.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0B96E91DEDCBD607B955E2 /* CodexPlanGauge.swift */; };
 		85FDA2B8896DB3E0E9A29C5B /* ServiceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BFEEFCFD17DAB5C842F10CE /* ServiceViews.swift */; };
 		8604371D22201388CB46AA34 /* DiffEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CFA50F3005883D3BF3B3F18 /* DiffEngine.swift */; };
+		86934A1B7898ED83178AA959 /* AgentNotch.swift in Sources */ = {isa = PBXBuildFile; fileRef = F073A2B0C1BE49A251687B7B /* AgentNotch.swift */; };
 		880F472D6EAF021C63A0421B /* ClaudePlanGauge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CC98A58797FD28F8865A421 /* ClaudePlanGauge.swift */; };
 		8AE009DEF3FBAB46D318204C /* NotionPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = D38656EE7465CD833EA05F97 /* NotionPoller.swift */; };
 		8AE8E63EF64FCD1675761D48 /* VoiceSpeaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02D8322728F23AF2E4C6C3D0 /* VoiceSpeaker.swift */; };
@@ -211,6 +215,7 @@
 		93FB458CE5BE44F7B27A9DE8 /* DiffEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CFA50F3005883D3BF3B3F18 /* DiffEngine.swift */; };
 		9440E5230AC8FA5423EFB320 /* IslandStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29102D07D591D3F3CA9EFE4 /* IslandStateMachine.swift */; };
 		94653CACC83E48846717A526 /* MailViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED2E2E3D05FD4A0C5D515619 /* MailViews.swift */; };
+		94A3075CD8AF77435F1604AB /* AgentNotchViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3F259EEBB0C246479863A0B /* AgentNotchViews.swift */; };
 		94D7D36C8CB131514427301F /* IntentParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 626E066A59CA1486222CD5F5 /* IntentParser.swift */; };
 		9566425518A009D864BDDAE8 /* AgentPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1956DAD469ED15565F36EC /* AgentPreviewView.swift */; };
 		963E2808CAF218D8048EABEC /* ChatMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4919BFC4E23D0CCD1429F67 /* ChatMarkdown.swift */; };
@@ -364,6 +369,7 @@
 		FA9A0F988DA59FD0826C87F1 /* SpotterGeneration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BC1584EA6538498CA707C95 /* SpotterGeneration.swift */; };
 		FB6E72CD1D58567567697A97 /* IslandScreenGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E784FB5713B2DCEA3C0B2A4B /* IslandScreenGeometry.swift */; };
 		FC479B62ED9961A7E3996B07 /* ServiceDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BD2FE2AB9F1357E583606F /* ServiceDetail.swift */; };
+		FDD65F554A01203EFF335CB1 /* AgentNotch.swift in Sources */ = {isa = PBXBuildFile; fileRef = F073A2B0C1BE49A251687B7B /* AgentNotch.swift */; };
 		FDDAF30B824FAD91233A9DCF /* LunaWardrobe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 635C26B4AA8D155D8F7786FA /* LunaWardrobe.swift */; };
 		FE084DB94ED6AFE5A91358A5 /* AgentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AC942741ABB0C987624286B /* AgentsView.swift */; };
 		FE10151D89B1DCDACCC9A989 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B6E55E4E4326C0673C3CC657 /* Assets.xcassets */; };
@@ -537,11 +543,13 @@
 		BFB70DF3315F52BC4F715ECF /* GitHubPulse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubPulse.swift; sourceTree = "<group>"; };
 		C16C88728348A71D53AC94BC /* ShortcutLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutLogic.swift; sourceTree = "<group>"; };
 		C3AD288A0ABCE2D17F30C7C4 /* question.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = question.wav; sourceTree = "<group>"; };
+		C3F259EEBB0C246479863A0B /* AgentNotchViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentNotchViews.swift; sourceTree = "<group>"; };
 		C4610F5955F32AE4EA8F3F39 /* VoiceIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceIslandView.swift; sourceTree = "<group>"; };
 		C4E86289D772C66391D49714 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		C5538A312CCFDA743DB907AC /* AgentSessions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSessions.swift; sourceTree = "<group>"; };
 		C67FF0E068B5BA5EF3AA814D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		C6E866D5D416DC7EB39DBDF6 /* ClaudeSettingsFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeSettingsFile.swift; sourceTree = "<group>"; };
+		C81ECF42AB7A03CB76FFE977 /* AgentPeek.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPeek.swift; sourceTree = "<group>"; };
 		CA1956DAD469ED15565F36EC /* AgentPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPreviewView.swift; sourceTree = "<group>"; };
 		CB14CAF7D4107078D8F6AAFF /* ServiceStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceStatus.swift; sourceTree = "<group>"; };
 		CBA027190F665ADCDC0816F6 /* ClaudeStreamParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeStreamParser.swift; sourceTree = "<group>"; };
@@ -569,6 +577,7 @@
 		E784FB5713B2DCEA3C0B2A4B /* IslandScreenGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandScreenGeometry.swift; sourceTree = "<group>"; };
 		EAF9CB6CCD7B3802335DE90B /* CloudProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudProbe.swift; sourceTree = "<group>"; };
 		ED2E2E3D05FD4A0C5D515619 /* MailViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailViews.swift; sourceTree = "<group>"; };
+		F073A2B0C1BE49A251687B7B /* AgentNotch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentNotch.swift; sourceTree = "<group>"; };
 		F0BB956F5CAFEFA5200856B4 /* HotKeyCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyCenter.swift; sourceTree = "<group>"; };
 		F2191B29BD88C2E1AA12DA07 /* LunaPhone.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = LunaPhone.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F2385416C6804B0845FE996B /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -587,6 +596,9 @@
 			children = (
 				9F82448BD7DA67B231B90A14 /* AgentJump.swift */,
 				DB7EBB3473366C89138EE834 /* AgentJumpPlan.swift */,
+				F073A2B0C1BE49A251687B7B /* AgentNotch.swift */,
+				C3F259EEBB0C246479863A0B /* AgentNotchViews.swift */,
+				C81ECF42AB7A03CB76FFE977 /* AgentPeek.swift */,
 				10FC3C26D183C8058F0BE567 /* AgentPreviewLogic.swift */,
 				CA1956DAD469ED15565F36EC /* AgentPreviewView.swift */,
 				C5538A312CCFDA743DB907AC /* AgentSessions.swift */,
@@ -1139,6 +1151,9 @@
 			files = (
 				F5C99E95A074518E070E871A /* AgentJump.swift in Sources */,
 				900A20BEE9388EB93946C636 /* AgentJumpPlan.swift in Sources */,
+				86934A1B7898ED83178AA959 /* AgentNotch.swift in Sources */,
+				1F2043DDA8163C58FBAE1B44 /* AgentNotchViews.swift in Sources */,
+				6E963D586A9968693BAEA5F2 /* AgentPeek.swift in Sources */,
 				E40CB664E65C024358A3C458 /* AgentPreviewLogic.swift in Sources */,
 				8E67EAF5062B9FE30C4AB8B5 /* AgentPreviewView.swift in Sources */,
 				4FAED6A9C3E446012889C56B /* AgentSessions.swift in Sources */,
@@ -1306,6 +1321,9 @@
 			files = (
 				91A14D28239EAC9A424AF651 /* AgentJump.swift in Sources */,
 				9951A548EA6590DBBC835B99 /* AgentJumpPlan.swift in Sources */,
+				FDD65F554A01203EFF335CB1 /* AgentNotch.swift in Sources */,
+				94A3075CD8AF77435F1604AB /* AgentNotchViews.swift in Sources */,
+				64F3EBDA1E6BBC4462E53E3C /* AgentPeek.swift in Sources */,
 				4971A10446CB2A5D756A6242 /* AgentPreviewLogic.swift in Sources */,
 				9566425518A009D864BDDAE8 /* AgentPreviewView.swift in Sources */,
 				4538F8C503F8FB7270A0A2DD /* AgentSessions.swift in Sources */,

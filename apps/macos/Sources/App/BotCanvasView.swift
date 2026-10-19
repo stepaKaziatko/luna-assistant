@@ -63,7 +63,7 @@ struct BotCanvasView: View {
                     let spotify = SpotifyController.shared.isPlaying && active.contains(SpotifyController.pillId)
                     guard music || spotify else { return false }
                     let allowed: Set<BotState> = [.idle, .working, .thinking, .searching, .finished]
-                    guard allowed.contains(state.effectiveState) else { return false }
+                    guard allowed.contains(state.islandBotState) else { return false }
                     if state.mode == .compact { return true }
                     guard state.mode == .expanded && state.view == .overview else { return false }
                     return (music && state.focusId == "integration_music")
@@ -122,7 +122,7 @@ struct BotCanvasView: View {
                 engine.drawHandsAndExtras(context: ctx, size: size)
             }
         }
-        .onChange(of: state.effectiveState) { _, newState in
+        .onChange(of: state.islandBotState) { _, newState in
             engine.setState(newState)
         }
         #if !APPSTORE
@@ -183,7 +183,7 @@ struct BotCanvasView: View {
             engine.greet()
         }
         .onAppear {
-            engine.setState(state.effectiveState, force: true)
+            engine.setState(state.islandBotState, force: true)
             let isWardrobe = state.mode == .expanded && state.view == .wardrobe
             let isFocusMain = state.focusId == state.mainPillId || state.focusId == nil
             let showOutfit = isFocusMain || state.mode != .expanded || isWardrobe

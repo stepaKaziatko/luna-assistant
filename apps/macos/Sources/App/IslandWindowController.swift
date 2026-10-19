@@ -18,6 +18,16 @@ final class IslandWindowController: NSWindowController {
     private var displaySubscription: AnyCancellable?
     private var autoCloseSubscription: AnyCancellable?
     private var openOnHoverSubscription: AnyCancellable?
+    private var agentNotchSubscription: AnyCancellable?
+    private var modeSubscription: AnyCancellable?
+
+    // Block under the cursor (hover on the resting island): when it grows and folds, and the
+    // press of a click in it. The block is drawn by SwiftUI; clicks in it are read here from the
+    // same layout and never reach the panel, so Luna takes no focus.
+    private var peek = AgentPeekPolicy()
+    private var peekPress: (active: Bool, hit: AgentPeekHit?) = (false, nil)
+    /// What `fsm.holdsCompact` answers: an agent waits, failed, or finished unseen.
+    private var notchHolds = false
 
     // Confused recovery timer (set by handleDizzy)
     private var confusedRecoveryTimer: DispatchWorkItem?
@@ -235,6 +245,7 @@ final class IslandWindowController: NSWindowController {
         AppState.shared.notchHeight = notchH
         AppState.shared.hasNotch = hasNotch
         Self.currentScreen = screen
+        dismissPeek()
 
         let sf = screen.frame
         let size = panel.frame.size
@@ -249,7 +260,7 @@ final class IslandWindowController: NSWindowController {
     /// so an approval or a chat never jumps away mid-click.
     private func followMouseIfNeeded(_ mouse: NSPoint) {
         guard state.islandDisplay == .followMouse,
-              state.mode != .expanded, !inAttachDrag, attachDragStart == nil else { return }
+              state.mode != .expanded, !state.agentsPeek, !inAttachDrag, attachDragStart == nil else { return }
         if let current = Self.currentScreen, current.frame.contains(mouse) { return }
         guard let target = NSScreen.screens.first(where: { $0.frame.contains(mouse) }),
               target != Self.currentScreen else { return }
@@ -265,6 +276,19 @@ final class IslandWindowController: NSWindowController {
         }
         openOnHoverSubscription = state.$openOnHover.sink { [weak self] on in
             self?.fsm.openOnHover = on
+        }
+        // The notch stays on screen while an agent waits, failed, or finished and was not looked at.
+        // `$agentNotch` publishes before the value is stored: read what it hands over.
+        fsm.holdsCompact = { [weak self] in self?.notchHolds ?? false }
+        agentNotchSubscription = state.$agentNotch.sink { [weak self] notch in
+            guard let self else { return }
+            self.notchHolds = notch.holdsNotch
+            self.fsm.holdChanged()
+        }
+        // The block under the cursor goes when the island leaves its resting size: it opened or hid.
+        // (Entering compact is the pointer arriving at a hidden island: that is how the block starts.)
+        modeSubscription = state.$mode.dropFirst().sink { [weak self] mode in
+            if mode != .compact { self?.dismissPeek() }
         }
 
         fsm.onTransition = { [weak self] from, to in
@@ -423,7 +447,7 @@ final class IslandWindowController: NSWindowController {
         // The resting (compact) island is treated like the hidden one: Luna reads the
         // pointer itself every frame, so only hover and clicks need this poll, and those
         // only near the island. 60 Hz while open, dragging or close to it.
-        let busy = state.mode == .expanded || inAttachDrag || attachDragStart != nil
+        let busy = state.mode == .expanded || inAttachDrag || attachDragStart != nil || state.agentsPeek
             || fsm.state == .home || fsm.state == .luna || fsm.state == .listening || nearIsland
         let wanted = busy ? Self.fastPoll : inBand ? Self.nearPoll : Self.idlePoll
         if wanted != pollInterval { startPolling(interval: wanted) }
@@ -446,6 +470,8 @@ final class IslandWindowController: NSWindowController {
         let hoverRect = !hasNotch && state.mode != .expanded
             ? islandRect : islandRect.insetBy(dx: -6, dy: -6)
         let inIsland = hoverRect.contains(local)
+
+        updatePeek(pointerOver: inIsland, local: local)
 
         // Toggle click-through
         let shouldAcceptMouse = inIsland || inAttachDrag || attachDragStart != nil
@@ -527,6 +553,8 @@ final class IslandWindowController: NSWindowController {
 
     private func pausePollingForScreenOff() {
         screenOff = true
+        state.screenOff = true
+        dismissPeek()
         frameTimer?.invalidate()
         frameTimer = nil
     }
@@ -534,6 +562,7 @@ final class IslandWindowController: NSWindowController {
     private func resumePollingAfterScreenOff() {
         guard screenOff else { return }
         screenOff = false
+        state.screenOff = false
         startPolling(interval: Self.idlePoll)
     }
 
@@ -576,6 +605,76 @@ final class IslandWindowController: NSWindowController {
         let item = DispatchWorkItem(block: action)
         hoverTimer = item
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
+    }
+
+    // MARK: - Block under the cursor
+
+    /// One tick of the poll: the policy decides, the state follows, and the tile under the pointer
+    /// is lit. Cheap: a struct and a few comparisons; no timer of its own.
+    private func updatePeek(pointerOver: Bool, local: CGPoint) {
+        #if !APPSTORE
+        let voiceOn = state.voiceActive
+        #else
+        let voiceOn = false
+        #endif
+        let context = AgentPeekPolicy.Context(
+            pointerOver: pointerOver,
+            restingCompact: state.mode == .compact && fsm.state == .petit,
+            sessions: state.agentNotch.total,
+            openOnHover: fsm.openOnHover,
+            dragging: inAttachDrag || attachDragStart != nil || state.isDraggingBot,
+            listening: fsm.state == .listening || voiceOn,
+            requestPending: state.pendingApproval != nil || state.pendingQuestion != nil)
+        if peek.update(context, now: Date()), state.agentsPeek != peek.visible {
+            state.agentsPeek = peek.visible
+        }
+        var hover: Int? = nil
+        if state.agentsPeek, case .tile(let i)? = peekHit(at: local) { hover = i }
+        if state.agentsPeekHover != hover { state.agentsPeekHover = hover }
+    }
+
+    /// What lies under a point of the panel (AppKit coordinates, origin bottom left) in the block.
+    private func peekHit(at windowPoint: CGPoint) -> AgentPeekHit? {
+        guard state.agentsPeek, let panel = window else { return nil }
+        let layout = state.agentPeekLayout
+        let figure = CGPoint(x: windowPoint.x - (panel.frame.width - layout.width) / 2,
+                             y: panel.frame.height - windowPoint.y)
+        return layout.hit(at: figure)
+    }
+
+    /// Whether a point of the panel is in the block (under the strip), a target or not.
+    private func isInPeekBlock(_ windowPoint: CGPoint) -> Bool {
+        guard state.agentsPeek, let panel = window else { return false }
+        let layout = state.agentPeekLayout
+        let figure = CGPoint(x: windowPoint.x - (panel.frame.width - layout.width) / 2,
+                             y: panel.frame.height - windowPoint.y)
+        return layout.blockArea.contains(figure)
+    }
+
+    /// The block goes at once (a click, the island opened or moved, the screen off) and does not
+    /// come back until the pointer has left.
+    private func dismissPeek() {
+        peek.dismiss()
+        peekPress = (false, nil)
+        if state.agentsPeek { state.agentsPeek = false }
+        if state.agentsPeekHover != nil { state.agentsPeekHover = nil }
+    }
+
+    /// A click on a tile or on "All agents": the agent's page, or the Agents page. The island
+    /// opens through the same path as an alert; nothing here makes the panel key.
+    private func activatePeek(_ hit: AgentPeekHit) {
+        switch hit {
+        case .allAgents:
+            state.openAgentsPage()
+        case .tile(let index):
+            let tiles = state.agentNotch.tiles
+            guard index < tiles.count else { return }
+            switch tiles[index] {
+            case .session(let session): state.openAgent(id: session.id)
+            case .more:                 state.openAgentsPage()
+            }
+        }
+        dismissPeek()
     }
 
     // MARK: - Mode transitions
@@ -920,6 +1019,15 @@ final class IslandWindowController: NSWindowController {
         // Global mouseUp is the reliable fallback when cursor is outside our panel frame.
         NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
             guard let self else { return event }
+            // A press in the block under the cursor is read here and swallowed: the panel never sees
+            // it, so it takes no key status and the app the person works in stays active. The action
+            // runs on release, if the pointer is still on the same target.
+            let inBlock = MainActor.assumeIsolated { () -> Bool in
+                guard event.window === self.window, self.isInPeekBlock(event.locationInWindow) else { return false }
+                self.peekPress = (true, self.peekHit(at: event.locationInWindow))
+                return true
+            }
+            if inBlock { return nil }
             MainActor.assumeIsolated {
                 guard self.wasInIsland else { return }
                 self.fsm.userInteracted()
@@ -997,6 +1105,14 @@ final class IslandWindowController: NSWindowController {
         }
         NSEvent.addLocalMonitorForEvents(matching: .leftMouseUp) { [weak self] event in
             guard let self else { return event }
+            let swallowed = MainActor.assumeIsolated { () -> Bool in
+                guard self.peekPress.active else { return false }
+                let pressed = self.peekPress.hit
+                self.peekPress = (false, nil)
+                if let pressed, self.peekHit(at: event.locationInWindow) == pressed { self.activatePeek(pressed) }
+                return true
+            }
+            if swallowed { return nil }
             MainActor.assumeIsolated {
                 let hadPendingClick = self.pendingIslandClick
                 let wasDragging     = self.inAttachDrag
@@ -1416,6 +1532,12 @@ final class IslandPanel: NSPanel {
 
     func currentIslandFrame(nw: CGFloat, nh: CGFloat) -> CGRect {
         let s = AppState.shared
+        // The block under the cursor: the same figure grown downward.
+        if s.mode == .compact && s.agentsPeek {
+            let layout = s.agentPeekLayout
+            return CGRect(x: (frame.width - layout.width) / 2, y: frame.height - layout.height,
+                          width: layout.width, height: layout.height)
+        }
         let (w, fixedH) = islandSize(mode: s.mode, view: s.view,
                                       progress: s.uploadProgress, nw: nw, nh: nh)
         let h: CGFloat
@@ -2032,7 +2154,7 @@ func islandSize(mode: IslandMode, view: IslandView,
                 nh: CGFloat = IslandConst.notchHeight) -> (CGFloat, CGFloat) {
     switch mode {
     case .hidden:   return (nw, nh)
-    case .compact:  return (nw + 160, nh)
+    case .compact:  return (IslandRestingLayout.compactWidth(notchWidth: nw), nh)
     case .expanded:
         let layout = IslandConst.viewLayouts[view]!
         if view == .question, let h = QuestionLayout.height {

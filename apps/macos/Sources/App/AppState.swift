@@ -469,8 +469,40 @@ final class AppState: ObservableObject {
 
     var agentsSummary: AgentsSummary { AgentsSummary(agentSessions) }
 
+    /// What the resting island ("the notch") says about the agents: the wing of minis, the mood
+    /// of the big Luna, the block under the cursor. Derived from `agentSessions`, rebuilt only when
+    /// they change (never per frame).
+    @Published private(set) var agentNotch = AgentNotchSummary([])
+
+    /// The block under the cursor is on screen. Set by the window controller from `AgentPeekPolicy`.
+    @Published var agentsPeek = false
+
+    /// The tile of the block the pointer is on, for its highlight; set by the window controller.
+    @Published var agentsPeekHover: Int? = nil
+
+    /// The screen is asleep or locked: nothing is seen, so the notch's own clock stops.
+    @Published var screenOff = false
+
+    /// Where everything in the block under the cursor lies, for the resting island of this screen.
+    var agentPeekLayout: AgentPeekLayout {
+        AgentPeekLayout(stripHeight: notchHeight,
+                        restingWidth: IslandRestingLayout.compactWidth(notchWidth: notchWidth),
+                        cells: agentNotch.tiles.count)
+    }
+
+    /// The last summary written to the log: one line per change of the notch, not per event.
+    private var lastNotchLog = ""
+
     func setAgentSessions(_ sessions: [AgentSessionInfo]) {
-        if sessions != agentSessions { agentSessions = sessions }
+        if sessions != agentSessions {
+            agentSessions = sessions
+            agentNotch = AgentNotchSummary(sessions)
+            let line = agentNotch.logLine
+            if line != lastNotchLog {
+                lastNotchLog = line
+                appendAppLog("luna.log", line)
+            }
+        }
         // A hint about a session that is gone is of no use to anyone.
         if let note = agentJumpNote, !sessions.contains(where: { $0.id == note.sessionId }) {
             agentJumpNote = nil
@@ -517,11 +549,29 @@ final class AppState: ObservableObject {
     /// The single entry point of a click on a tile: opens the preview page of that session,
     /// whether it waits for you or not. A session that is gone opens nothing. The card of a
     /// waiting request stays what ⌃⌥A (`alertView`) leads to.
+    ///
+    /// From the resting island (a tile of the block under the cursor) the island opens through the
+    /// same path an alert uses, which tells the window controller and the state machine; the
+    /// panel does not take the keyboard.
     func openAgent(id: String) {
         guard agentSessions.contains(where: { $0.id == id }) else { return }
         previewAgentId = id
-        view = .agentPreview
         lastActivity = .now
+        if mode == .expanded {
+            view = .agentPreview
+        } else {
+            NotificationCenter.default.post(name: .hookExpand, object: IslandView.agentPreview)
+        }
+    }
+
+    /// "All agents" and "+N" in the block under the cursor: the Agents page, also from the resting island.
+    func openAgentsPage() {
+        lastActivity = .now
+        if mode == .expanded {
+            view = .agents
+        } else {
+            NotificationCenter.default.post(name: .hookExpand, object: IslandView.agents)
+        }
     }
 
     /// "Back" on the preview page: to the list of agents.
@@ -698,6 +748,16 @@ final class AppState: ObservableObject {
 
     var effectiveState: BotState {
         stateOverride ?? focusTask?.state ?? .idle
+    }
+
+    /// The mood of the big Luna on the island. The resting island speaks for the agents: the
+    /// kind of news that wins (waits, failed, finished, works) decides it. With no news, and in
+    /// every open island, it is what it always was.
+    var islandBotState: BotState {
+        if stateOverride == nil, mode == .compact, let lead = agentNotch.lead {
+            return AgentLook.botState(lead)
+        }
+        return effectiveState
     }
 
     // MARK: - Task management
