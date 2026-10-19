@@ -20,3 +20,11 @@ for fn in "func removeApproval" "func dismissQuestionCard" "func sendApprovalDec
     if ! echo "$body" | grep -q "closeRequestCard("; then echo "  ✗ $fn does not ask IslandHome.afterRequest"; exit 1; fi
 done
 echo "  ✓ removeApproval, dismissQuestionCard, sendApprovalDecision: no unconditional goHome()"
+# Исполнение решения: «свернуть» сворачивает шторку, а вопрос уступает ждущему разрешению.
+card=$(awk '/func closeRequestCard\(/ { on = 1 } on { print } on && /^    }$/ { exit }' "$HOOKS")
+echo "$card" | grep -A1 "case .collapse:" | grep -q "post(name: .islandCollapse" \
+    || { echo "  ✗ closeRequestCard: .collapse does not collapse the island"; exit 1; }
+awk '/func dismissQuestionCard\(/ { on = 1 } on { print } on && /^    }$/ { exit }' "$HOOKS" \
+    | grep -q "nextWaits: state.pendingApproval != nil" \
+    || { echo "  ✗ dismissQuestionCard: a waiting approval is not shown next"; exit 1; }
+echo "  ✓ closeRequestCard collapses; a question gives way to a waiting approval"

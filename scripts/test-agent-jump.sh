@@ -24,3 +24,10 @@ if grep -n "asyncAfter(deadline: .now() + 0.3)" apps/macos/Sources/App/AgentJump
     echo "  ✗ AgentJump: a fixed 0.3 s pause before the session link"; exit 1
 fi
 echo "  ✓ AgentJump: the link waits for the editor, no fixed pause"
+# Событие несёт project_dir в книгу сессий, а переход к агенту считается его просмотром.
+grep -q 'projectDir: AgentJumpPlan.validFolder(payload\["project_dir"\] as? String ?? "") ?? ""' "$HOOKS" \
+    || { echo "  ✗ HookServer: project_dir of the event does not reach the session book"; exit 1; }
+awk '/func goToAgent\(/ { on = 1 } on { print } on && /^    }$/ { exit }' apps/macos/Sources/App/AppState.swift \
+    | grep -q "HookServer.shared.markAgentsSeen(for: session.key)" \
+    || { echo "  ✗ goToAgent does not mark the session seen"; exit 1; }
+echo "  ✓ project_dir reaches the book; going to the agent marks it seen"
