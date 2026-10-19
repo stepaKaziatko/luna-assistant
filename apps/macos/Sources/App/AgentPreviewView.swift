@@ -215,15 +215,11 @@ struct AgentPreviewView: View {
         }
     }
 
-    /// The click, and the only place the focus leaves Luna. The island folds once the jump is
-    /// under way; what the jump has to say stays in `AppState` for the next time the page opens.
+    /// The click (and ⌘↩, the same entry in `AppState`), and the only place the focus leaves Luna.
+    /// The island folds once the jump is under way; what the jump has to say stays in `AppState`
+    /// for the next time the page opens.
     private func goToAgent(_ session: AgentSessionInfo) {
-        let sessionId = session.id
-        state.agentJumpNote = nil
-        AgentJump.open(session) { hint in
-            state.agentJumpNote = hint.map { AgentJumpNote(sessionId: sessionId, hint: $0) }
-        }
-        NotificationCenter.default.post(name: .islandCollapseAfterJump, object: nil)
+        state.goToAgent(session)
     }
 
     private func jumpHintText(for session: AgentSessionInfo, available: Bool) -> String? {
@@ -343,7 +339,9 @@ struct AgentPreviewView: View {
     // MARK: Permission request
 
     private func approvalCard(_ req: AgentRequest) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        // The button picked with the keys (←/→), for this request only.
+        let picked = state.keyChoice(for: .approval(id: req.id, offersAlways: ApprovalChoices.offersAlways(pillId: req.pill)))?.index
+        return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 7) {
                 AgentWho(task: nil, label: "needs permission")
                 if req.total > 1 {
@@ -357,9 +355,12 @@ struct AgentPreviewView: View {
                 .lineLimit(5)
             HStack(spacing: 8) {
                 SecondaryButton("Deny") { decide("deny", req) }
+                    .keyPickCapsule(picked == 0)
                 PrimaryButton("Allow") { decide("allow", req) }
+                    .keyPickCapsule(picked == 1)
                 if ApprovalChoices.offersAlways(pillId: req.pill) {
                     SecondaryButton("Always") { decide("always", req) }
+                        .keyPickCapsule(picked == 2)
                 }
             }
             Spacer(minLength: 0)
@@ -391,7 +392,9 @@ struct AgentPreviewView: View {
 
     private func requestChanged(session: AgentSessionInfo,
                                 old: AgentPreviewLogic.Request, new: AgentPreviewLogic.Request) {
-        let news = AgentPreviewLogic.notice(old: old, new: new, answeredHere: answeredHere,
+        // An answer given with the keys is this page's own answer too.
+        let own = old.answerId != nil && old.answerId == state.keyAnsweredId ? old.answerId : answeredHere
+        let news = AgentPreviewLogic.notice(old: old, new: new, answeredHere: own,
                                             sessionKey: session.id,
                                             questionOwnerNow: state.pendingQuestionOwner)
         guard let news, new == .none else {

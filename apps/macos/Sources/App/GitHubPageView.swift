@@ -15,21 +15,35 @@ import SwiftUI
 struct GitHubPageView: View {
     @ObservedObject var state: AppState
 
+    /// The row picked with the keys in this column (nil when the pick is in another one).
+    private func pickedRow(in column: Int) -> Int? {
+        guard let pick = state.githubKeyPick, pick.column == column else { return nil }
+        return pick.row
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             GitHubPageHeader(pulse: state.githubPulse, stats: state.githubStats)
                 .padding(.horizontal, 4)
             if let pulse = state.githubPulse {
                 HStack(alignment: .top, spacing: 8) {
-                    GitHubColumn(title: String(localized: "My PRs"), count: pulse.myPRs.count) {
-                        ForEach(pulse.myPRs, id: \.id) { GitHubPageRow(pr: $0, showCI: true) }
+                    GitHubColumn(title: String(localized: "My PRs"), count: pulse.myPRs.count,
+                                 pickedRow: pickedRow(in: 0)) {
+                        ForEach(Array(pulse.myPRs.enumerated()), id: \.element.id) { index, pr in
+                            GitHubPageRow(pr: pr, showCI: true, picked: pickedRow(in: 0) == index).id(index)
+                        }
                     }
-                    GitHubColumn(title: String(localized: "To review"), count: pulse.toReview.count) {
-                        ForEach(pulse.toReview, id: \.id) { GitHubPageRow(pr: $0, showCI: false) }
+                    GitHubColumn(title: String(localized: "To review"), count: pulse.toReview.count,
+                                 pickedRow: pickedRow(in: 1)) {
+                        ForEach(Array(pulse.toReview.enumerated()), id: \.element.id) { index, pr in
+                            GitHubPageRow(pr: pr, showCI: false, picked: pickedRow(in: 1) == index).id(index)
+                        }
                     }
                     GitHubColumn(title: String(localized: "github.page.main-ci", defaultValue: "Default branch CI"),
-                                 count: pulse.mainCI.count) {
-                        ForEach(pulse.mainCI, id: \.repo) { GitHubPageRepoRow(repo: $0) }
+                                 count: pulse.mainCI.count, pickedRow: pickedRow(in: 2)) {
+                        ForEach(Array(pulse.mainCI.enumerated()), id: \.element.repo) { index, repo in
+                            GitHubPageRepoRow(repo: repo, picked: pickedRow(in: 2) == index).id(index)
+                        }
                     }
                 }
             } else {
@@ -96,6 +110,8 @@ private struct GitHubPageHeader: View {
 private struct GitHubColumn<Rows: View>: View {
     let title: String
     let count: Int
+    /// The row the keys picked, to bring it into view.
+    var pickedRow: Int? = nil
     @ViewBuilder let rows: () -> Rows
 
     var body: some View {
@@ -119,8 +135,13 @@ private struct GitHubColumn<Rows: View>: View {
                     .padding(.top, 2)
                 Spacer(minLength: 0)
             } else {
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 1) { rows() }
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 1) { rows() }
+                    }
+                    .onChange(of: pickedRow) { _, row in
+                        if let row { proxy.scrollTo(row) }
+                    }
                 }
             }
         }
@@ -134,16 +155,36 @@ private struct GitHubColumn<Rows: View>: View {
     }
 }
 
+// MARK: - Keys
+
+/// Where the picked row of the GitHub page leads.
+enum GitHubPageLinks {
+    /// A pull request opens its page, a repository its Actions; nil when the pick is outside the lists.
+    static func link(pulse: GitHubPulse, pick: GitHubKeyPick) -> String? {
+        switch pick.column {
+        case 0: return pulse.myPRs.indices.contains(pick.row) ? pulse.myPRs[pick.row].url : nil
+        case 1: return pulse.toReview.indices.contains(pick.row) ? pulse.toReview[pick.row].url : nil
+        case 2:
+            guard pulse.mainCI.indices.contains(pick.row) else { return nil }
+            let url = pulse.mainCI[pick.row].url
+            return url.hasSuffix("/") ? url + "actions" : url + "/actions"
+        default: return nil
+        }
+    }
+}
+
 // MARK: - Rows
 
 /// Opens a page of github.com in the browser; anything else is ignored.
-private func openGitHubLink(_ string: String) {
+func openGitHubLink(_ string: String) {
     if let url = safeWebURL(string), url.host == "github.com" { NSWorkspace.shared.open(url) }
 }
 
 private struct GitHubPageRow: View {
     let pr: GitHubPR
     let showCI: Bool
+    /// Picked with the keys: ↩ opens it.
+    var picked = false
     @State private var hovered = false
 
     private var shortRepo: String { pr.repo.components(separatedBy: "/").last ?? pr.repo }
@@ -188,7 +229,8 @@ private struct GitHubPageRow: View {
             }
             .padding(.horizontal, 8)
             .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(hovered ? 0.07 : 0)))
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(hovered || picked ? 0.07 : 0)))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(picked ? 0.55 : 0), lineWidth: 1))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -211,6 +253,7 @@ private struct GitHubPageRow: View {
 
 private struct GitHubPageRepoRow: View {
     let repo: GitHubRepoCI
+    var picked = false
     @State private var hovered = false
 
     private var shortRepo: String { repo.repo.components(separatedBy: "/").last ?? repo.repo }
@@ -255,7 +298,8 @@ private struct GitHubPageRepoRow: View {
             }
             .padding(.horizontal, 8)
             .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(hovered ? 0.07 : 0)))
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(hovered || picked ? 0.07 : 0)))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(picked ? 0.55 : 0), lineWidth: 1))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

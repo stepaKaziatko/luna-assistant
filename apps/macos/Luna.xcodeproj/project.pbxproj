@@ -146,6 +146,7 @@
 		5FC5B20F0919968FECA6E3C2 /* GitHubPulse.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFB70DF3315F52BC4F715ECF /* GitHubPulse.swift */; };
 		615157841F1882D220C8A5D3 /* LunaActivityState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93FDFAAB4F6C83692B04083D /* LunaActivityState.swift */; };
 		6388038F6F5E674CC748A43C /* PillCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82A6CB5BB952DD82E4169759 /* PillCatalog.swift */; };
+		6397471A9F20921AAAB996E1 /* IslandKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = E029FDF7088D52409420AACC /* IslandKeys.swift */; };
 		64F3EBDA1E6BBC4462E53E3C /* AgentPeek.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81ECF42AB7A03CB76FFE977 /* AgentPeek.swift */; };
 		654561D7F68DF0AF5A0F97A7 /* LunaWardrobe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 635C26B4AA8D155D8F7786FA /* LunaWardrobe.swift */; };
 		65DB50A8F8BBB3F9A1D3EEB8 /* VoiceGenderNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7DC4344A3F486BFFD8201B0 /* VoiceGenderNames.swift */; };
@@ -221,6 +222,7 @@
 		9566425518A009D864BDDAE8 /* AgentPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1956DAD469ED15565F36EC /* AgentPreviewView.swift */; };
 		963E2808CAF218D8048EABEC /* ChatMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4919BFC4E23D0CCD1429F67 /* ChatMarkdown.swift */; };
 		966359E20235B569162BA57E /* SharedSessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2313C4A1EF25FC76308A1FB /* SharedSessions.swift */; };
+		9773A9C9C526FA2BE55E422D /* IslandKeyHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B6BB8318E4218EA80FB8C0 /* IslandKeyHelpView.swift */; };
 		978CC8C7DCC86772C95E3A11 /* MacDictation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 539F8DFECCAA0962C8AB5406 /* MacDictation.swift */; };
 		97919E68FE9FA516539FE43E /* AgentNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 583FDBD0A423333F378D47D8 /* AgentNotifier.swift */; };
 		97CB4E6391DD5FC051CDB3E8 /* ClaudeHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7688ECE88213AA75981E64D /* ClaudeHost.swift */; };
@@ -232,11 +234,13 @@
 		9BA6DA8C4A15CF4CEEF37740 /* ServiceDetailRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FA8C4AEB37162AC3B6F3716 /* ServiceDetailRunner.swift */; };
 		9D089E92EB4131E0108FABFF /* StripePoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0F2722346431FD569B885F /* StripePoller.swift */; };
 		9D3A6092D3E96EEB2375D0C1 /* GithubPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 987EB92FCCC601BDE21F345C /* GithubPoller.swift */; };
+		9E0B6FDDC889591211B6D0FC /* IslandKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = E029FDF7088D52409420AACC /* IslandKeys.swift */; };
 		9E3FE4F798CD4C91EA684BC5 /* TerminalTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 812620AF40CA0B40927CF1B8 /* TerminalTarget.swift */; };
 		A141CEA4021223707E6F1102 /* ServiceDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BD2FE2AB9F1357E583606F /* ServiceDetail.swift */; };
 		A1B6E3BFD0092F8C27FD9BD4 /* ResendPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 543CD115B940C37FCDBC801F /* ResendPoller.swift */; };
 		A2015A561B161A008FDAA516 /* LunaOutfitDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = CECBB083CC80E60704A8F16B /* LunaOutfitDrawing.swift */; };
 		A22B618A197D48C75E47EE4B /* VoiceIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4610F5955F32AE4EA8F3F39 /* VoiceIslandView.swift */; };
+		A2378C0F8D8315B912A814A5 /* IslandKeyHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B6BB8318E4218EA80FB8C0 /* IslandKeyHelpView.swift */; };
 		A2671DA034E704D96DB09832 /* CryptoController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68BB8CAF6BB3F9744EB233D5 /* CryptoController.swift */; };
 		A30C97397B2E1C975C02A0F7 /* LunaWardrobe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 635C26B4AA8D155D8F7786FA /* LunaWardrobe.swift */; };
 		A4280D10118427F307A2E77A /* HotKeyCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0BB956F5CAFEFA5200856B4 /* HotKeyCenter.swift */; };
@@ -456,6 +460,7 @@
 		44363FFB879C412B591CCD3F /* BotEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BotEngine.swift; sourceTree = "<group>"; };
 		477B625D1001235BB94CB288 /* ClaudeHookDetection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeHookDetection.swift; sourceTree = "<group>"; };
 		487242C07730BA5D7131B39E /* KitPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitPreviewView.swift; sourceTree = "<group>"; };
+		48B6BB8318E4218EA80FB8C0 /* IslandKeyHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandKeyHelpView.swift; sourceTree = "<group>"; };
 		4AC942741ABB0C987624286B /* AgentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentsView.swift; sourceTree = "<group>"; };
 		4C4AA5C7B704DACCCA75479B /* TurnArchive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnArchive.swift; sourceTree = "<group>"; };
 		4D0A544E71279141F78D469B /* UploadCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadCanvasView.swift; sourceTree = "<group>"; };
@@ -578,6 +583,7 @@
 		DB7EBB3473366C89138EE834 /* AgentJumpPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentJumpPlan.swift; sourceTree = "<group>"; };
 		DCD9769D731BB30C9CB2156F /* InstructionRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstructionRunner.swift; sourceTree = "<group>"; };
 		E009202BD9A5988F9F0778CD /* WakeSpotter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WakeSpotter.swift; sourceTree = "<group>"; };
+		E029FDF7088D52409420AACC /* IslandKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandKeys.swift; sourceTree = "<group>"; };
 		E28E3B041CAA137E2124FF37 /* TurnRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnRecorder.swift; sourceTree = "<group>"; };
 		E4DEDDBA6F12509FF8421567 /* EntityResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityResolver.swift; sourceTree = "<group>"; };
 		E784FB5713B2DCEA3C0B2A4B /* IslandScreenGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandScreenGeometry.swift; sourceTree = "<group>"; };
@@ -646,6 +652,8 @@
 				F0BB956F5CAFEFA5200856B4 /* HotKeyCenter.swift */,
 				43B2427DA49B3BE2403AF232 /* IntegrationPages.swift */,
 				22FB708EE1417249F3F46A10 /* IslandDisplayChoice.swift */,
+				48B6BB8318E4218EA80FB8C0 /* IslandKeyHelpView.swift */,
+				E029FDF7088D52409420AACC /* IslandKeys.swift */,
 				99F2D9AE449DA2A6AB563013 /* IslandRootView.swift */,
 				A29102D07D591D3F3CA9EFE4 /* IslandStateMachine.swift */,
 				88FD48D4E32111AB7D1D8DF9 /* IslandViewContent.swift */,
@@ -1215,6 +1223,8 @@
 				6C15E8FBB31C1682FD523269 /* IntegrationPages.swift in Sources */,
 				C6559D106F6139ACD7781697 /* IntentParser.swift in Sources */,
 				8BBCCBDC9F425A4A13476B29 /* IslandDisplayChoice.swift in Sources */,
+				A2378C0F8D8315B912A814A5 /* IslandKeyHelpView.swift in Sources */,
+				9E0B6FDDC889591211B6D0FC /* IslandKeys.swift in Sources */,
 				8D09B20BF29F99BE2B205755 /* IslandRootView.swift in Sources */,
 				B92FACF7B299C74A735D3748 /* IslandScreenGeometry.swift in Sources */,
 				474A446766533EE80A138045 /* IslandStateMachine.swift in Sources */,
@@ -1387,6 +1397,8 @@
 				AE2C234346901FF9AE9E0C5E /* IntegrationPages.swift in Sources */,
 				94D7D36C8CB131514427301F /* IntentParser.swift in Sources */,
 				3376C42898946AD7CD28E80F /* IslandDisplayChoice.swift in Sources */,
+				9773A9C9C526FA2BE55E422D /* IslandKeyHelpView.swift in Sources */,
+				6397471A9F20921AAAB996E1 /* IslandKeys.swift in Sources */,
 				ED073A5A8A2BE69A8440190E /* IslandRootView.swift in Sources */,
 				0B05871E9639D3B257A6E350 /* IslandScreenGeometry.swift in Sources */,
 				9440E5230AC8FA5423EFB320 /* IslandStateMachine.swift in Sources */,

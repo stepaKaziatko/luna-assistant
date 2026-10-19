@@ -8,14 +8,80 @@ final class AppState: ObservableObject {
     static let shared = AppState()
 
     // Island state
-    @Published var mode: IslandMode = .hidden
+    @Published var mode: IslandMode = .hidden {
+        didSet {
+            // A folded island keeps no pick and no hint: the keyboard starts over next time.
+            if oldValue == .expanded, mode != .expanded { resetKeyboardState(keepsTilePick: false) }
+        }
+    }
     @Published var view: IslandView = .agents {
         didSet {
             // Leaving the preview page forgets whose it was.
             if oldValue == .agentPreview, view != .agentPreview { previewAgentId = nil }
+            // A pick made with the keys belongs to the page it was made on; so does the hint.
+            if oldValue != view { resetKeyboardState(keepsTilePick: true) }
             // Opening the GitHub page is seeing its news: the dot on the tab and the badge of the pill go out.
             if view == .github, oldValue != .github { clearPillBadge(id: Self.githubPillId) }
         }
+    }
+
+    // MARK: Keyboard of the island (see IslandKeys.swift)
+
+    /// The tile picked on the Agents page, by the id of its session. The arrows move it, a click
+    /// sets it; it stays when the page of that agent is closed with ⌫ and is dropped with its
+    /// session. Nothing is drawn while it is nil.
+    @Published var agentsSelectionId: String? = nil
+
+    /// The button or variant picked with the keys for the two-step answer. It carries the id of
+    /// the request it was made for: once that request is not the one on screen, the pick is void.
+    @Published var keyChoice: AnswerKeyChoice? = nil
+
+    /// The request the keys have just answered: the page of the agent knows its own answer from
+    /// one given elsewhere and does not report it as "already gone".
+    var keyAnsweredId: UUID? = nil
+
+    /// The hint with the keys of the page ("?") is up.
+    @Published var keyHelpVisible = false
+
+    /// The pick on the GitHub page: column, row.
+    @Published var githubKeyPick: GitHubKeyPick? = nil
+
+    private func resetKeyboardState(keepsTilePick: Bool) {
+        if keyChoice != nil { keyChoice = nil }
+        if keyHelpVisible { keyHelpVisible = false }
+        if githubKeyPick != nil { githubKeyPick = nil }
+        if !keepsTilePick, agentsSelectionId != nil { agentsSelectionId = nil }
+    }
+
+    /// What the keys can answer on `page` right now, by the id of the request on screen.
+    func answerTarget(page: IslandView) -> IslandAnswerTarget {
+        switch page {
+        case .approval:
+            guard let approval = pendingApproval else { return .none }
+            return .approval(id: approval.id, offersAlways: ApprovalChoices.offersAlways(pillId: approval.pillId))
+        case .question:
+            guard pendingQuestion != nil, let id = pendingQuestionId else { return .none }
+            return .question(id: id)
+        case .agentPreview:
+            guard let id = previewAgentId, agentSessions.contains(where: { $0.id == id }) else { return .none }
+            switch AgentPreviewLogic.request(sessionKey: id, requests: agentRequests,
+                                             questionOwner: pendingQuestionOwner, questionId: pendingQuestionId) {
+            case .approval(let request):
+                return .approval(id: request.id, offersAlways: ApprovalChoices.offersAlways(pillId: request.pill))
+            case .question(let questionId):
+                return .question(id: questionId)
+            case .queued, .none:
+                return .none
+            }
+        default:
+            return .none
+        }
+    }
+
+    /// The pick of the keys for `target`, void when it was made for another request.
+    func keyChoice(for target: IslandAnswerTarget, questionIndex: Int = 0) -> AnswerKeyChoice? {
+        guard let keyChoice, keyChoice.isValid(for: target, questionIndex: questionIndex) else { return nil }
+        return keyChoice
     }
 
     /// The page the island opens on and returns to: Agents; a request that waits comes first.
@@ -541,6 +607,11 @@ final class AppState: ObservableObject {
                 appendAppLog("luna.log", line)
             }
         }
+        // The pick of a tile goes with its session.
+        if let picked = agentsSelectionId,
+           AgentsSelection.reconcile(picked, ids: sessions.map(\.id)) == nil {
+            agentsSelectionId = nil
+        }
         // A hint about a session that is gone is of no use to anyone.
         if let note = agentJumpNote, !sessions.contains(where: { $0.id == note.sessionId }) {
             agentJumpNote = nil
@@ -594,6 +665,8 @@ final class AppState: ObservableObject {
     func openAgent(id: String) {
         guard agentSessions.contains(where: { $0.id == id }) else { return }
         previewAgentId = id
+        // The tile stays picked when the page is closed with "Back" or ⌫.
+        agentsSelectionId = id
         lastActivity = .now
         if mode == .expanded {
             view = .agentPreview
@@ -610,6 +683,23 @@ final class AppState: ObservableObject {
         } else {
             NotificationCenter.default.post(name: .hookExpand, object: IslandView.agents)
         }
+    }
+
+    /// Whether "go to the agent" leads anywhere for this session.
+    func canGoToAgent(_ session: AgentSessionInfo) -> Bool {
+        AgentJumpPlan.make(pill: session.pill, sessionId: session.key.session, who: session.who).isAvailable
+    }
+
+    /// The click on "Go to the agent" and ⌘↩, and the only place the focus leaves Luna. The island
+    /// folds once the jump is under way; what the jump has to say stays here for the next time
+    /// the page opens.
+    func goToAgent(_ session: AgentSessionInfo) {
+        let sessionId = session.id
+        agentJumpNote = nil
+        AgentJump.open(session) { [weak self] hint in
+            self?.agentJumpNote = hint.map { AgentJumpNote(sessionId: sessionId, hint: $0) }
+        }
+        NotificationCenter.default.post(name: .islandCollapseAfterJump, object: nil)
     }
 
     /// "Back" on the preview page: to the list of agents.

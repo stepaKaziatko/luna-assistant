@@ -11,7 +11,6 @@ struct AgentsView: View {
     @ObservedObject var state: AppState
     @Environment(\.islandViewActive) private var viewActive
 
-    @State private var selectedId: String? = nil
     @State private var now = Date()
     /// Whether the page has been on screen since it last went away: only then are the sessions
     /// that finished meanwhile "seen".
@@ -39,9 +38,6 @@ struct AgentsView: View {
             if active { becameShown() } else { wentAway() }
         }
         .onDisappear { wentAway() }
-        .onChange(of: state.agentSessions) { _, list in
-            if let selectedId, !list.contains(where: { $0.id == selectedId }) { self.selectedId = nil }
-        }
         // The clock of the page: "5 min ago" and the sessions that went silent, every 30 s,
         // and only while the page is the one on screen.
         .task(id: viewActive) {
@@ -57,21 +53,30 @@ struct AgentsView: View {
 
     private var tiles: some View {
         let livelyIds = livelyTileIds
-        return ScrollView(.vertical, showsIndicators: false) {
-            LazyVGrid(columns: Self.columns, spacing: 8) {
-                ForEach(state.agentSessions) { session in
-                    AgentTile(session: session,
-                              animated: livelyIds.contains(session.id),
-                              selected: selectedId == session.id,
-                              now: now,
-                              onTap: {
-                                  selectedId = session.id
-                                  state.openAgent(id: session.id)
-                              })
+        // The pick lives in `AppState` (by session id): the arrows of the island move it, a click sets it,
+        // and the session that goes takes it along.
+        return ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVGrid(columns: Self.columns, spacing: 8) {
+                    ForEach(state.agentSessions) { session in
+                        AgentTile(session: session,
+                                  animated: livelyIds.contains(session.id),
+                                  selected: state.agentsSelectionId == session.id,
+                                  now: now,
+                                  onTap: {
+                                      state.agentsSelectionId = session.id
+                                      state.openAgent(id: session.id)
+                                  })
+                        .id(session.id)
+                    }
                 }
+                .padding(.horizontal, 2)
+                .padding(.vertical, 2)
             }
-            .padding(.horizontal, 2)
-            .padding(.vertical, 2)
+            // The tile picked with the keys comes into view (no animation: a still page stays still).
+            .onChange(of: state.agentsSelectionId) { _, id in
+                if let id { proxy.scrollTo(id) }
+            }
         }
     }
 

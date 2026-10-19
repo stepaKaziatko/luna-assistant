@@ -347,6 +347,8 @@ struct ApprovalView: View {
         // Captured when the card is drawn: a click answers the request that was on screen,
         // and is ignored if the card has moved on to the next one since.
         let shownId = approval?.id
+        // The button picked with the keys (←/→), for this request only.
+        let picked = state.keyChoice(for: state.answerTarget(page: .approval))?.index
         ZStack {
             CardBackground(wash: .amber)
             VStack(alignment: .leading, spacing: 5) {
@@ -365,14 +367,17 @@ struct ApprovalView: View {
                     SecondaryButton("Deny") {
                         HookServer.shared.sendApprovalDecision("deny", for: shownId)
                     }
+                    .keyPickCapsule(picked == 0)
                     PrimaryButton("Allow") {
                         HookServer.shared.sendApprovalDecision("allow", for: shownId)
                     }
+                    .keyPickCapsule(picked == 1)
                     // Codex, Copilot CLI and Muse Code do not support updatedPermissions
                     if ApprovalChoices.offersAlways(pillId: approval?.pillId) {
                         SecondaryButton("Always") {
                             HookServer.shared.sendApprovalDecision("always", for: shownId)
                         }
+                        .keyPickCapsule(picked == 2)
                     }
                 }
             }
@@ -381,6 +386,22 @@ struct ApprovalView: View {
             .padding(.vertical, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+// MARK: - The pick of the keys
+
+extension View {
+    /// The frame around the button the keys picked: static (no animation), outside the button so it
+    /// reads on the white one too.
+    func keyPickCapsule(_ picked: Bool) -> some View {
+        overlay(Capsule().stroke(Color(hex: "#67E8F9"), lineWidth: 2).padding(-3).opacity(picked ? 1 : 0))
+    }
+
+    /// The same for a variant of a question.
+    func keyPickRounded(_ picked: Bool, radius: CGFloat = 8) -> some View {
+        overlay(RoundedRectangle(cornerRadius: radius).stroke(Color(hex: "#67E8F9"), lineWidth: 2)
+            .padding(-2).opacity(picked ? 1 : 0))
     }
 }
 
@@ -426,6 +447,10 @@ struct QuestionPanel: View {
     // Per-question "Other…" mode active
     @State private var showOther: [Bool] = []
     @FocusState private var otherFieldFocused: Bool
+    /// Keys of the island (arrows, digits, Space, ↩) reach the panel as `QuestionKey`s; the pick
+    /// they make is kept in `AppState` with the id of the question and the number of the question.
+    @ObservedObject private var appState = AppState.shared
+    @Environment(\.islandViewActive) private var viewActive
     /// The question this panel was drawn for: an answer carries its id and is dropped if the
     /// question is no longer the one the app holds.
     @State private var shownQuestionId: UUID? = nil
@@ -441,6 +466,10 @@ struct QuestionPanel: View {
                 let curOther = qi < showOther.count ? showOther[qi] : false
                 let curOtherText = qi < otherTexts.count ? otherTexts[qi] : ""
                 let canProceed = !curSel.isEmpty || (curOther && !curOtherText.isEmpty)
+                // The row picked with the keys for this question and no other: variants, then "Other…".
+                let pickedRow = questionId.flatMap {
+                    appState.keyChoice(for: .question(id: $0), questionIndex: qi)?.index
+                }
 
                 VStack(alignment: .leading, spacing: 4) {
                     // Header row: agent name + question counter + "Reply in terminal" link
@@ -534,11 +563,12 @@ struct QuestionPanel: View {
                                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(isSelected ? Color(hex: "#22D3EE").opacity(0.55) : Color.white.opacity(0.1), lineWidth: 1))
                                 }
                                 .buttonStyle(.plain)
-                                .keyboardShortcut(KeyEquivalent(Character(String(idx + 1))), modifiers: [])
+                                .keyPickRounded(pickedRow == idx)
                             }
                             SecondaryButton("Other…") {
                                 if qi < showOther.count { showOther[qi] = true }
                             }
+                            .keyPickCapsule(pickedRow == item.options.count)
                         }
                     } else {
                         ChipFlowLayout(spacing: 6) {
@@ -557,18 +587,19 @@ struct QuestionPanel: View {
                                             .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color(hex: "#22D3EE").opacity(0.55) : Color.white.opacity(0.1), lineWidth: 1))
                                     }
                                     .buttonStyle(.plain)
-                                    .keyboardShortcut(KeyEquivalent(Character(String(idx + 1))), modifiers: [])
+                                    .keyPickRounded(pickedRow == idx, radius: 7)
                                 } else {
                                     SecondaryButton(verbatim: opt.label) {
                                         selectAndProceed(q: q, qi: qi, label: opt.label, isLast: isLast)
                                     }
-                                    .keyboardShortcut(KeyEquivalent(Character(String(idx + 1))), modifiers: [])
+                                    .keyPickCapsule(pickedRow == idx)
                                 }
                             }
                             // "Other…" implicit free-text option
                             SecondaryButton("Other…") {
                                 if qi < showOther.count { showOther[qi] = true }
                             }
+                            .keyPickCapsule(pickedRow == item.options.count)
                         }
                     }
                     // Send/Next — only for multi-select (and not while "Other…" field is open)
@@ -586,6 +617,53 @@ struct QuestionPanel: View {
         .onAppear { resetQuestionState() }
         .onChange(of: question) { _, _ in resetQuestionState() }
         .onChange(of: questionId) { _, _ in resetQuestionState() }
+        .onReceive(NotificationCenter.default.publisher(for: .islandQuestionKey)) { note in
+            if let key = note.object as? QuestionKey { handleKey(key) }
+        }
+    }
+
+    // MARK: Keys
+
+    /// A key of the island for the question on screen. All island pages are mounted at once, so
+    /// only the panel of the page that is shown answers. Digits and arrows only pick a variant;
+    /// an answer leaves with ↩, from the variant that was picked, for the question that was shown.
+    private func handleKey(_ key: QuestionKey) {
+        guard viewActive, let q = question, !q.questions.isEmpty,
+              let id = questionId, id == shownQuestionId else { return }
+        let qi = min(questionIndex, q.questions.count - 1)
+        guard qi < selections.count, qi < showOther.count, !showOther[qi] else { return }
+        let item = q.questions[qi]
+        let options = item.options.count
+        let isLast = qi == q.questions.count - 1
+        let current = appState.keyChoice(for: .question(id: id), questionIndex: qi)?.index
+        func pick(_ row: Int) {
+            appState.keyChoice = AnswerKeyChoice(requestId: id, questionIndex: qi, index: row)
+        }
+        switch key {
+        case .move(let delta):
+            pick(QuestionKeys.move(row: current, delta: delta, options: options))
+        case .digit(let n):
+            if let row = QuestionKeys.digit(n, options: options) { pick(row) }
+        case .toggle:
+            if case .toggle(let option) = QuestionKeys.space(row: current, options: options, multiSelect: item.multiSelect) {
+                toggleSelection(qi: qi, label: item.options[option].label)
+            }
+        case .confirm:
+            switch QuestionKeys.confirm(row: current, options: options, multiSelect: item.multiSelect,
+                                        hasMarks: !selections[qi].isEmpty) {
+            case .answer(let option):
+                appState.keyChoice = nil
+                selectAndProceed(q: q, qi: qi, label: item.options[option].label, isLast: isLast)
+            case .advance:
+                appState.keyChoice = nil
+                proceedFromQuestion(q: q, qi: qi, isLast: isLast)
+            case .openOther:
+                appState.keyChoice = nil
+                showOther[qi] = true
+            case .toggle, .none:
+                break
+            }
+        }
     }
 
     private func resetQuestionState() {
@@ -1315,6 +1393,7 @@ private struct DictationLanguageMenu: View {
 #endif
 
 struct PromptView: View {
+    @Environment(\.islandViewActive) private var viewActive
     @ObservedObject var state: AppState
     @State private var text: String = ""
     @FocusState private var focused: Bool
@@ -1449,9 +1528,12 @@ struct PromptView: View {
         }
         .padding(.bottom, 10)
         .onAppear {
-            focused = true
+            // Every island page is mounted at once: the field of a page that is not shown must not
+            // hold the keyboard (it would swallow the keys of the island, arrows and ↩ included).
+            if viewActive { focused = true }
             state.refreshClaudeCodeStatus()
         }
+        .onChange(of: viewActive) { _, active in focused = active }
         .onChange(of: state.view) { _, view in
             if view == .prompt {
                 state.fetchModelsIfNeeded(for: state.chatProvider)

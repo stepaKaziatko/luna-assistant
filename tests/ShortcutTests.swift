@@ -14,6 +14,8 @@ enum ShortcutTests {
         testEnabledByDefault()
         testKeyCodeToString()
         testCardNavigation()
+        testPageHotkeys()
+        testIslandShortcutsFromTable()
         print("ShortcutLogic: all cases passed")
     }
 
@@ -186,6 +188,8 @@ enum ShortcutTests {
                      "talkToLuna must be disabled by default")
 
         // All other global shortcuts are ON by default
+        precondition(ShortcutAction.openAgents.enabledByDefault, "openAgents must be on by default")
+        precondition(ShortcutAction.openTabs.enabledByDefault, "openTabs must be on by default")
         let offByDefault: Set<ShortcutAction> = [.toggleIsland, .talkToLuna]
         for action in ShortcutAction.allCases where !offByDefault.contains(action) {
             precondition(action.enabledByDefault,
@@ -202,6 +206,8 @@ enum ShortcutTests {
         precondition(ShortcutLogic.keyCodeToString(30) == "]",     "keyCode 30 = ]")
         precondition(ShortcutLogic.keyCodeToString(33) == "[",     "keyCode 33 = [")
         precondition(ShortcutLogic.keyCodeToString(2)  == "D",     "keyCode 2 = D")
+        precondition(ShortcutLogic.keyCodeToString(1)  == "S",     "keyCode 1 = S")
+        precondition(ShortcutLogic.keyCodeToString(35) == "P",     "keyCode 35 = P")
         // Unknown key code returns a placeholder
         let unknown = ShortcutLogic.keyCodeToString(200)
         precondition(!unknown.isEmpty, "unknown key code must return non-empty string")
@@ -236,5 +242,49 @@ enum ShortcutTests {
                      "empty card must return nil")
         precondition(ShortcutLogic.navigate(selection: 0,   delta: +1, itemCount: 0) == nil,
                      "any selection on empty card must return nil")
+    }
+
+    // MARK: - testPageHotkeys
+
+    static func testPageHotkeys() {
+        // ⌃⌥S and ⌃⌥P: new actions with their own defaults, stored under their own keys
+        precondition(ShortcutLogic.defaults[.openAgents] == ShortcutSpec(keyCode: 1, nsFlags: ShortcutSpec.ctrlOpt),
+                     "openAgents must default to ⌃⌥S")
+        precondition(ShortcutLogic.defaults[.openTabs] == ShortcutSpec(keyCode: 35, nsFlags: ShortcutSpec.ctrlOpt),
+                     "openTabs must default to ⌃⌥P")
+        precondition(ShortcutLogic.displayString(for: ShortcutLogic.defaults[.openAgents]!) == "⌃⌥S", "⌃⌥S display")
+        precondition(ShortcutLogic.displayString(for: ShortcutLogic.defaults[.openTabs]!) == "⌃⌥P", "⌃⌥P display")
+        precondition(ShortcutAction.openAgents.udKeyCode == "shortcut.openAgents.keyCode", "openAgents key code storage key")
+        precondition(ShortcutAction.openAgents.udFlags == "shortcut.openAgents.flags", "openAgents flags storage key")
+        precondition(ShortcutAction.openTabs.udEnabled == "shortcut.openTabs.enabled", "openTabs enabled storage key")
+        precondition(!ShortcutAction.openAgents.isNonAppStore && !ShortcutAction.openTabs.isNonAppStore,
+                     "page hotkeys exist in the App Store build too")
+
+        // Mutation guard: a clash is caught — ⌃⌥P moved onto ⌃⌥G is a duplicate
+        var specs = ShortcutLogic.defaults
+        specs[.openTabs] = specs[.wardrobeToggle]
+        let dups = ShortcutLogic.duplicates(in: specs)
+        precondition(dups == [.openTabs, .wardrobeToggle], "a default clash must be reported as duplicates")
+
+        // Round trip through a test-only suite, as the app stores it
+        let suiteName = "dev.luna.ShortcutTests.pages.\(Int.random(in: 10000...99999))"
+        guard let ud = UserDefaults(suiteName: suiteName) else { preconditionFailure("suite") }
+        for (action, code) in [(ShortcutAction.openAgents, 5), (.openTabs, 9)] {
+            ud.set(code, forKey: action.udKeyCode)
+            precondition(ud.object(forKey: action.udKeyCode) as? Int == code, "\(action.rawValue) key code round-trips")
+        }
+        ud.removePersistentDomain(forName: suiteName)
+    }
+
+    // MARK: - testIslandShortcutsFromTable
+
+    static func testIslandShortcutsFromTable() {
+        // Settings reads the one table: no second list.
+        let rows = IslandKeyTable.rows()
+        let list = ShortcutLogic.islandShortcuts
+        precondition(list.count == rows.count, "islandShortcuts must have a row per row of the table")
+        for (a, b) in zip(list, rows) {
+            precondition(a.key == b.keys, "islandShortcuts key must come from the table: \(a.key) vs \(b.keys)")
+        }
     }
 }

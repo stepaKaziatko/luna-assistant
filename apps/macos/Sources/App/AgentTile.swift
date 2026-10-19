@@ -232,6 +232,11 @@ struct AgentTile: View {
                 .stroke(accent.map { $0.opacity(session.rank == .working ? 0.35 : 0.95) }
                         ?? Color.white.opacity(selected ? 0.3 : 0.05),
                         lineWidth: session.rank == .waiting ? 2 : (accent == nil ? 1 : 1.5))
+            // The pick (a click or the arrows): a bright frame on top of the state's own, still, readable on any wallpaper.
+            if selected {
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color.white.opacity(0.9), lineWidth: 2)
+            }
         }
     }
 }

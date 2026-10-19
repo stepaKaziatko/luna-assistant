@@ -3,9 +3,10 @@ import Foundation
 // MARK: - Shortcut Action
 
 /// Every keyboard shortcut Luna knows about.
-/// The first 10 cases are *global* (registered with Carbon and effective from any app).
-/// Island-local shortcuts are documented in `ShortcutLogic.islandShortcuts` but are
-/// not managed here — they are handled by a local NSEvent monitor in IslandWindowController.
+/// All cases are *global* (registered with Carbon and effective from any app).
+/// Island-local keys live in the table of `IslandKeys.swift` (shown in Settings and in the `?`
+/// hint, read by `ShortcutLogic.islandShortcuts`) — they are handled by a local NSEvent monitor
+/// in IslandWindowController and are not managed here.
 enum ShortcutAction: String, CaseIterable, Sendable {
     // MARK: Global (Carbon RegisterEventHotKey)
     case toggleIsland      = "toggleIsland"      // ⌘⇧N — open / close island (toggle)
@@ -18,6 +19,8 @@ enum ShortcutAction: String, CaseIterable, Sendable {
     case muteToggle        = "muteToggle"         // ⌃⌥M — mute / unmute sounds
     case desktopToggle     = "desktopToggle"      // ⌃⌥D — send Luna to desktop / bring back
     case wardrobeToggle    = "wardrobeToggle"     // ⌃⌥G — open / close wardrobe
+    case openAgents        = "openAgents"         // ⌃⌥S — open the Agents page (sessions)
+    case openTabs          = "openTabs"           // ⌃⌥P — open the Active tabs page (pills)
     case talkToLuna      = "talkToLuna"       // (unset) — start listening without wake phrase (non-AppStore)
 
     // MARK: UserDefaults keys
@@ -49,6 +52,8 @@ enum ShortcutAction: String, CaseIterable, Sendable {
         case .muteToggle:        return String(localized: "shortcut.mute-toggle")
         case .desktopToggle:     return String(localized: "shortcut.desktop-toggle")
         case .wardrobeToggle:    return String(localized: "shortcut.wardrobe")
+        case .openAgents:        return String(localized: "shortcut.open-agents")
+        case .openTabs:          return String(localized: "shortcut.open-tabs")
         case .talkToLuna:      return String(localized: "shortcut.talk-to-luna")
         }
     }
@@ -106,6 +111,8 @@ enum ShortcutLogic {
         .muteToggle:        ShortcutSpec(keyCode: 46, nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥M
         .desktopToggle:     ShortcutSpec(keyCode: 2,  nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥D
         .wardrobeToggle:    ShortcutSpec(keyCode: 5,  nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥G
+        .openAgents:        ShortcutSpec(keyCode: 1,  nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥S
+        .openTabs:          ShortcutSpec(keyCode: 35, nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥P
         .talkToLuna:      ShortcutSpec(keyCode: 9,  nsFlags: ShortcutSpec.ctrlOpt),  // ⌃⌥V (disabled by default)
     ]
 
@@ -223,17 +230,11 @@ enum ShortcutLogic {
 
     // MARK: - Island-local shortcut table (read-only, shown in Settings)
 
-    /// Descriptive table of island-local shortcuts for the Settings view.
-    static let islandShortcuts: [(key: String, description: String)] = [
-        ("⌘→ / ⌘←",    String(localized: "shortcut.island.next-prev")),
-        ("⌘1 – ⌘9",    String(localized: "shortcut.island.by-number")),
-        ("⌘↓ / ⌘↑",    String(localized: "shortcut.island.nav-items")),
-        ("⌘O",          String(localized: "shortcut.island.open")),
-        ("⌘E",          String(localized: "shortcut.island.diff")),
-        ("⌘↩",          String(localized: "shortcut.island.send")),
-        ("⌘K",          String(localized: "shortcut.island.new-convo")),
-        ("⌘,",          String(localized: "shortcut.island.settings")),
-        ("⌘P",          String(localized: "shortcut.island.pin")),
-        ("⎋",           String(localized: "shortcut.island.close")),
-    ]
+    /// Island-local keys for the Settings view: built from the one table in `IslandKeys.swift`,
+    /// so Settings, the `?` hint and the monitor can never disagree.
+    static var islandShortcuts: [(key: String, description: String)] {
+        IslandKeyTable.rows().map { row in
+            (key: row.keys, description: String(localized: String.LocalizationValue(row.descriptionKey)))
+        }
+    }
 }

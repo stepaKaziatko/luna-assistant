@@ -568,6 +568,13 @@ struct IslandContentView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // "?": the keys of the page, over its content (not a window, the island keeps its size).
+            .overlay {
+                if state.keyHelpVisible {
+                    IslandKeyHelpView(area: IslandKeyArea.of(page: state.view,
+                                                             answer: state.answerTarget(page: state.view)))
+                }
+            }
             .padding(.horizontal, 10)
         }
         .padding(.top, 8)

@@ -18183,6 +18183,102 @@
         }
       }
     },
+    "shortcut.island.agent-jump": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Go to the agent’s window"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перейти к окну агента"
+          }
+        }
+      }
+    },
+    "shortcut.island.agent-open": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the picked agent"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть страницу выбранного агента"
+          }
+        }
+      }
+    },
+    "shortcut.island.approval-choose": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick Deny / Allow / Always (nothing is sent yet)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выбрать «Запретить» / «Разрешить» / «Всегда» (пока ничего не отправляется)"
+          }
+        }
+      }
+    },
+    "shortcut.island.approval-confirm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send the picked answer"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отправить выбранный ответ"
+          }
+        }
+      }
+    },
+    "shortcut.island.back-home": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to Agents"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Назад к «Агентам»"
+          }
+        }
+      }
+    },
+    "shortcut.island.back-list": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to the list of agents"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Назад к списку агентов"
+          }
+        }
+      }
+    },
     "shortcut.island.by-number": {
       "localizations": {
         "ar": {
@@ -18371,6 +18467,182 @@
           "stringUnit": {
             "state": "translated",
             "value": "打开/关闭当前差异"
+          }
+        }
+      }
+    },
+    "shortcut.island.github-open": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open it on GitHub"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть на GitHub"
+          }
+        }
+      }
+    },
+    "shortcut.island.github-select": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a pull request or a repository"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выбрать pull request или репозиторий"
+          }
+        }
+      }
+    },
+    "shortcut.island.group.agentPage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page of an agent"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Страница агента"
+          }
+        }
+      }
+    },
+    "shortcut.island.group.agents": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agents"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Агенты"
+          }
+        }
+      }
+    },
+    "shortcut.island.group.answers": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Answering a request or a question"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ответ на запрос и вопрос"
+          }
+        }
+      }
+    },
+    "shortcut.island.group.chat": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Чат"
+          }
+        }
+      }
+    },
+    "shortcut.island.group.everywhere": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everywhere"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На любой странице"
+          }
+        }
+      }
+    },
+    "shortcut.island.group.github": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        }
+      }
+    },
+    "shortcut.island.group.tabs": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active pills"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Активные вкладки"
+          }
+        }
+      }
+    },
+    "shortcut.island.help": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show / hide the keys of this page"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать / скрыть клавиши этой страницы"
+          }
+        }
+      }
+    },
+    "shortcut.island.intro": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These keys work while the notch has the keyboard: after a page hotkey, ⌃⌥Space or a click on it. ⎋ closes it and gives the keyboard back. Press ? in the notch to see the keys of the page you are on."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эти клавиши работают, пока у нотча клавиатура: после хоткея страницы, ⌃⌥Space или клика по нему. ⎋ закрывает его и возвращает клавиатуру. Нажмите ? в нотче — увидите клавиши текущей страницы."
           }
         }
       }
@@ -18695,6 +18967,70 @@
         }
       }
     },
+    "shortcut.island.question-choose": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a variant or “Other…”"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выбрать вариант или «Другое…»"
+          }
+        }
+      }
+    },
+    "shortcut.island.question-confirm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Answer with the picked variant, go on or send"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ответить выбранным вариантом, продолжить или отправить"
+          }
+        }
+      }
+    },
+    "shortcut.island.question-digit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick the variant by number (does not send)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выбрать вариант по номеру (не отправляет)"
+          }
+        }
+      }
+    },
+    "shortcut.island.question-toggle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark / unmark a variant (multiple choice)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отметить / снять вариант (множественный выбор)"
+          }
+        }
+      }
+    },
     "shortcut.island.send": {
       "localizations": {
         "ar": {
@@ -18819,6 +19155,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "打开设置"
+          }
+        }
+      }
+    },
+    "shortcut.island.tile-select": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick an agent"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выбрать агента"
           }
         }
       }
@@ -19015,6 +19367,22 @@
         }
       }
     },
+    "shortcut.open-agents": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Agents"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть «Агенты»"
+          }
+        }
+      }
+    },
     "shortcut.open-chat": {
       "localizations": {
         "ar": {
@@ -19139,6 +19507,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "打开/关闭岛"
+          }
+        }
+      }
+    },
+    "shortcut.open-tabs": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Active pills"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть «Активные вкладки»"
           }
         }
       }

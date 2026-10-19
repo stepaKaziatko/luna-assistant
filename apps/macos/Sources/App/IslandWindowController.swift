@@ -805,6 +805,31 @@ final class IslandWindowController: NSWindowController {
             VoiceSpeaker.shared.stop()
             VoiceEngine.shared.startListeningDirectly()
             #endif
+
+        case .openAgents:
+            openPage(.agents)
+
+        case .openTabs:
+            openPage(.overview)
+        }
+    }
+
+    /// The hotkey of a page. Explicit, so the panel takes the keyboard (the only way into the
+    /// keys of the island besides a click); pressed again on the same page it puts the island away.
+    /// A request that waits stays in its queue: a page opens next to it, it is never answered here.
+    private func openPage(_ target: IslandView) {
+        switch PageHotkey.plan(target: target, view: state.view, mode: state.mode,
+                               panelIsKey: islandPanel.isKeyWindow) {
+        case .collapse:
+            collapse(allowPendingApproval: true)
+        case .takeKeyboard:
+            islandPanel.makeKey()
+            fsm.userInteracted()
+            state.lastActivity = .now
+        case .open(let page):
+            islandPanel.makeKey()
+            fsm.openedExternally()
+            expand(to: page)
         }
     }
 
@@ -820,50 +845,29 @@ final class IslandWindowController: NSWindowController {
     @discardableResult
     private func handleIslandKey(_ event: NSEvent) -> Bool {
         let raw = event.modifierFlags.intersection([.command, .control, .option, .shift])
-        let cmd = raw == .command
 
-        // ⌘→ — next pill
-        if cmd && event.keyCode == 124 { cyclePill(by: +1); return true }
-        // ⌘← — previous pill
-        if cmd && event.keyCode == 123 { cyclePill(by: -1); return true }
-        // ⌘↓ — navigate list down
-        if cmd && event.keyCode == 125 { navigateCard(by: +1); return true }
-        // ⌘↑ — navigate list up
-        if cmd && event.keyCode == 126 { navigateCard(by: -1); return true }
-        // ⌘O — open selected card item
-        if cmd && event.keyCode == 31  { openCardSelection(); return true }
-        // ⌘E — toggle diff
-        if cmd && event.keyCode == 14 && state.view == .overview {
-            NotificationCenter.default.post(name: .islandToggleDiff, object: nil)
+        // Everything but ⎋ goes through the one table (IslandKeys.swift): what a key is, on which
+        // page, with the focus in a field or not, held or pressed.
+        let page = state.view
+        // Typing: a field editor has the keyboard on a page that has a text field to show. A field
+        // that sits hidden on another page never counts (all pages are mounted at once).
+        let typing = islandPanel.firstResponder is NSText && IslandKeyTable.pageHasTextInput(page)
+        let context = IslandKeyContext(page: page, answer: state.answerTarget(page: page),
+                                       firstResponderIsText: typing)
+        let input = IslandKeyInput(keyCode: event.keyCode, modifiers: raw.rawValue,
+                                   isRepeat: event.isARepeat, character: event.characters ?? "")
+        if let command = IslandKeyTable.resolve(input, context: context) {
+            // A key in the island is the person being here: no auto-close in the middle of a walk.
+            state.lastActivity = .now
+            fsm.userInteracted()
+            if command != .toggleHelp, state.keyHelpVisible { state.keyHelpVisible = false }
+            perform(command, context: context)
             return true
         }
-        // ⌘↩ — send chat message
-        if cmd && event.keyCode == 36 && state.view == .prompt {
-            NotificationCenter.default.post(name: .islandSendMessage, object: nil)
-            return true
-        }
-        // ⌘K — new conversation
-        if cmd && event.keyCode == 40 && state.view == .prompt {
-            NotificationCenter.default.post(name: .islandNewConversation, object: nil)
-            return true
-        }
-        // ⌘, — open Settings
-        if cmd && event.keyCode == 43 {
-            NotificationCenter.default.post(name: .openFullSettings, object: nil)
-            return true
-        }
-        // ⌘P — pin / unpin
-        if cmd && event.keyCode == 35 {
-            state.isPinned.toggle()
-            return true
-        }
-        // ⌘1–⌘9 — switch to pill by number
-        let digitCodes: [UInt16: Int] = [18:1,19:2,20:3,21:4,23:5,22:6,26:7,28:8,25:9]
-        if cmd, let n = digitCodes[event.keyCode] {
-            switchToPill(number: n); return true
-        }
-        // ⎋ Escape — focused views (.onExitCommand) have first crack; fall back to collapse
-        if event.keyCode == 53 && raw.isEmpty {
+
+        // ⎋ Escape — the hint first, then focused views (.onExitCommand) have first crack; fall back to collapse
+        if event.keyCode == IslandKeyCode.escape && raw.isEmpty {
+            if state.keyHelpVisible { state.keyHelpVisible = false; return true }
             let consumed = NSApp.sendAction(Selector(("cancelOperation:")), to: nil, from: nil)
             let canCollapse = !state.isPinned || state.pendingApproval != nil
             if !consumed && state.mode == .expanded && canCollapse {
@@ -872,6 +876,60 @@ final class IslandWindowController: NSWindowController {
             return true
         }
         return false
+    }
+
+    /// Does what a key of the table asks. Anything that sends an answer goes through the same
+    /// entry points as a click, with the id of the request the pick was made for.
+    private func perform(_ command: IslandKeyCommand, context: IslandKeyContext) {
+        switch command {
+        case .cyclePill(let delta):  cyclePill(by: delta)
+        case .pillNumber(let n):     switchToPill(number: n)
+        case .moveCard(let delta):   navigateCard(by: delta)
+        case .openCardItem:          openCardSelection()
+        case .toggleDiff:            NotificationCenter.default.post(name: .islandToggleDiff, object: nil)
+        case .sendMessage:           NotificationCenter.default.post(name: .islandSendMessage, object: nil)
+        case .newConversation:       NotificationCenter.default.post(name: .islandNewConversation, object: nil)
+        case .openSettings:          NotificationCenter.default.post(name: .openFullSettings, object: nil)
+        case .togglePin:             state.isPinned.toggle()
+        case .toggleHelp:            state.keyHelpVisible.toggle()
+
+        case .moveTile(let step):
+            state.agentsSelectionId = AgentsSelection.move(id: state.agentsSelectionId, step: step,
+                                                           ids: state.agentSessions.map(\.id))
+        case .openSelectedAgent:
+            guard let id = AgentsSelection.reconcile(state.agentsSelectionId, ids: state.agentSessions.map(\.id))
+            else { return }
+            state.openAgent(id: id)
+        case .jumpToAgent:
+            // The only key that hands the focus to another app; it needs an agent in sight.
+            let id = context.page == .agentPreview ? state.previewAgentId : state.agentsSelectionId
+            guard let id, let session = state.agentSessions.first(where: { $0.id == id }),
+                  state.canGoToAgent(session) else { return }
+            state.goToAgent(session)
+        case .back:                  state.closeAgentPreview()
+        case .home:                  state.goHome()
+
+        case .approvalMove(let delta):
+            state.keyChoice = ApprovalKeys.move(choice: state.keyChoice, delta: delta, target: context.answer)
+        case .approvalConfirm:
+            // No pick, or a pick for a request that is no longer on screen: nothing is sent.
+            guard let answer = ApprovalKeys.confirm(choice: state.keyChoice, target: context.answer) else { return }
+            state.keyChoice = nil
+            state.keyAnsweredId = answer.id
+            HookServer.shared.sendApprovalDecision(answer.decision, for: answer.id)
+        case .question(let key):
+            // The panel owns the state of the answer (marks, question number): it runs the key.
+            NotificationCenter.default.post(name: .islandQuestionKey, object: key)
+
+        case .githubMove(let step):
+            guard let pulse = state.githubPulse else { return }
+            state.githubKeyPick = GitHubKeys.move(pick: state.githubKeyPick, step: step,
+                                                  counts: [pulse.myPRs.count, pulse.toReview.count, pulse.mainCI.count])
+        case .githubOpen:
+            guard let pulse = state.githubPulse, let pick = state.githubKeyPick,
+                  let link = GitHubPageLinks.link(pulse: pulse, pick: pick) else { return }
+            openGitHubLink(link)
+        }
     }
 
     // MARK: - Pill cycling helpers
@@ -976,6 +1034,14 @@ final class IslandWindowController: NSWindowController {
             guard let self else { return }
             self.fsm.openedExternally()
             self.expand(to: .mail)
+        }
+
+        // The panel gave up the keyboard (a click elsewhere, ⎋ …): the pick for an answer and the
+        // hint go with it, so nothing is armed for the next time the keys come back.
+        NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: .main) { [weak self] _ in
+            guard let self else { return }
+            if self.state.keyChoice != nil { self.state.keyChoice = nil }
+            if self.state.keyHelpVisible { self.state.keyHelpVisible = false }
         }
 
         // Collapse requests from views (OK button, etc.)
@@ -2132,6 +2198,8 @@ extension Notification.Name {
     static let islandNewConversation = Notification.Name("luna.islandNewConversation")
     static let islandToggleDiff           = Notification.Name("luna.islandToggleDiff")
     static let islandActivateCardSelection = Notification.Name("luna.islandActivateCardSelection")
+    /// A key for the question on screen (`QuestionKey` in the object): the panel runs it.
+    static let islandQuestionKey = Notification.Name("luna.islandQuestionKey")
     static let openFullSettings    = Notification.Name("luna.openFullSettings")
     static let hookReveal       = Notification.Name("luna.hookReveal")
     static let musicReveal      = Notification.Name("luna.musicReveal")

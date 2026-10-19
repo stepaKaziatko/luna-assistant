@@ -103,22 +103,37 @@ struct ShortcutsSettingsView: View {
 
     // MARK: - Island-local shortcuts (read-only)
 
+    /// The keys of the island, grouped by page. The table is the one in `IslandKeys.swift`: the
+    /// same rows the `?` hint shows and the monitor obeys. They work while the panel of the
+    /// island has the keyboard: after a page hotkey (⌃⌥S, ⌃⌥P, ⌃⌥Space …) or a click on it.
     private var islandSection: some View {
         GroupBox(String(localized: "shortcut.group.island")) {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(ShortcutLogic.islandShortcuts.enumerated()), id: \.offset) { _, pair in
-                    HStack(spacing: 10) {
-                        Text(pair.key)
-                            .font(.system(size: 11, design: .monospaced))
-                            .frame(width: 90, alignment: .leading)
-                        Text(pair.description)
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                    .padding(.vertical, 4)
-                    if pair.key != ShortcutLogic.islandShortcuts.last?.key {
-                        Divider().padding(.leading, 100)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(String(localized: "shortcut.island.intro"))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                ForEach(IslandKeyGroup.allCases, id: \.self) { group in
+                    let rows = IslandKeyTable.rows(in: group)
+                    if !rows.isEmpty {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(String(localized: String.LocalizationValue(group.titleKey)))
+                                .font(.system(size: 11, weight: .semibold))
+                                .padding(.bottom, 2)
+                            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                                HStack(spacing: 10) {
+                                    Text(verbatim: row.keys)
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .frame(width: 130, alignment: .leading)
+                                    Text(String(localized: String.LocalizationValue(row.descriptionKey)))
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                }
+                                .padding(.vertical, 3)
+                                if index < rows.count - 1 { Divider().padding(.leading, 140) }
+                            }
+                        }
                     }
                 }
             }
