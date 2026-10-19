@@ -9,7 +9,10 @@ final class AppState: ObservableObject {
 
     // Island state
     @Published var mode: IslandMode = .hidden
-    @Published var view: IslandView = .overview
+    @Published var view: IslandView = .overview {
+        // Leaving the preview page forgets whose it was.
+        didSet { if oldValue == .agentPreview, view != .agentPreview { previewAgentId = nil } }
+    }
 
     // Tasks
     @Published var tasks: [AgentTask] = []
@@ -442,7 +445,22 @@ final class AppState: ObservableObject {
 
     // Pending AskUserQuestion from Claude Code hook
     @Published var pendingQuestion: AskQuestion? = nil {
-        didSet { QuestionLayout.height = pendingQuestion?.estimatedIslandHeight }
+        didSet {
+            QuestionLayout.height = pendingQuestion?.estimatedIslandHeight
+            if pendingQuestion == nil {
+                pendingQuestionId = nil
+                pendingQuestionOwner = nil
+            }
+            refreshPreviewLayout()
+        }
+    }
+
+    /// The id of the held question: an answer from the card or from the preview page is
+    /// accepted only together with it (see `QuestionHolder`). Set before `pendingQuestion`.
+    @Published var pendingQuestionId: UUID? = nil
+    /// `AgentSessionKey.id` of the session that asks the pending question.
+    @Published var pendingQuestionOwner: String? = nil {
+        didSet { refreshPreviewLayout() }
     }
 
     // Agents page: one tile per live agent session, published by HookServer only when
@@ -453,6 +471,39 @@ final class AppState: ObservableObject {
 
     func setAgentSessions(_ sessions: [AgentSessionInfo]) {
         if sessions != agentSessions { agentSessions = sessions }
+        // A hint about a session that is gone is of no use to anyone.
+        if let note = agentJumpNote, !sessions.contains(where: { $0.id == note.sessionId }) {
+            agentJumpNote = nil
+        }
+    }
+
+    /// The permission requests the app holds, for the preview page (a view over the queue).
+    @Published private(set) var agentRequests: [AgentRequest] = []
+
+    func setAgentRequests(_ requests: [AgentRequest]) {
+        if requests != agentRequests { agentRequests = requests }
+    }
+
+    /// The session whose preview page is open (`AgentSessionInfo.id`). It stays set while the
+    /// page is shown, also after the session ended: the page then says it is closed.
+    @Published var previewAgentId: String? = nil {
+        didSet { refreshPreviewLayout() }
+    }
+
+    /// What the last "go to the agent" had to say (the island folds right after the click, so the
+    /// page shows it the next time it opens). Cleared by the next jump.
+    @Published var agentJumpNote: AgentJumpNote? = nil
+
+    /// Island height of the preview page when its session asks a question; nil otherwise.
+    @Published private(set) var previewQuestionHeight: CGFloat? = nil
+
+    private func refreshPreviewLayout() {
+        var height: CGFloat? = nil
+        if let question = pendingQuestion, let owner = pendingQuestionOwner, owner == previewAgentId {
+            height = question.estimatedPreviewHeight
+        }
+        QuestionLayout.previewHeight = height
+        if height != previewQuestionHeight { previewQuestionHeight = height }
     }
 
     /// The card that holds the request the app has now (permission first, as the queue head
@@ -463,13 +514,19 @@ final class AppState: ObservableObject {
         return nil
     }
 
-    /// The single entry point of a click on a tile. For now: a session that waits for you opens
-    /// the card of the request the app holds (the head of the queue when several wait); any other
-    /// tile does nothing. The preview of an agent replaces the body of this method.
+    /// The single entry point of a click on a tile: opens the preview page of that session,
+    /// whether it waits for you or not. A session that is gone opens nothing. The card of a
+    /// waiting request stays what ⌃⌥A (`alertView`) leads to.
     func openAgent(id: String) {
-        guard let agent = agentSessions.first(where: { $0.id == id }),
-              agent.wait != nil, let card = alertView else { return }
-        view = card
+        guard agentSessions.contains(where: { $0.id == id }) else { return }
+        previewAgentId = id
+        view = .agentPreview
+        lastActivity = .now
+    }
+
+    /// "Back" on the preview page: to the list of agents.
+    func closeAgentPreview() {
+        view = .agents
         lastActivity = .now
     }
 

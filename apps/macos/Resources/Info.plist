@@ -43,7 +43,7 @@
 		<true/>
 	</dict>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Luna controls Terminal, Mail, Music and Spotify when you ask it to jump to a terminal, send an email or play music.</string>
+	<string>Luna controls Terminal, iTerm2, Mail, Music and Spotify when you ask it to jump to an agent's terminal tab, send an email or play music.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Luna looks up an email address when you ask it, by voice, to prepare an email.</string>
 	<key>NSHighResolutionCapable</key>

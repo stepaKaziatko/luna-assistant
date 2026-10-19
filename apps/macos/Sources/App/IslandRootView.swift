@@ -161,6 +161,17 @@ struct IslandContainer: View {
                 islandHeight = newView == .prompt ? chatPromptHeight : h
             }
         }
+        .onChange(of: state.previewQuestionHeight) { _, _ in
+            // The preview of a session that asks a question needs the room of the question card.
+            guard state.mode == .expanded, state.view == .agentPreview else { return }
+            let (w, h) = islandSize(mode: .expanded, view: .agentPreview,
+                                    progress: state.uploadProgress,
+                                    nw: state.notchWidth, nh: state.notchHeight)
+            withAnimation(openSpring) {
+                islandWidth  = w
+                islandHeight = h
+            }
+        }
         .onChange(of: state.chatHistory.count) { _, _ in
             guard state.mode == .expanded, state.view == .prompt else { return }
             withAnimation(openSpring) { islandHeight = chatPromptHeight }
@@ -285,7 +296,7 @@ struct BotPlacement: View {
         let overhang: CGFloat = 40
         let isUploading = state.view == .uploading
         // The Agents page is a wall of tiles with a Luna each: the big one steps aside.
-        let hiddenByPage = state.mode == .expanded && state.view == .agents
+        let hiddenByPage = state.mode == .expanded && (state.view == .agents || state.view == .agentPreview)
 
         Group {
             // No glow in uploading mode — the tiny dot doesn't need it
@@ -494,7 +505,7 @@ struct IslandContentView: View {
                     // Views that fill available height instead of the fixed 98pt content frame:
                     // chat (prompt) is always flexible; mail is flexible only when active so
                     // it doesn't push the ZStack taller when inactive.
-                    let isTall = v == .prompt || ((v == .mail || v == .agents) && active)
+                    let isTall = v == .prompt || ((v == .mail || v == .agents || v == .agentPreview) && active)
                     let anim: Animation = active
                         ? .spring(response: 0.4, dampingFraction: 0.8).delay(0.16)
                         : .easeIn(duration: 0.16)
@@ -612,6 +623,8 @@ struct TabButton: View {
 
     private var isOn: Bool {
         if view == .overview { return state.view == .overview || state.view == .empty }
+        // The preview of an agent is a level below the list: its tab stays lit.
+        if view == .agents { return state.view == .agents || state.view == .agentPreview }
         return state.view == view
     }
 

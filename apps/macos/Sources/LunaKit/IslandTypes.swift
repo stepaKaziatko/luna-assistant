@@ -13,6 +13,7 @@ enum IslandView: String, CaseIterable {
     case confused, upload, uploading, choose, mail, prompt
     case searching, result, note, settings, greeting, wardrobe, recap
     case agents       // live agent sessions: one tile per session
+    case agentPreview // one agent session in detail: steps, its question or request, "go to the agent"
     case listening    // voice wake detected — "À l'écoute…" with live transcript
     case voiceResult  // voice command executed — "✓ Musique lancée" for ~2 s
 }
@@ -217,6 +218,8 @@ enum IslandConst {
         .mail:      ViewLayout(height: 240, botX: 56,  botY: nil, botDiameter: 46, agentMode: .column),
         // Agents: tiles over the full width; the big Luna is hidden on this page.
         .agents:    ViewLayout(height: 240, botX: 56,  botY: nil, botDiameter: 46, agentMode: .none),
+        // Preview of one agent: like the list, full width, the big Luna is hidden.
+        .agentPreview: ViewLayout(height: 240, botX: 56, botY: nil, botDiameter: 46, agentMode: .none),
         .prompt:    ViewLayout(height: 160, botX: 52,  botY: nil, botDiameter: 44, agentMode: .column),
         .searching: ViewLayout(height: 160, botX: 52,  botY: nil, botDiameter: 44, agentMode: .column),
         .result:    ViewLayout(height: 160, botX: 52,  botY: nil, botDiameter: 44, agentMode: .column),

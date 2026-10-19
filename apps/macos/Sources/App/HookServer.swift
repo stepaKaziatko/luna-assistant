@@ -31,6 +31,8 @@ final class HookServer: @unchecked Sendable {
 
     // No approval blocking state — notch is notification-only, user answers in VS Code
 
+    /// Where the terminal found by Luna goes in a payload (never a key a hook may set).
+    private static let peerTTYKey = "luna_peer_tty"
     private static let maxPayload = 1_048_576          // 1 MB — reject oversized messages
     private static let receiveTimeoutSeconds: Int = 5   // SO_RCVTIMEO on client sockets
     private static let maxConnections = 32              // concurrent connection ceiling
@@ -44,7 +46,10 @@ final class HookServer: @unchecked Sendable {
     /// One read source per queued request: it notices the client hanging up, and its
     /// cancel handler is the only place the request's fd is closed.
     private var approvalSources: [UUID: any DispatchSourceRead] = [:]
-    private var pendingQuestionFD: Int32 = -1         // held open while user answers AskUserQuestion
+    /// The AskUserQuestion held open while the user answers: its socket, its id and who asks.
+    /// An answer is accepted only with the id of the question it was given for.
+    private var questionHolder = QuestionHolder()
+    private var pendingQuestionFD: Int32 { questionHolder.fd }
     private var questionFDSource: (any DispatchSourceRead)? = nil  // monitors pendingQuestionFD
 
     /// True when a real luna-hook connection is holding the approval fd open.
@@ -153,6 +158,8 @@ final class HookServer: @unchecked Sendable {
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.72)) { state.focusId = prev }
             }
         }
+        // On the preview page the person stays where they are: the page says the request is gone.
+        if state.view == .agentPreview { return }
         if let note {
             state.noteMessage = note
             state.view = .note
@@ -176,7 +183,7 @@ final class HookServer: @unchecked Sendable {
     private func dismissQuestionCard(note: String) {
         defer { publishAgentSessions() }
         cancelQuestionFDSource()
-        pendingQuestionFD = -1
+        questionHolder.release()
         let state = AppState.shared
         let pillId = questionPillId
         state.pendingQuestion = nil
@@ -189,6 +196,9 @@ final class HookServer: @unchecked Sendable {
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.72)) { state.focusId = prev }
             }
         }
+        // On the preview page the person stays where they are: the page itself says the request
+        // is gone. Anywhere else the card closes into the home page, as before.
+        if state.view == .agentPreview { return }
         if !note.isEmpty {
             state.noteMessage = note
             state.view = .note
@@ -200,24 +210,29 @@ final class HookServer: @unchecked Sendable {
         }
     }
 
-    /// Called by QuestionView. Sends answers JSON and cleans up.
+    /// Called by QuestionView and the preview page. Sends answers JSON and cleans up.
+    /// `id` is the question the surface had on screen: when it is no longer the one held (answered
+    /// elsewhere, displaced by a newer question, hung up) nothing happens at all.
     @MainActor
-    func sendQuestionAnswers(_ answers: [String: Any]) {
+    func sendQuestionAnswers(_ answers: [String: Any], for id: UUID? = nil) {
         // Only intercept a demo question — real questions always have a live fd.
-        if DemoEngine.shared.isActive, pendingQuestionFD < 0 {
+        if DemoEngine.shared.isActive, !questionHolder.isHolding, id == nil {
             AppState.shared.pendingQuestion = nil
             AppState.shared.isPinned = false
             AppState.shared.view = AppState.shared.tasks.isEmpty ? .empty : .overview
             DemoEngine.shared.handleQuestionAnswered(answers: answers)
             return
         }
-        let fd = pendingQuestionFD
-        pendingQuestionFD = -1
+        guard let id, let held = questionHolder.claim(id: id) else {
+            lunaLog("Question answer for a question no longer held, ignored")
+            return
+        }
+        let fd = held.fd
         let source = questionFDSource
         questionFDSource = nil
         let sid = questionSessionId
         questionSessionId = ""
-        if fd >= 0, let data = try? JSONSerialization.data(withJSONObject: ["permissionDecision": "answer", "answers": answers], options: .withoutEscapingSlashes),
+        if let data = try? JSONSerialization.data(withJSONObject: ["permissionDecision": "answer", "answers": answers], options: .withoutEscapingSlashes),
            let json = String(data: data, encoding: .utf8) {
             Task.detached { [weak self] in
                 self?.sendLine(fd: fd, text: json)
@@ -234,10 +249,9 @@ final class HookServer: @unchecked Sendable {
     /// Sends "ask" immediately to unblock luna-hook; does NOT navigate (view already changed).
     @MainActor
     func releaseQuestionFD() {
-        guard pendingQuestionFD >= 0 else { return }
+        guard let held = questionHolder.release() else { return }
         defer { publishAgentSessions() }
-        let fd = pendingQuestionFD
-        pendingQuestionFD = -1
+        let fd = held.fd
         let source = questionFDSource
         questionFDSource = nil
         AppState.shared.pendingQuestion = nil
@@ -247,20 +261,20 @@ final class HookServer: @unchecked Sendable {
         }
     }
 
-    /// Called by QuestionView "Reply in terminal" button.
+    /// Called by the "Reply in terminal" button of the card and of the preview page. Like the
+    /// answer, it is accepted only for the question that was on screen.
     @MainActor
-    func sendQuestionAsk() {
-        let fd = pendingQuestionFD
-        pendingQuestionFD = -1
+    func sendQuestionAsk(for id: UUID? = nil) {
+        guard let id, let held = questionHolder.claim(id: id) else {
+            lunaLog("Question hand-over for a question no longer held, ignored")
+            return
+        }
+        let fd = held.fd
         let source = questionFDSource
         questionFDSource = nil
-        if fd >= 0 {
-            Task.detached { [weak self] in
-                self?.sendLine(fd: fd, text: #"{"permissionDecision":"ask"}"#)
-                DispatchQueue.main.async { source?.cancel() }
-            }
-        } else {
-            source?.cancel()
+        Task.detached { [weak self] in
+            self?.sendLine(fd: fd, text: #"{"permissionDecision":"ask"}"#)
+            DispatchQueue.main.async { source?.cancel() }
         }
         dismissQuestionCard(note: "")
     }
@@ -337,13 +351,16 @@ final class HookServer: @unchecked Sendable {
                 close(clientFD)
                 continue
             }
-            Thread.detachNewThread { self.handleClient(fd: clientFD) }
+            // The terminal of the sender is read here, at once: a fire-and-forget hook exits right
+            // after it has written its event, and its process may be gone a moment later.
+            let peerTTY = ProcessTTY.peerPID(of: clientFD).flatMap { ProcessTTY.tty(from: $0) }
+            Thread.detachNewThread { self.handleClient(fd: clientFD, peerTTY: peerTTY) }
         }
     }
 
     // MARK: - Client handler (background thread)
 
-    private func handleClient(fd: Int32) {
+    private func handleClient(fd: Int32, peerTTY: String?) {
         defer {
             connectionLock.lock(); connectionCount -= 1; connectionLock.unlock()
         }
@@ -365,13 +382,20 @@ final class HookServer: @unchecked Sendable {
         }
 
         guard !raw.isEmpty,
-              let payload = try? JSONSerialization.jsonObject(with: raw) as? [String: Any] else {
+              var payload = try? JSONSerialization.jsonObject(with: raw) as? [String: Any] else {
             sendLine(fd: fd, text: #"{"ok":true}"#)
             close(fd)
             return
         }
 
         let lunaKind = payload["luna_kind"] as? String ?? ""
+
+        // The terminal of the process that sent the hook, for "go to the agent". A key a hook
+        // brings along is dropped: only what Luna found out itself is believed.
+        payload[Self.peerTTYKey] = nil
+        if lunaKind != "statusline", let peerTTY {
+            payload[Self.peerTTYKey] = peerTTY
+        }
 
         // statusline payloads are handled separately — no session, no reveal, no sound
         if lunaKind == "statusline" {
@@ -918,14 +942,15 @@ final class HookServer: @unchecked Sendable {
             return
         }
         guard let head = approvals.head else {
-            // A card with nothing behind it any more: just close it.
+            // A card with nothing behind it any more: just close it. The preview page stays:
+            // it shows for itself that the request is gone.
             let s = AppState.shared
             s.pendingApproval = nil
             s.isPinned = false
-            s.view = s.tasks.isEmpty ? .empty : .overview
+            if s.view != .agentPreview { s.view = s.tasks.isEmpty ? .empty : .overview }
             return
         }
-        if let id, id != head.id {
+        guard approvals.accepts(decisionFor: id) else {
             lunaLog("Approval decision for a request no longer on the card, ignored")
             return
         }
@@ -985,9 +1010,12 @@ final class HookServer: @unchecked Sendable {
             return
         }
 
-        // Displace any previous question waiting for an answer.
-        if pendingQuestionFD >= 0 {
-            let old = pendingQuestionFD
+        // Displace any previous question waiting for an answer: it goes back to its terminal,
+        // and its id is no longer accepted.
+        let owner = AgentSessionKey.make(pill: pillId, sessionId: sessionId, cwd: cwd)
+        let (held, displaced) = questionHolder.hold(fd: fd, ownerId: owner.id)
+        if let displaced {
+            let old = displaced.fd
             let oldSrc = questionFDSource
             questionFDSource = nil
             Task.detached { [weak self] in
@@ -995,10 +1023,9 @@ final class HookServer: @unchecked Sendable {
                 DispatchQueue.main.async { oldSrc?.cancel() }
             }
         }
-        pendingQuestionFD = fd
         activeSessionId = sessionId
         questionPillId = pillId
-        questionOwner = AgentSessionKey.make(pill: pillId, sessionId: sessionId, cwd: cwd)
+        questionOwner = owner
         questionSessionId = (sessionId == "unknown" || sessionId.isEmpty)
             ? "\(pillId)+\(cwd)"
             : sessionId
@@ -1013,6 +1040,9 @@ final class HookServer: @unchecked Sendable {
                          hostApp: terminalHost?.bundleId, bundleId: bundleId)
         publishAgentSessions()
         state.updateTask(id: pillId, state: .question)
+        // The id and the owner first: whoever watches the question sees them with it.
+        state.pendingQuestionId = held.id
+        state.pendingQuestionOwner = owner.id
         state.pendingQuestion = parsed
         state.isPinned = true
         SoundEngine.shared.play("approval")
@@ -1023,19 +1053,19 @@ final class HookServer: @unchecked Sendable {
 
         let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .main)
         source.setEventHandler { [weak self] in
-            guard let self, self.pendingQuestionFD == fd else { return }
+            guard let self, self.questionHolder.isCurrent(held.id) else { return }
             self.dismissQuestionCard(note: "")
         }
         source.setCancelHandler { close(fd) }
         source.resume()
         questionFDSource = source
 
-        let captured = fd
+        let heldId = held.id
         DispatchQueue.main.asyncAfter(deadline: .now() + 120) { [weak self] in
-            guard let self, self.pendingQuestionFD == captured else { return }
+            guard let self, self.questionHolder.isCurrent(heldId),
+                  let timedOut = self.questionHolder.release() else { return }
             // Send "ask" so luna-hook exits cleanly; Claude Code re-asks in terminal.
-            let askFD = self.pendingQuestionFD
-            self.pendingQuestionFD = -1
+            let askFD = timedOut.fd
             let src = self.questionFDSource
             self.questionFDSource = nil
             Task.detached { [weak self] in
@@ -1079,7 +1109,9 @@ final class HookServer: @unchecked Sendable {
         // A third-party agent has no cwd: its tile carries the agent's own name.
         let who = AgentSessionWho(project: external ? Self.agentLabel(pill: pill) : project,
                                   agent: Self.agentLabel(pill: pill),
-                                  hostBundleId: AgentHost.bundleId(pill: pill, reported: hostApp ?? bundleId))
+                                  hostBundleId: AgentHost.bundleId(pill: pill, reported: hostApp ?? bundleId),
+                                  cwd: AgentJumpPlan.validFolder(cwd) ?? "",
+                                  tty: AgentJumpPlan.validTTY(payload[Self.peerTTYKey] as? String ?? "") ?? "")
         agentBook.apply(event: name,
                         key: AgentSessionKey.make(pill: pill, sessionId: sessionId, cwd: cwd),
                         who: who, tool: tool, step: step, finalText: finalText,
@@ -1103,10 +1135,23 @@ final class HookServer: @unchecked Sendable {
             let key = AgentSessionKey.make(pill: entry.pillId, sessionId: entry.sessionId, cwd: entry.cwd)
             if waits[key] == nil { waits[key] = .permission(tool: entry.tool) }
         }
-        if pendingQuestionFD >= 0, let owner = questionOwner, waits[owner] == nil {
+        if questionHolder.isHolding, let owner = questionOwner, waits[owner] == nil {
             waits[owner] = .question
         }
         return waits
+    }
+
+    /// The permission requests the app holds, in queue order, for the preview page. A view over
+    /// `approvals`: the page reads it and answers through `sendApprovalDecision`, nothing more.
+    @MainActor
+    private func currentAgentRequests() -> [AgentRequest] {
+        approvals.entries.enumerated().map { index, entry in
+            AgentRequest(
+                id: entry.id,
+                sessionKey: AgentSessionKey.make(pill: entry.pillId, sessionId: entry.sessionId, cwd: entry.cwd).id,
+                pill: entry.pillId, tool: entry.tool, command: entry.command,
+                position: index + 1, total: approvals.count)
+        }
     }
 
     /// Rebuilds the tiles and hands them to the page. `AppState` keeps the old value when
@@ -1114,6 +1159,7 @@ final class HookServer: @unchecked Sendable {
     /// thread and waits for nothing: the hook has already been answered.
     @MainActor
     func publishAgentSessions(now: Date = Date()) {
+        AppState.shared.setAgentRequests(currentAgentRequests())
         AppState.shared.setAgentSessions(agentBook.snapshot(waits: currentAgentWaits(), now: now))
     }
 

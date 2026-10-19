@@ -20,6 +20,7 @@ struct IslandViewContent: View {
         case .choose:    ChooseView(state: state)
         case .mail:      MailView(state: state)
         case .agents:    AgentsView(state: state)
+        case .agentPreview: AgentPreviewView(state: state)
         case .prompt:    PromptView(state: state)
         case .searching: SearchingView(state: state)
         case .result:    ResultView(state: state)
@@ -367,10 +368,7 @@ struct ApprovalView: View {
                         HookServer.shared.sendApprovalDecision("allow", for: shownId)
                     }
                     // Codex, Copilot CLI and Muse Code do not support updatedPermissions
-                    let hideAlways = approval?.pillId == "agent_codex"
-                        || approval?.pillId == "agent_copilot"
-                        || approval?.pillId == "agent_muse"
-                    if !hideAlways {
+                    if ApprovalChoices.offersAlways(pillId: approval?.pillId) {
                         SecondaryButton("Always") {
                             HookServer.shared.sendApprovalDecision("always", for: shownId)
                         }
@@ -387,8 +385,38 @@ struct ApprovalView: View {
 
 // MARK: - Question
 
+/// The card of a question the app holds. The questions themselves are drawn by `QuestionPanel`,
+/// which the preview page of the session that asks shares.
 struct QuestionView: View {
     @ObservedObject var state: AppState
+
+    var body: some View {
+        ZStack {
+            CardBackground(wash: .cyan)
+            QuestionPanel(question: state.pendingQuestion, questionId: state.pendingQuestionId,
+                          showsAsker: true)
+                .padding(.leading, 116)
+                .padding(.trailing, 16)
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        // The card left the screen without an answer: the question goes back to its terminal.
+        .onDisappear { HookServer.shared.releaseQuestionFD() }
+    }
+}
+
+/// A question with its choices: single and multiple choice, "Other…", several questions in a row,
+/// "Reply in terminal". Every answer carries the id of the question this panel was drawn for, so
+/// a click that arrives after the question was answered elsewhere does nothing.
+struct QuestionPanel: View {
+    let question: AskQuestion?
+    let questionId: UUID?
+    /// The card says who asks; the preview page has the name in its own column.
+    var showsAsker: Bool = true
+    /// Called with the id of the question right before this panel answers it (or hands it to the
+    /// terminal): the preview page then knows its own answer from one given elsewhere.
+    var onAnswered: (UUID) -> Void = { _ in }
+
     @State private var questionIndex = 0
     // Per-question selected labels (empty = none chosen yet)
     @State private var selections: [[String]] = []
@@ -397,12 +425,12 @@ struct QuestionView: View {
     // Per-question "Other…" mode active
     @State private var showOther: [Bool] = []
     @FocusState private var otherFieldFocused: Bool
-
-    var question: AskQuestion? { state.pendingQuestion }
+    /// The question this panel was drawn for: an answer carries its id and is dropped if the
+    /// question is no longer the one the app holds.
+    @State private var shownQuestionId: UUID? = nil
 
     var body: some View {
         ZStack {
-            CardBackground(wash: .cyan)
             if let q = question, !q.questions.isEmpty {
                 let qi = min(questionIndex, q.questions.count - 1)
                 let item = q.questions[qi]
@@ -416,14 +444,17 @@ struct QuestionView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     // Header row: agent name + question counter + "Reply in terminal" link
                     HStack(spacing: 4) {
-                        AgentWho(task: nil, label: "Claude Code is asking")
+                        if showsAsker { AgentWho(task: nil, label: "Claude Code is asking") }
                         Spacer(minLength: 4)
                         if q.questions.count > 1 {
                             Text("\(qi + 1)/\(q.questions.count)")
                                 .font(.system(size: 10))
                                 .foregroundColor(Color(hex: "#6B7079"))
                         }
-                        Button("Reply in terminal") { HookServer.shared.sendQuestionAsk() }
+                        Button("Reply in terminal") {
+                            if let id = shownQuestionId { onAnswered(id) }
+                            HookServer.shared.sendQuestionAsk(for: shownQuestionId)
+                        }
                             .buttonStyle(.plain)
                             .font(.system(size: 10))
                             .foregroundColor(Color(hex: "#6B7079"))
@@ -548,20 +579,18 @@ struct QuestionView: View {
                         .opacity(canProceed ? 1 : 0.4)
                     }
                 }
-                .padding(.leading, 116)
-                .padding(.trailing, 16)
-                .padding(.vertical, 4)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .onAppear { resetQuestionState() }
-        .onChange(of: state.pendingQuestion) { _, _ in resetQuestionState() }
-        .onDisappear { HookServer.shared.releaseQuestionFD() }
+        .onChange(of: question) { _, _ in resetQuestionState() }
+        .onChange(of: questionId) { _, _ in resetQuestionState() }
     }
 
     private func resetQuestionState() {
+        shownQuestionId = questionId
         questionIndex = 0
-        let count = state.pendingQuestion?.questions.count ?? 0
+        let count = question?.questions.count ?? 0
         selections = Array(repeating: [], count: count)
         otherTexts = Array(repeating: "", count: count)
         showOther  = Array(repeating: false, count: count)
@@ -603,7 +632,8 @@ struct QuestionView: View {
 
     private func sendAnswers(q: AskQuestion) {
         let answers = AskQuestion.buildAnswers(questions: q.questions, selections: selections)
-        HookServer.shared.sendQuestionAnswers(answers)
+        if let id = shownQuestionId { onAnswered(id) }
+        HookServer.shared.sendQuestionAnswers(answers, for: shownQuestionId)
     }
 }
 

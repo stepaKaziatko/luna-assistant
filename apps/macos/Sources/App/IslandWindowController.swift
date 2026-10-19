@@ -883,6 +883,9 @@ final class IslandWindowController: NSWindowController {
         NotificationCenter.default.addObserver(forName: .islandCollapse, object: nil, queue: .main) { [weak self] _ in
             self?.collapse()
         }
+        NotificationCenter.default.addObserver(forName: .islandCollapseAfterJump, object: nil, queue: .main) { [weak self] _ in
+            self?.collapse(allowPendingApproval: true)
+        }
 
         // Wardrobe open/close from desktop Luna right-click (does NOT post .hookExpand)
         NotificationCenter.default.addObserver(forName: .openWardrobeFromDesktop, object: nil, queue: .main) { [weak self] _ in
@@ -2001,6 +2004,8 @@ extension Notification.Name {
     static let botMorphTo       = Notification.Name("luna.botMorphTo")
     static let islandAction     = Notification.Name("luna.islandAction")
     static let islandCollapse      = Notification.Name("luna.islandCollapse")
+    /// After "go to the agent": the island folds even with a request waiting, as after ⌃⌥T.
+    static let islandCollapseAfterJump = Notification.Name("luna.islandCollapseAfterJump")
     static let voiceShowMailCard   = Notification.Name("luna.voiceShowMailCard")
     static let islandSendMessage   = Notification.Name("luna.islandSendMessage")
     static let islandNewConversation = Notification.Name("luna.islandNewConversation")
@@ -2031,6 +2036,9 @@ func islandSize(mode: IslandMode, view: IslandView,
     case .expanded:
         let layout = IslandConst.viewLayouts[view]!
         if view == .question, let h = QuestionLayout.height {
+            return (IslandConst.expandedWidth, h)
+        }
+        if view == .agentPreview, let h = QuestionLayout.previewHeight {
             return (IslandConst.expandedWidth, h)
         }
         return (IslandConst.expandedWidth, layout.height)

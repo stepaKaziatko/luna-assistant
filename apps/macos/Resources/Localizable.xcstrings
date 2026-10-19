@@ -28014,6 +28014,214 @@
           }
         }
       }
+    },
+    "agentPreview.back": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Назад"
+          }
+        }
+      }
+    },
+    "agentPreview.jump": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Go to the agent"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перейти к агенту"
+          }
+        }
+      }
+    },
+    "agentPreview.closed.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session closed"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сессия закрыта"
+          }
+        }
+      }
+    },
+    "agentPreview.steps.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No steps yet"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Шагов пока нет"
+          }
+        }
+      }
+    },
+    "agentPreview.request.gone": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The request is already gone — it was answered elsewhere"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запрос уже снят — ответ получен в другом месте"
+          }
+        }
+      }
+    },
+    "agentPreview.request.terminal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The request went to the terminal"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запрос ушёл в терминал"
+          }
+        }
+      }
+    },
+    "agentPreview.queue": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In the queue: %lld of %lld. You can answer when its turn comes."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "В очереди: №%lld из %lld. Ответить можно, когда дойдёт очередь."
+          }
+        }
+      }
+    },
+    "agentPreview.nocards.terminal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luna does not get questions and requests of this session: turn on terminal cards in Settings → Agents or answer in the terminal."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вопросы и разрешения этой сессии Luna не получает: включите карточки из терминала в Настройки → Agents или ответьте в терминале."
+          }
+        }
+      }
+    },
+    "agentPreview.nocards.observed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This agent is only shown here: answer it in its own app."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Этот агент только показывается: отвечайте ему в его приложении."
+          }
+        }
+      }
+    },
+    "agentPreview.hint.automation": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Luna to control %@ in System Settings → Privacy & Security → Automation to jump straight to the tab."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разрешите Luna управлять %@ в Системных настройках → Конфиденциальность и безопасность → Автоматизация, чтобы переходить сразу во вкладку."
+          }
+        }
+      }
+    },
+    "agentPreview.hint.tab-unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ cannot select a tab: only the app is brought forward."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ не умеет выбирать вкладку: открыто только приложение."
+          }
+        }
+      }
+    },
+    "agentPreview.hint.folder-missing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project folder not found"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Папка проекта не найдена"
+          }
+        }
+      }
+    },
+    "agentPreview.hint.unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I don't know where this agent runs"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не знаю, где запущен этот агент"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
