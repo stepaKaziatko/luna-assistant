@@ -1,13 +1,18 @@
-node_modules/
-dist/
-.build/
-build/
+# Сборка
+apps/macos/build/
+apps/macos/.build/
+apps/macos/*.xcodeproj/project.xcworkspace/xcuserdata/
+apps/macos/*.xcodeproj/xcuserdata/
+apps/macos/*.xcodeproj/xcshareddata/
 *.xcuserstate
-xcuserdata/
 DerivedData/
 .swiftpm/
 .DS_Store
 *.log
+*.profraw
+# Пишется фазой сборки «Write Git Hash»
+apps/macos/Sources/App/Voice/GitHash.generated.swift
+# Рабочие копии задач и локальные настройки
 .worktrees/
 .claude/settings.local.json
-*.profraw
+relay/node_modules/

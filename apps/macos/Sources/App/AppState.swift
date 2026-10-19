@@ -1,0 +1,1260 @@
+import Foundation
+import SwiftUI
+import Combine
+
+
+@MainActor
+final class AppState: ObservableObject {
+    static let shared = AppState()
+
+    // Island state
+    @Published var mode: IslandMode = .hidden {
+        didSet {
+            // A folded island keeps no pick and no hint: the keyboard starts over next time.
+            if oldValue == .expanded, mode != .expanded { resetKeyboardState(keepsTilePick: false) }
+        }
+    }
+    @Published var view: IslandView = .agents {
+        didSet {
+            // Leaving the preview page forgets whose it was.
+            if oldValue == .agentPreview, view != .agentPreview { previewAgentId = nil }
+            // A pick made with the keys belongs to the page it was made on; so does the hint.
+            if oldValue != view { resetKeyboardState(keepsTilePick: true) }
+            // Opening the GitHub page is seeing its news: the dot on the tab and the badge of the pill go out.
+            if view == .github, oldValue != .github { clearPillBadge(id: Self.githubPillId) }
+        }
+    }
+
+    // MARK: Keyboard of the island (see IslandKeys.swift)
+
+    /// The tile picked on the Agents page, by the id of its session. The arrows move it, a click
+    /// sets it; it stays when the page of that agent is closed with ⌫ and is dropped with its
+    /// session. Nothing is drawn while it is nil.
+    @Published var agentsSelectionId: String? = nil
+
+    /// The button or variant picked with the keys for the two-step answer. It carries the id of
+    /// the request it was made for: once that request is not the one on screen, the pick is void.
+    @Published var keyChoice: AnswerKeyChoice? = nil
+
+    /// The request the keys have just answered: the page of the agent knows its own answer from
+    /// one given elsewhere and does not report it as "already gone".
+    var keyAnsweredId: UUID? = nil
+
+    /// The hint with the keys of the page ("?") is up.
+    @Published var keyHelpVisible = false
+
+    /// The pick on the GitHub page: column, row.
+    @Published var githubKeyPick: GitHubKeyPick? = nil
+
+    private func resetKeyboardState(keepsTilePick: Bool) {
+        if keyChoice != nil { keyChoice = nil }
+        if keyHelpVisible { keyHelpVisible = false }
+        if githubKeyPick != nil { githubKeyPick = nil }
+        if !keepsTilePick, agentsSelectionId != nil { agentsSelectionId = nil }
+    }
+
+    /// What the keys can answer on `page` right now, by the id of the request on screen.
+    func answerTarget(page: IslandView) -> IslandAnswerTarget {
+        switch page {
+        case .approval:
+            guard let approval = pendingApproval else { return .none }
+            return .approval(id: approval.id, offersAlways: ApprovalChoices.offersAlways(pillId: approval.pillId))
+        case .question:
+            guard pendingQuestion != nil, let id = pendingQuestionId else { return .none }
+            return .question(id: id)
+        case .agentPreview:
+            guard let id = previewAgentId, agentSessions.contains(where: { $0.id == id }) else { return .none }
+            switch AgentPreviewLogic.request(sessionKey: id, requests: agentRequests,
+                                             questionOwner: pendingQuestionOwner, questionId: pendingQuestionId) {
+            case .approval(let request):
+                return .approval(id: request.id, offersAlways: ApprovalChoices.offersAlways(pillId: request.pill))
+            case .question(let questionId):
+                return .question(id: questionId)
+            case .queued, .none:
+                return .none
+            }
+        default:
+            return .none
+        }
+    }
+
+    /// The pick of the keys for `target`, void when it was made for another request.
+    func keyChoice(for target: IslandAnswerTarget, questionIndex: Int = 0) -> AnswerKeyChoice? {
+        guard let keyChoice, keyChoice.isValid(for: target, questionIndex: questionIndex) else { return nil }
+        return keyChoice
+    }
+
+    /// The page the island opens on and returns to: Agents; a request that waits comes first.
+    var homeView: IslandView { IslandHome.view(pendingApproval: pendingApproval != nil) }
+
+    /// Back to the home page. The one place that knows what "home" is.
+    func goHome() { view = homeView }
+
+    /// Шторку держит раскрытой ждущее разрешение или черновик письма голосом: тогда она не
+    /// сворачивается сама (`IslandStateMachine.isHeldOpen`).
+    var holdsIslandOpen: Bool { pendingApproval != nil || voiceMailDraft != nil }
+
+    private static let githubPillId = "integration_github"
+
+    // Tasks
+    @Published var tasks: [AgentTask] = []
+    @Published var focusId: String? = nil
+
+    // Bot state override
+    @Published var stateOverride: BotState? = nil
+
+    // Real notch dimensions (set by IslandWindowController on launch)
+    var notchWidth:  CGFloat = IslandConst.notchWidth
+    var notchHeight: CGFloat = IslandConst.notchHeight
+    var hasNotch = true
+
+    // Last app active before Luna (for window context capture)
+    var lastExternalApp: NSRunningApplication? = nil
+
+    // Bot drag-attach state (hides original bot while ghost follows cursor)
+    @Published var isDraggingBot: Bool = false
+
+    // Desktop Luna: true while Luna lives on the desktop instead of the notch
+    @Published var lunaOnDesktop: Bool = false
+
+    // Mouse tracking
+    var mousePosition: CGPoint = .zero
+    var lastMouseMove: Date = .now
+    var lastActivity: Date = .now
+    var isPresent: Bool = true
+
+    // Pinned (alerts that stay open, never auto-close)
+    var isPinned: Bool = false
+
+    // Keyboard navigation — index of the selected item within the current card's list (nil = none)
+    @Published var cardSelection: Int? = nil
+    // Number of navigable items in the card currently on screen (0 = no list)
+    @Published var cardItemCount: Int = 0
+
+    // Upload progress (0-1) — set to 1.0 only at completion; animation is time-based
+    @Published var uploadProgress: Double = 0
+
+    // Upload animation timing (non-published — TimelineViews read these directly)
+    var uploadStartTime: Date?
+    var uploadDuration: Double = 2.4
+
+    // File drag-over state (mailbox morph glow + mouth spring)
+    @Published var fileDragOver: Bool = false
+
+    // Sound enabled — persisted
+    @Published var soundEnabled: Bool = true {
+        didSet { UserDefaults.standard.set(soundEnabled, forKey: "soundEnabled") }
+    }
+
+    // Weekly recap — persisted
+    @Published var recapEnabled: Bool = (UserDefaults.standard.object(forKey: "recapEnabled") as? Bool) ?? true {
+        didSet { UserDefaults.standard.set(recapEnabled, forKey: "recapEnabled") }
+    }
+    @Published var recapHideProjects: Bool = UserDefaults.standard.bool(forKey: "recapHideProjects") {
+        didSet { UserDefaults.standard.set(recapHideProjects, forKey: "recapHideProjects") }
+    }
+
+    // Luna outfit selection — persisted
+    @Published var lunaOutfitSelection: Outfit = .auto {
+        didSet { Outfit.stored = lunaOutfitSelection }
+    }
+    // A colour of the user's own for each pill's Luna (pill id → "#RRGGBB") — persisted.
+    // Empty means the catalog's colours. PillDefinition.color reads the stored value, so
+    // what is built from the catalog follows on its own; the tasks already on the island
+    // hold a copy of their colour and are repainted here.
+    @Published var pillColors: [String: String] = [:] {
+        didSet {
+            PillColors.stored = pillColors
+            var repainted = tasks
+            var changed = false
+            for i in repainted.indices {
+                guard let def = PillCatalog.definition(for: repainted[i].id),
+                      repainted[i].color != def.color else { continue }
+                repainted[i].color = def.color
+                changed = true
+            }
+            if changed { tasks = repainted }
+        }
+    }
+    /// Picks a colour for a pill's Luna; nil, or the pill's own catalog colour, goes back to the default.
+    func setPillColor(_ id: String, _ hex: String?) {
+        guard let def = PillCatalog.definition(for: id) else { return }
+        pillColors = PillColors.picking(hex, for: id, catalogColor: def.defaultColor, in: pillColors)
+    }
+    // Transient: outfit preview while hovering in wardrobe (overrides resolvedOutfit in BotCanvasView)
+    var wardrobePreviewOutfit: Outfit? = nil
+    // Per-day seasonal cache — read on every Luna frame: valid until the next midnight,
+    // so a frame costs one date comparison instead of calendar math.
+    private var _seasonalCache: (validUntil: Date, outfit: Outfit)?
+    var resolvedOutfit: Outfit {
+        if let preview = wardrobePreviewOutfit { return preview }
+        guard lunaOutfitSelection == .auto else { return lunaOutfitSelection }
+        let now = Date()
+        if let c = _seasonalCache, now < c.validUntil { return c.outfit }
+        let cal = Calendar.current
+        let outfit = Outfit.seasonal(for: now, calendar: cal)
+        let midnight = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: now))
+            ?? now.addingTimeInterval(3600)
+        _seasonalCache = (validUntil: midnight, outfit: outfit)
+        return outfit
+    }
+
+    // Claude model used by the chat and the search — persisted
+    static let defaultClaudeModel = "claude-sonnet-4-6"
+    @Published var claudeModel: String = AppState.defaultClaudeModel {
+        didSet { UserDefaults.standard.set(claudeModel, forKey: "claudeModel") }
+    }
+
+    // In-chat provider + model — picked via the model selector in the prompt view
+    @Published var chatProvider: ChatProvider = .anthropic {
+        didSet { UserDefaults.standard.set(chatProvider.rawValue, forKey: "chatProvider") }
+    }
+    /// Модель Claude Code (алиас `--model`): "default" — как настроено в самом CLI.
+    @Published var claudeCodeChatModel: String = ChatProvider.claudeCode.defaultModel {
+        didSet { UserDefaults.standard.set(claudeCodeChatModel, forKey: "claudeCodeChatModel") }
+    }
+    /// Состояние Claude Code (`claude auth status`): обновляется при открытии чата и настроек,
+    /// не при запуске приложения.
+    @Published var claudeCodeStatus: CLIStatus = .unknown
+    private var claudeCodeCheckedAt: Date?
+    private var claudeCodeChecking = false
+
+    /// Проверяет вход в фоне. Результат кэшируется на 30 с; `force` — по кнопке «Проверить».
+    func refreshClaudeCodeStatus(force: Bool = false) {
+        #if !APPSTORE
+        guard !claudeCodeChecking else { return }
+        if !force, let at = claudeCodeCheckedAt, Date().timeIntervalSince(at) < 30 { return }
+        claudeCodeChecking = true
+        Task {
+            let status = await ClaudeAuthProbe.check()
+            claudeCodeChecking = false
+            claudeCodeCheckedAt = Date()
+            claudeCodeStatus = status
+            // Первый запуск: готовый Claude Code выбирается сам. Явный выбор — никогда.
+            if ChatSourceSelection.shouldAutoSelectClaudeCode(
+                savedProvider: UserDefaults.standard.string(forKey: "chatProvider"),
+                claude: status,
+                hasAnthropicKey: !(KeychainStore.shared.get("anthropic-api-key") ?? "").isEmpty) {
+                chatProvider = .claudeCode
+            }
+        }
+        #endif
+    }
+
+    /// Состояние для решения «что делать с вопросом»: если ещё не проверяли — проверяем сейчас.
+    func resolvedClaudeCodeStatus() async -> CLIStatus {
+        #if !APPSTORE
+        if claudeCodeStatus == .unknown {
+            claudeCodeStatus = await ClaudeAuthProbe.check()
+            claudeCodeCheckedAt = Date()
+        }
+        #endif
+        return claudeCodeStatus
+    }
+
+    @Published var googleChatModel: String = ChatProvider.google.defaultModel {
+        didSet { UserDefaults.standard.set(googleChatModel, forKey: "googleChatModel") }
+    }
+    @Published var openAIChatModel: String = ChatProvider.openai.defaultModel {
+        didSet { UserDefaults.standard.set(openAIChatModel, forKey: "openAIChatModel") }
+    }
+    @Published var ollamaChatModel: String = ChatProvider.ollama.defaultModel {
+        didSet { UserDefaults.standard.set(ollamaChatModel, forKey: "ollamaChatModel") }
+    }
+    @Published var lmstudioChatModel: String = ChatProvider.lmstudio.defaultModel {
+        didSet { UserDefaults.standard.set(lmstudioChatModel, forKey: "lmstudioChatModel") }
+    }
+    @Published var ollamaServerURL: String = "" {
+        didSet { UserDefaults.standard.set(ollamaServerURL, forKey: "ollamaServerURL") }
+    }
+    @Published var lmstudioServerURL: String = "" {
+        didSet { UserDefaults.standard.set(lmstudioServerURL, forKey: "lmstudioServerURL") }
+    }
+
+    // The always-on workspace pill (default: VS Code). Persisted.
+    @Published var mainPillId: String = PillCatalog.defaultMainPillId {
+        didSet { UserDefaults.standard.set(mainPillId, forKey: "mainPill") }
+    }
+
+    // Dynamically fetched model lists for the in-chat picker (keyed by provider)
+    @Published var fetchedProviderModels: [ChatProvider: [(id: String, label: String)]] = [:]
+    @Published var providerModelFetchError: [ChatProvider: String] = [:]
+    @Published var loadingProviderModels: Set<ChatProvider> = []
+
+    /// Fetches models for `provider` if not already loaded or loading.
+    /// Sets `providerModelFetchError` if the key is absent or the request fails.
+    func fetchModelsIfNeeded(for provider: ChatProvider) {
+        guard !loadingProviderModels.contains(provider),
+              fetchedProviderModels[provider] == nil else { return }
+        // CLI-источник: список статический (алиасы --model), CLI не опрашивается.
+        if provider.isCLI {
+            fetchedProviderModels[provider] = ClaudeCodeModels.ids.map {
+                (id: $0, label: $0 == ClaudeCodeModels.defaultID
+                    ? String(localized: "chat.cli.model.default", defaultValue: "Default (CLI setting)")
+                    : $0)
+            }
+            return
+        }
+        // Local providers: fetch from server URL (no API key needed)
+        if provider.isLocal {
+            let baseURL = provider == .ollama ? ollamaServerURL : lmstudioServerURL
+            let normalised = LocalChat.normaliseURL(baseURL)
+            guard !normalised.isEmpty else {
+                providerModelFetchError[provider] = provider == .ollama
+                    ? "Connect Ollama in Settings → Chat first."
+                    : "Connect LM Studio in Settings → Chat first."
+                return
+            }
+            loadingProviderModels.insert(provider)
+            providerModelFetchError.removeValue(forKey: provider)
+            Task {
+                let result = await LocalChat.fetchModelsResult(baseURL: normalised)
+                loadingProviderModels.remove(provider)
+                switch result {
+                case .success(let models) where models.isEmpty:
+                    providerModelFetchError[provider] = provider == .ollama
+                        ? "No models yet. Download one in Ollama first."
+                        : "No models yet. Download one in LM Studio first."
+                case .success(let models):
+                    fetchedProviderModels[provider] = models
+                    let current = provider == .ollama ? ollamaChatModel : lmstudioChatModel
+                    if !models.contains(where: { $0.id == current }) {
+                        let first = models.first!.id
+                        if provider == .ollama { ollamaChatModel = first }
+                        else                   { lmstudioChatModel = first }
+                    }
+                case .failure:
+                    providerModelFetchError[provider] = "Cannot reach \(normalised). Is the server running?"
+                }
+            }
+            return
+        }
+        // Remote providers: require API key
+        guard let apiKey = KeychainStore.shared.get(provider.keychainKey), !apiKey.isEmpty else {
+            providerModelFetchError[provider] = "No API key — add it in Settings."
+            return
+        }
+        loadingProviderModels.insert(provider)
+        providerModelFetchError.removeValue(forKey: provider)
+        Task {
+            let models: [(id: String, label: String)]
+            switch provider {
+            case .anthropic: models = await ClaudeService.fetchModels(apiKey: apiKey)
+            case .google:    models = await ClaudeService.fetchGoogleModels(apiKey: apiKey)
+            case .openai:    models = await ClaudeService.fetchOpenAIModels(apiKey: apiKey)
+            case .ollama, .lmstudio, .claudeCode: models = []  // handled above
+            }
+            loadingProviderModels.remove(provider)
+            if models.isEmpty {
+                providerModelFetchError[provider] = "Failed to load models. Check your API key."
+            } else {
+                fetchedProviderModels[provider] = models
+                switch provider {
+                case .anthropic:
+                    if !models.contains(where: { $0.id == claudeModel }) {
+                        claudeModel = models.first(where: { $0.id.contains("sonnet") })?.id ?? models.first!.id
+                    }
+                case .google:
+                    if !models.contains(where: { $0.id == googleChatModel }) {
+                        googleChatModel = models.first(where: { $0.id.contains("flash") })?.id ?? models.first!.id
+                    }
+                case .openai:
+                    if !models.contains(where: { $0.id == openAIChatModel }) {
+                        openAIChatModel = models.first(where: { $0.id.contains("mini") })?.id ?? models.first!.id
+                    }
+                case .ollama, .lmstudio, .claudeCode: break
+                }
+            }
+        }
+    }
+
+    /// The model currently active for chat (provider-aware).
+    var activeChatModel: String {
+        switch chatProvider {
+        case .anthropic: return claudeModel
+        case .claudeCode: return claudeCodeChatModel
+        case .google:    return googleChatModel
+        case .openai:    return openAIChatModel
+        case .ollama:    return ollamaChatModel
+        case .lmstudio:  return lmstudioChatModel
+        }
+    }
+
+    /// Подпись на кнопке модели над полем ввода: у CLI «default» ничего не говорит — пишем «Claude Code».
+    var activeChatModelLabel: String {
+        guard chatProvider.isCLI else { return activeChatModel }
+        return claudeCodeChatModel == ClaudeCodeModels.defaultID
+            ? chatProvider.displayName : "\(chatProvider.displayName) · \(claudeCodeChatModel)"
+    }
+
+    // Sound volume (0–0.2) — persisted, synced to SoundEngine
+    @Published var soundVolume: Double = 0.12 {
+        didSet {
+            UserDefaults.standard.set(soundVolume, forKey: "soundVolume")
+            SoundEngine.shared.volume = Float(soundVolume)
+        }
+    }
+
+    // Selected app language ("" = System, else BCP-47 code e.g. "fr")
+    @Published var appLanguage: String = {
+        let bundleId = Bundle.main.bundleIdentifier ?? "dev.luna.Luna"
+        let langs = UserDefaults.standard.persistentDomain(forName: bundleId)?["AppleLanguages"] as? [String]
+        return langs?.first ?? ""
+    }()
+
+    // Context for prompt (window attach / file)
+    @Published var promptContext: PromptContext? = nil
+
+    // Dropped file (set during upload flow)
+    @Published var droppedFile: DroppedFile? = nil
+    /// A mail prepared by voice: fills the mail card; sent through Apple Mail on the
+    /// user's click. nil for the drop-a-file flow.
+    @Published var voiceMailDraft: VoiceMailDraft? = nil
+
+    // Short note message (shown in NoteView)
+    @Published var noteMessage: String? = nil
+    /// Кнопка под заметкой (например, «ответить по ключу API» после сбоя подписки).
+    @Published var noteAction: NoteAction? = nil
+
+    // Auto-close delay — persisted
+    // Hovering the island opens it (folds shortly after the pointer leaves) — persisted, off by default
+    @Published var openOnHover: Bool = false {
+        didSet { UserDefaults.standard.set(openOnHover, forKey: "openOnHover") }
+    }
+    @Published var autoCloseInterval: TimeInterval = 15 {
+        didSet { UserDefaults.standard.set(autoCloseInterval, forKey: "autoCloseInterval") }
+    }
+
+    // Absence interval — persisted
+    var absenceInterval: TimeInterval = 3 * 60 {
+        didSet { UserDefaults.standard.set(absenceInterval, forKey: "absenceInterval") }
+    }
+
+    // Greeting threshold — how long hidden before greeting on reappear (default 2 min)
+    var greetThresholdSeconds: TimeInterval = 120 {
+        didSet { UserDefaults.standard.set(greetThresholdSeconds, forKey: "greetThreshold") }
+    }
+
+    // Hotkey to show island (e.g. ⌘⇧N)
+    @Published var hotkeyEnabled: Bool = false {
+        didSet { UserDefaults.standard.set(hotkeyEnabled, forKey: "hotkeyEnabled") }
+    }
+    var hotkeyFlags: UInt = NSEvent.ModifierFlags([.command, .shift]).rawValue {
+        didSet { UserDefaults.standard.set(Int(hotkeyFlags), forKey: "hotkeyFlags") }
+    }
+    var hotkeyCode: UInt16 = 45 {  // 'n'
+        didSet { UserDefaults.standard.set(Int(hotkeyCode), forKey: "hotkeyCode") }
+    }
+
+    // Screen hosting the island (notch screen by default) — persisted
+    @Published var islandDisplay: IslandDisplayChoice = .notch {
+        didSet { UserDefaults.standard.set(islandDisplay.storageValue, forKey: "islandDisplay") }
+    }
+
+    // Vercel project filter — empty = watch all projects
+    @Published var vercelProjectFilter: Set<String> = [] {
+        didSet {
+            if let data = try? JSONEncoder().encode(Array(vercelProjectFilter)) {
+                UserDefaults.standard.set(data, forKey: "vercelProjectFilter")
+            }
+        }
+    }
+
+    // n8n workflow filter — empty = watch all workflows
+    @Published var n8nWorkflowFilter: Set<String> = [] {
+        didSet {
+            if let data = try? JSONEncoder().encode(Array(n8nWorkflowFilter)) {
+                UserDefaults.standard.set(data, forKey: "n8nWorkflowFilter")
+            }
+        }
+    }
+
+    // Active integration pills (main workspace pill excluded). Max 4.
+    @Published var activeIntegrations: Set<String> = ["integration_resend", "integration_n8n", "integration_vercel", "integration_github"] {
+        didSet {
+            if let data = try? JSONEncoder().encode(Array(activeIntegrations)) {
+                UserDefaults.standard.set(data, forKey: "activeIntegrations")
+            }
+            // Clear stale GitHub data when the integration is disabled
+            if !activeIntegrations.contains("integration_github") && oldValue.contains("integration_github") {
+                githubPulse = nil
+                githubActivity = nil
+            }
+            leavePageWhoseTabIsGone()
+        }
+    }
+
+    /// Keys in the Keychain that decide whether an integration has a page (see `IntegrationPages`).
+    /// The Keychain itself is not observable: the app reads it at launch and when Settings saves.
+    @Published private(set) var savedCredentialKeys: Set<String> = [] {
+        didSet { leavePageWhoseTabIsGone() }
+    }
+
+    /// Tabs of integrations in the header: the pill is on and the key is saved.
+    var integrationPages: [IntegrationPage] {
+        IntegrationPages.visible(active: activeIntegrations, credentials: savedCredentialKeys)
+    }
+
+    /// Reads which keys are saved. Called at launch and after Settings saves the keys.
+    func refreshCredentials() {
+        savedCredentialKeys = Set(IntegrationPages.credentialKeys.filter {
+            !(KeychainStore.shared.get($0) ?? "").isEmpty
+        })
+    }
+
+    /// The tab of the page on screen went away (pill off, key erased): back home.
+    private func leavePageWhoseTabIsGone() {
+        let next = IntegrationPages.resolved(view, visible: integrationPages,
+                                             pendingApproval: pendingApproval != nil)
+        if next != view { view = next }
+    }
+
+    // Pending API result
+    @Published var searchResult: SearchResult? = nil
+
+    // Vercel deployments (populated by VercelPoller)
+    @Published var vercelDeployments: [VercelDeployment] = []
+
+    // Resend emails (populated by ResendPoller)
+    @Published var resendEmails: [ResendEmail] = []
+    @Published var resendTotal: Int? = nil
+
+    // GitHub stats + pulse + activity (populated by GithubPoller)
+    @Published var githubStats: GitHubStats? = nil
+    @Published var githubPulse: GitHubPulse? = nil
+    @Published var githubActivity: GitHubActivity? = nil
+
+    // Stripe (populated by StripePoller)
+    @Published var stripePayments: [StripePayment] = []
+    @Published var stripeBalance: Int = 0           // raw balance in cents
+    @Published var stripeDisplayBalance: Int = 0    // animated balance target
+    @Published var stripeCurrency: String = "eur"
+    @Published var stripeLoaded: Bool = false       // true after first successful poll
+    @Published var stripeError: String? = nil      // last API error (nil = ok)
+
+    // Cal.com (populated by CalcomPoller)
+    @Published var calcomBookings: [CalcomBooking] = []
+    @Published var calcomLoaded: Bool = false
+    @Published var calcomError: String? = nil
+
+    // Notion (populated by NotionPoller)
+    @Published var notionPages: [NotionPage] = []
+    @Published var notionLoaded: Bool = false
+    @Published var notionError: String? = nil
+
+    // n8n — the last executions, newest first (for the iPhone; the notch shows only the latest)
+    @Published var n8nRuns: [N8nRun] = []
+
+    // Chat conversation history
+    @Published var chatHistory: [ChatMessage] = []
+
+    // Pending approval request from Claude Code hook
+    @Published var pendingApproval: ApprovalInfo? = nil
+
+    // Pending AskUserQuestion from Claude Code hook
+    @Published var pendingQuestion: AskQuestion? = nil {
+        didSet {
+            QuestionLayout.height = pendingQuestion?.estimatedIslandHeight
+            if pendingQuestion == nil {
+                pendingQuestionId = nil
+                pendingQuestionOwner = nil
+            }
+            refreshPreviewLayout()
+        }
+    }
+
+    /// The id of the held question: an answer from the card or from the preview page is
+    /// accepted only together with it (see `QuestionHolder`). Set before `pendingQuestion`.
+    @Published var pendingQuestionId: UUID? = nil
+    /// `AgentSessionKey.id` of the session that asks the pending question.
+    @Published var pendingQuestionOwner: String? = nil {
+        didSet { refreshPreviewLayout() }
+    }
+
+    // Agents page: one tile per live agent session, published by HookServer only when
+    // something visible changed (see AgentSessions.swift).
+    @Published private(set) var agentSessions: [AgentSessionInfo] = []
+
+    var agentsSummary: AgentsSummary { AgentsSummary(agentSessions) }
+
+    /// What the resting island ("the notch") says about the agents: the wing of minis, the mood
+    /// of the big Luna, the block under the cursor. Derived from `agentSessions`, rebuilt only when
+    /// they change (never per frame).
+    @Published private(set) var agentNotch = AgentNotchSummary([])
+
+    /// The block under the cursor is on screen. Set by the window controller from `AgentPeekPolicy`.
+    @Published var agentsPeek = false
+
+    /// The tile of the block the pointer is on, for its highlight; set by the window controller.
+    @Published var agentsPeekHover: Int? = nil
+
+    /// The screen is asleep or locked: nothing is seen, so the notch's own clock stops.
+    @Published var screenOff = false
+
+    /// Where everything in the block under the cursor lies, for the resting island of this screen.
+    var agentPeekLayout: AgentPeekLayout {
+        AgentPeekLayout(stripHeight: notchHeight,
+                        restingWidth: IslandRestingLayout.compactWidth(notchWidth: notchWidth),
+                        cells: agentNotch.tiles.count)
+    }
+
+    /// The last summary written to the log: one line per change of the notch, not per event.
+    private var lastNotchLog = ""
+
+    func setAgentSessions(_ sessions: [AgentSessionInfo]) {
+        if sessions != agentSessions {
+            agentSessions = sessions
+            agentNotch = AgentNotchSummary(sessions)
+            let line = agentNotch.logLine
+            if line != lastNotchLog {
+                lastNotchLog = line
+                appendAppLog("luna.log", line)
+            }
+        }
+        // The pick of a tile goes with its session.
+        if let picked = agentsSelectionId,
+           AgentsSelection.reconcile(picked, ids: sessions.map(\.id)) == nil {
+            agentsSelectionId = nil
+        }
+        // A hint about a session that is gone is of no use to anyone.
+        if let note = agentJumpNote, !sessions.contains(where: { $0.id == note.sessionId }) {
+            agentJumpNote = nil
+        }
+    }
+
+    /// The permission requests the app holds, for the preview page (a view over the queue).
+    @Published private(set) var agentRequests: [AgentRequest] = []
+
+    func setAgentRequests(_ requests: [AgentRequest]) {
+        if requests != agentRequests { agentRequests = requests }
+    }
+
+    /// The session whose preview page is open (`AgentSessionInfo.id`). It stays set while the
+    /// page is shown, also after the session ended: the page then says it is closed.
+    @Published var previewAgentId: String? = nil {
+        didSet { refreshPreviewLayout() }
+    }
+
+    /// What the last "go to the agent" had to say (the island folds right after the click, so the
+    /// page shows it the next time it opens). Cleared by the next jump.
+    @Published var agentJumpNote: AgentJumpNote? = nil
+
+    /// Island height of the preview page when its session asks a question; nil otherwise.
+    @Published private(set) var previewQuestionHeight: CGFloat? = nil
+
+    private func refreshPreviewLayout() {
+        var height: CGFloat? = nil
+        if let question = pendingQuestion, let owner = pendingQuestionOwner, owner == previewAgentId {
+            height = question.estimatedPreviewHeight
+        }
+        QuestionLayout.previewHeight = height
+        if height != previewQuestionHeight { previewQuestionHeight = height }
+    }
+
+    /// The card that holds the request the app has now (permission first, as the queue head
+    /// is what ⌃⌥A shows), nil when no request waits.
+    var alertView: IslandView? {
+        if pendingApproval != nil { return .approval }
+        if pendingQuestion != nil { return .question }
+        return nil
+    }
+
+    /// The single entry point of a click on a tile: opens the preview page of that session,
+    /// whether it waits for you or not. A session that is gone opens nothing. The card of a
+    /// waiting request stays what ⌃⌥A (`alertView`) leads to.
+    ///
+    /// From the resting island (a tile of the block under the cursor) the island opens through the
+    /// same path an alert uses, which tells the window controller and the state machine; the
+    /// panel does not take the keyboard.
+    func openAgent(id: String) {
+        guard agentSessions.contains(where: { $0.id == id }) else { return }
+        previewAgentId = id
+        // The tile stays picked when the page is closed with "Back" or ⌫.
+        agentsSelectionId = id
+        lastActivity = .now
+        if mode == .expanded {
+            view = .agentPreview
+        } else {
+            NotificationCenter.default.post(name: .hookExpand, object: IslandView.agentPreview)
+        }
+    }
+
+    /// "All agents" and "+N" in the block under the cursor: the Agents page, also from the resting island.
+    func openAgentsPage() {
+        lastActivity = .now
+        if mode == .expanded {
+            view = .agents
+        } else {
+            NotificationCenter.default.post(name: .hookExpand, object: IslandView.agents)
+        }
+    }
+
+    /// Whether "go to the agent" leads anywhere for this session.
+    func canGoToAgent(_ session: AgentSessionInfo) -> Bool {
+        AgentJumpPlan.make(pill: session.pill, sessionId: session.key.session, who: session.who).isAvailable
+    }
+
+    /// The click on "Go to the agent" and ⌘↩, and the only place the focus leaves Luna. The island
+    /// folds once the jump is under way; what the jump has to say stays here for the next time
+    /// the page opens.
+    func goToAgent(_ session: AgentSessionInfo) {
+        let sessionId = session.id
+        agentJumpNote = nil
+        // Переход к агенту — это просмотр: его законченный ход больше не новость.
+        HookServer.shared.markAgentsSeen(for: session.key)
+        AgentJump.open(session) { [weak self] hint in
+            self?.agentJumpNote = hint.map { AgentJumpNote(sessionId: sessionId, hint: $0) }
+        }
+        NotificationCenter.default.post(name: .islandCollapseAfterJump, object: nil)
+    }
+
+    /// "Back" on the preview page: to the list of agents.
+    func closeAgentPreview() {
+        view = .agents
+        lastActivity = .now
+    }
+
+    // Per-pill flat list of FileDiffs, in order of reception.
+    // Not @Published — steps[] changes already trigger redraws.
+    var sessionDiffs: [String: [FileDiff]] = [:]
+    private var sessionDiffTimers: [String: DispatchWorkItem] = [:]
+    // Monotonically increasing — never reset, not even in clearSessionDiffs.
+    private var nextDiffId: Int = 0
+
+    @discardableResult
+    func appendSessionDiff(_ diff: FileDiff, for pillId: String) -> Int {
+        var d = diff
+        d.id = nextDiffId
+        nextDiffId += 1
+        if sessionDiffs[pillId] == nil { sessionDiffs[pillId] = [] }
+        sessionDiffs[pillId]!.append(d)
+        // Keep at most 50 diffs per pill; drop oldest first
+        while sessionDiffs[pillId]!.count > 50 {
+            sessionDiffs[pillId]!.removeFirst()
+        }
+        resetSessionDiffTimer(for: pillId)
+        return d.id
+    }
+
+    func clearSessionDiffs(for pillId: String) {
+        sessionDiffTimers[pillId]?.cancel()
+        sessionDiffTimers.removeValue(forKey: pillId)
+        sessionDiffs.removeValue(forKey: pillId)
+        // nextDiffId intentionally NOT reset — ids remain unique across sessions
+    }
+
+    private func resetSessionDiffTimer(for pillId: String) {
+        sessionDiffTimers[pillId]?.cancel()
+        // The closure is MainActor-isolated (AppState is @MainActor): it must run on the main
+        // queue. Scheduled on a global queue, Swift 6's isolation check traps and the app quits.
+        let work = DispatchWorkItem { [weak self] in
+            self?.clearSessionDiffs(for: pillId)
+        }
+        sessionDiffTimers[pillId] = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3600, execute: work)
+    }
+
+    #if !APPSTORE
+    @Published var musicPlaying: Bool = false
+    @Published var musicAutomationDenied: Bool = false
+
+    // Voice command result (shown in VoiceResultView for ~2 s, then cleared by IWC)
+    @Published var voiceResult: VoiceActionResult? = nil
+    /// True from "OK Luna" until Luna has finished answering (island stays compact).
+    /// Drives Luna's single attentive pose for the whole exchange.
+    @Published var voiceActive = false
+    /// Listening / thinking / speaking — drives per-frame Luna animations.
+    /// Set by IslandWindowController; read by BotCanvasView each display frame.
+    @Published var voiceSubState: BotVoiceSubState = .none
+    #endif
+
+    // Claude plan gauge (from statusline hook)
+    @Published var claudePlanUsage: PlanUsage? = nil {
+        didSet {
+            if let u = claudePlanUsage,
+               let data = try? JSONEncoder().encode(u) {
+                UserDefaults.standard.set(data, forKey: "claudePlanUsage")
+            }
+        }
+    }
+
+    // Plan gauge: show pill in notch header — persisted
+    #if !APPSTORE
+    @Published var showPlanInNotch: Bool = false {
+        didSet { UserDefaults.standard.set(showPlanInNotch, forKey: "showPlanInNotch") }
+    }
+    // In-memory plan usage override for demo mode. Never persisted. Set by DemoEngine.
+    @Published var demoPlanUsageOverride: PlanUsage? = nil
+    // Cached relay-installed state — updated at launch, after install/uninstall, on Settings open
+    @Published var planRelayInstalled: Bool = false
+    // Transient — reset when island closes or view changes
+    @Published var showingPlanDetail: Bool = false
+
+    // Codex plan gauge (from `codex app-server`) — fetched when the pill shows
+    @Published var showCodexPlanInNotch: Bool = false {
+        didSet { UserDefaults.standard.set(showCodexPlanInNotch, forKey: "showCodexPlanInNotch") }
+    }
+    @Published var codexPlanUsage: CodexPlanUsage? = nil
+    // Which card showingPlanDetail opens
+    @Published var planDetailIsCodex: Bool = false
+
+    /// Rate-limited on the attempt, not only on success: without Codex installed or
+    /// signed in, every appearance of the pill used to spawn `codex app-server` again.
+    private static var lastCodexAttempt: Date = .distantPast
+    private static var codexFetchInFlight = false
+
+    func refreshCodexPlanUsage() {
+        if let u = codexPlanUsage, Date().timeIntervalSince(u.updatedAt) < 60 { return }
+        guard !Self.codexFetchInFlight, Date().timeIntervalSince(Self.lastCodexAttempt) > 60 else { return }
+        Self.codexFetchInFlight = true
+        Self.lastCodexAttempt = Date()
+        Task {
+            if let u = await CodexPlanGauge.fetch() { codexPlanUsage = u }
+            Self.codexFetchInFlight = false
+        }
+    }
+
+    func refreshPlanRelayState() {
+        planRelayInstalled = HookServer.statusLineInstalled()
+    }
+    #endif
+
+    // MARK: - Init (loads persisted settings)
+
+    private init() {
+        let ud = UserDefaults.standard
+
+        if let v = ud.object(forKey: "soundEnabled") as? Bool   { soundEnabled = v }
+        if let v = ud.object(forKey: "soundVolume")  as? Double { soundVolume  = v }
+        lunaOutfitSelection = Outfit.stored
+        pillColors = PillColors.stored
+        if let v = ud.string(forKey: "claudeModel"),
+           !v.trimmingCharacters(in: .whitespaces).isEmpty { claudeModel = v }
+        if let v = ud.string(forKey: "chatProvider"), let p = ChatProvider(rawValue: v) { chatProvider = p }
+        if let v = ud.string(forKey: "claudeCodeChatModel"), !v.isEmpty { claudeCodeChatModel = v }
+        if let v = ud.string(forKey: "googleChatModel"), !v.isEmpty { googleChatModel = v }
+        if let v = ud.string(forKey: "openAIChatModel"), !v.isEmpty { openAIChatModel = v }
+        if let v = ud.string(forKey: "ollamaChatModel"), !v.isEmpty { ollamaChatModel = v }
+        if let v = ud.string(forKey: "lmstudioChatModel"), !v.isEmpty { lmstudioChatModel = v }
+        if let v = ud.string(forKey: "ollamaServerURL"), !v.isEmpty { ollamaServerURL = v }
+        if let v = ud.string(forKey: "lmstudioServerURL"), !v.isEmpty { lmstudioServerURL = v }
+        // Migrate old 60s default → 15s
+        if let v = ud.object(forKey: "openOnHover") as? Bool { openOnHover = v }
+        if let v = ud.object(forKey: "autoCloseInterval") as? Double {
+            autoCloseInterval = (v == 60) ? 15 : v
+        }
+        if let v = ud.object(forKey: "absenceInterval")   as? Double { absenceInterval   = v }
+        if let v = ud.object(forKey: "greetThreshold")    as? Double { greetThresholdSeconds = v }
+        if let v = ud.object(forKey: "hotkeyEnabled") as? Bool  { hotkeyEnabled = v }
+        if let v = ud.object(forKey: "hotkeyFlags")   as? Int   { hotkeyFlags = UInt(v) }
+        if let v = ud.object(forKey: "hotkeyCode")    as? Int   { hotkeyCode = UInt16(v) }
+        if let v = ud.string(forKey: "islandDisplay") { islandDisplay = IslandDisplayChoice(storageValue: v) }
+        if let d = ud.data(forKey: "vercelProjectFilter"),
+           let a = try? JSONDecoder().decode([String].self, from: d) { vercelProjectFilter = Set(a) }
+        if let d = ud.data(forKey: "n8nWorkflowFilter"),
+           let a = try? JSONDecoder().decode([String].self, from: d) { n8nWorkflowFilter = Set(a) }
+        if let d = ud.data(forKey: "activeIntegrations"),
+           let a = try? JSONDecoder().decode([String].self, from: d) { activeIntegrations = Set(a) }
+        if let v = ud.string(forKey: "mainPill"), !v.isEmpty,
+           PillCatalog.available.contains(where: { $0.id == v && $0.category == .workspace && !$0.comingSoon }) {
+            mainPillId = v
+        }
+        if let d = ud.data(forKey: "claudePlanUsage"),
+           let u = try? JSONDecoder().decode(PlanUsage.self, from: d) { claudePlanUsage = u }
+        #if !APPSTORE
+        if let v = ud.object(forKey: "showPlanInNotch") as? Bool { showPlanInNotch = v }
+        if let v = ud.object(forKey: "showCodexPlanInNotch") as? Bool { showCodexPlanInNotch = v }
+        planRelayInstalled = HookServer.statusLineInstalled()
+        #endif
+
+        // Sync SoundEngine volume on launch
+        SoundEngine.shared.volume = Float(soundVolume)
+
+        // Always load integration pills
+        loadIntegrationTasks()
+        refreshCredentials()
+    }
+
+    // MARK: - Computed
+
+    var focusTask: AgentTask? {
+        tasks.first { $0.id == focusId } ?? tasks.first
+    }
+
+    var effectiveState: BotState {
+        stateOverride ?? focusTask?.state ?? .idle
+    }
+
+    /// The mood of the big Luna on the island. The resting island speaks for the agents: the
+    /// kind of news that wins (waits, failed, finished, works) decides it. With no news, and in
+    /// every open island, it is what it always was.
+    var islandBotState: BotState {
+        if stateOverride == nil, mode == .compact, let lead = agentNotch.lead {
+            return AgentLook.botState(lead)
+        }
+        return effectiveState
+    }
+
+    // MARK: - Task management
+
+    func addTask(_ task: AgentTask) {
+        guard !tasks.contains(where: { $0.id == task.id }) else { return }
+        tasks.append(task)
+        if focusId == nil { focusId = task.id }
+        syncMode()
+        syncView()
+    }
+
+    func removeTask(id: String) {
+        // mainPillId: always reset, never remove (the active workspace tool)
+        // activeIntegrations: also reset (user declared it active, keep it as idle)
+        let isProtected = id == mainPillId
+        let isActiveDecl = PillCatalog.definition(for: id) != nil && activeIntegrations.contains(id)
+        if isProtected || isActiveDecl {
+            if let idx = tasks.firstIndex(where: { $0.id == id }) {
+                let catalogName = PillCatalog.definition(for: id)?.name
+                tasks[idx].state      = .idle
+                tasks[idx].steps      = []
+                tasks[idx].stepIndex  = 0
+                tasks[idx].pillBadge  = nil
+                if let n = catalogName { tasks[idx].name = n }
+            }
+            return
+        }
+        // Undeclared or declared-but-not-active: remove
+        tasks.removeAll { $0.id == id }
+        if focusId == id { focusId = mainPillId }
+        syncMode()
+        syncView()
+    }
+
+    func updateTask(id: String, state: BotState) {
+        guard let idx = tasks.firstIndex(where: { $0.id == id }) else { return }
+        tasks[idx].state = state
+    }
+
+    func setFocus(_ id: String) {
+        guard let idx = tasks.firstIndex(where: { $0.id == id }) else { return }
+        focusId = id
+        tasks[idx].pillBadge = nil  // clear badge when user brings task to focus
+    }
+
+    func setPillBadge(_ badge: PillBadge, for id: String) {
+        guard let idx = tasks.firstIndex(where: { $0.id == id }) else { return }
+        tasks[idx].pillBadge = badge
+    }
+
+    func clearPillBadge(id: String) {
+        guard let idx = tasks.firstIndex(where: { $0.id == id }), tasks[idx].pillBadge != nil else { return }
+        tasks[idx].pillBadge = nil
+    }
+
+    /// Unseen news of GitHub (CI failed, review asked, CI passed): the dot on the tab of its page.
+    var githubPageBadge: PillBadge? {
+        tasks.first(where: { $0.id == Self.githubPillId })?.pillBadge
+    }
+
+    /// Called on main thread after each GitHub pulse poll. Fires badge + sound based on events.
+    func handleGitHubEvents(_ events: [GitHubEvent]) {
+        guard !events.isEmpty else { return }
+        // Priority: error > question (reviewRequested) > finish (ciPassed)
+        var level = 0          // 0 = none, 1 = finish, 2 = question, 3 = error
+        var badge: PillBadge?
+        var sound: String?
+        for event in events {
+            switch event {
+            case .ciFailed, .mainFailed:
+                if level < 3 { level = 3; badge = .error;    sound = "error"    }
+            case .reviewRequested:
+                if level < 2 { level = 2; badge = .finished; sound = "question" }
+            case .ciPassed:
+                if level < 1 { level = 1; badge = .finished; sound = "finish"   }
+            }
+        }
+        // Only set badge when the GitHub pill is not currently in focus and its page is not open
+        let onGitHubPage = mode == .expanded && view == .github
+        if let b = badge, focusId != Self.githubPillId, !onGitHubPage { setPillBadge(b, for: Self.githubPillId) }
+        if let s = sound { SoundEngine.shared.play(s) }
+    }
+
+    func syncMode() {
+        // If no tasks and not expanded/peek, go hidden
+        if tasks.isEmpty && mode == .compact {
+            mode = .hidden
+        } else if !tasks.isEmpty && mode == .hidden && isPresent {
+            mode = .compact
+        }
+    }
+
+    func syncView() {
+        guard mode == .expanded else { return }
+        // The "Active pills" page and its empty twin follow whether there are any pills at all.
+        if view == .empty && !tasks.isEmpty { view = .overview }
+        else if view == .overview && tasks.isEmpty { view = .empty }
+    }
+
+    /// Load catalog pills into tasks, respecting activeIntegrations. Safe to call multiple times.
+    func loadIntegrationTasks() {
+        let catalog = PillCatalog.available
+        // Sanitize: remove saved IDs not in catalog
+        let catalogIds = Set(catalog.map { $0.id })
+        activeIntegrations = activeIntegrations.filter { catalogIds.contains($0) }
+        // Validate mainPillId: must be a non-comingSoon workspace pill in the catalog
+        if !PillCatalog.available.contains(where: { $0.id == mainPillId && $0.category == .workspace && !$0.comingSoon }) {
+            mainPillId = PillCatalog.defaultMainPillId
+        }
+        // mainPillId must never be in activeIntegrations (migration + invariant)
+        activeIntegrations.remove(mainPillId)
+        for def in catalog {
+            // mainPillId always loads; activeIntegrations load
+            let shouldLoad = def.id == mainPillId || activeIntegrations.contains(def.id)
+            let loaded = tasks.contains(where: { $0.id == def.id })
+            if shouldLoad && !loaded {
+                let task = AgentTask(id: def.id, name: def.name, color: def.color,
+                                     state: .idle, steps: [], source: def.source, isIntegration: true)
+                tasks.append(task)
+            }
+            if !shouldLoad && loaded {
+                tasks.removeAll { $0.id == def.id }
+            }
+        }
+        sortTasksByCatalog()
+        if focusId == nil { focusId = mainPillId }
+        syncMode()
+    }
+
+    /// Toggle a catalog pill on/off.
+    /// mainPillId: never toggleable (change via the Main picker first).
+    /// Max 4 non-main pills active at once.
+    /// Switch the always-on workspace pill. Mirrors what the Settings Picker does.
+    func setMainPill(_ id: String) {
+        guard PillCatalog.available.contains(where: {
+            $0.id == id && $0.category == .workspace && !$0.comingSoon
+        }) else { return }
+        mainPillId = id
+        activeIntegrations.remove(id)
+        loadIntegrationTasks()
+        setFocus(id)
+    }
+
+    func toggleIntegration(_ id: String) {
+        guard id != mainPillId else { return }
+        guard PillCatalog.available.contains(where: { $0.id == id }) else { return }
+        if activeIntegrations.contains(id) {
+            activeIntegrations.remove(id)
+            tasks.removeAll { $0.id == id }
+            if focusId == id { focusId = mainPillId }
+        } else {
+            guard activeIntegrations.count < 4 else { return }
+            activeIntegrations.insert(id)
+            if let def = PillCatalog.available.first(where: { $0.id == id }),
+               !tasks.contains(where: { $0.id == id }) {
+                let task = AgentTask(id: def.id, name: def.name, color: def.color,
+                                     state: .idle, steps: [], source: def.source, isIntegration: true)
+                tasks.append(task)
+                sortTasksByCatalog()
+            }
+        }
+        syncMode()
+    }
+
+    /// Sort tasks so catalog pills are in catalog order, undeclared pills sit right after
+    /// integration_claude (matching HookServer insertion behaviour), and the rest follows.
+    private func sortTasksByCatalog() {
+        let order = PillCatalog.available.enumerated()
+            .reduce(into: [String: Int]()) { $0[$1.element.id] = $1.offset }
+        let catalogPills    = tasks.filter { order[$0.id] != nil }
+        let undeclaredPills = tasks.filter { order[$0.id] == nil }
+        let sortedCatalog   = catalogPills.sorted { (order[$0.id] ?? 0) < (order[$1.id] ?? 0) }
+        if let claudeIdx = sortedCatalog.firstIndex(where: { $0.id == "integration_claude" }) {
+            var result: [AgentTask] = Array(sortedCatalog[...claudeIdx])
+            result.append(contentsOf: undeclaredPills)
+            if claudeIdx + 1 < sortedCatalog.count {
+                result.append(contentsOf: sortedCatalog[(claudeIdx + 1)...])
+            }
+            tasks = result
+        } else {
+            tasks = undeclaredPills + sortedCatalog
+        }
+    }
+
+}
+
+// MARK: - Supporting types
+
+enum PromptContext {
+    case window(appName: String, title: String, url: String?)
+    case file(name: String, fileURL: URL?)
+}
+
+struct VoiceMailDraft: Equatable {
+    var to: String
+    var subject: String
+    var body: String
+}
+
+struct DroppedFile {
+    var url: URL
+    var name: String
+}
+
+struct SearchResult {
+    var title: String
+    var items: [ResultItem]
+    var note: String?
+}
+
+struct ResultItem {
+    var label: String
+    var detail: String
+    var url: String?
+}
+
+// MARK: - Vercel
+
+struct VercelDeployment: Identifiable {
+    let id: String
+    let projectName: String
+    let url: String
+    let state: String        // "READY", "ERROR", "CANCELED"
+    let createdAt: Date
+    let commitMessage: String?
+    let branch: String?
+
+    var isSuccess: Bool { state == "READY" }
+    var statusLabel: String { isSuccess ? "Ready" : (state == "CANCELED" ? "Canceled" : "Error") }
+    var timeAgo: String {
+        let diff = Date().timeIntervalSince(createdAt)
+        if diff < 60    { return "just now" }
+        if diff < 3600  { return "\(Int(diff/60))m" }
+        if diff < 86400 { return "\(Int(diff/3600))h" }
+        return "\(Int(diff/86400))d"
+    }
+}
+
+// MARK: - Publish only on change
+
+extension AppState {
+    /// A @Published set notifies every view that observes AppState, even with the same
+    /// value: pollers use this so an unchanged answer redraws nothing.
+    func setIfChanged<T: Equatable>(_ keyPath: ReferenceWritableKeyPath<AppState, T>, _ value: T) {
+        if self[keyPath: keyPath] != value { self[keyPath: keyPath] = value }
+    }
+}
+
+// MARK: - Resend
+
+struct ResendEmail: Identifiable {
+    let id: String
+    let to: [String]
+    let subject: String
+    let createdAt: Date
+    let lastEvent: String   // "delivered", "bounced", "complained", "opened", etc.
+
+    var recipientShort: String {
+        guard let first = to.first else { return "?" }
+        return first.components(separatedBy: "@").first ?? first
+    }
+    var timeAgo: String {
+        let diff = Date().timeIntervalSince(createdAt)
+        if diff < 60    { return "just now" }
+        if diff < 3600  { return "\(Int(diff/60))m" }
+        if diff < 86400 { return "\(Int(diff/3600))h" }
+        return "\(Int(diff/86400))d"
+    }
+    var isDelivered: Bool { lastEvent == "delivered" }
+}
+
+// MARK: - GitHub
+
+struct GitHubStats {
+    let totalRepos: Int
+    let totalStars: Int
+}
+
+// MARK: - Stripe
+
+struct StripePayment: Identifiable, Equatable {
+    let id: String
+    let amount: Int         // in cents/smallest unit
+    let currency: String
+    let description: String?
+    let createdAt: Date
+    let status: String      // "succeeded", "pending", "failed"
+
+    var amountFormatted: String { String(format: "%.2f", Double(amount) / 100.0) }
+    var isSuccess: Bool { status == "succeeded" }
+    var timeAgo: String {
+        let diff = Date().timeIntervalSince(createdAt)
+        if diff < 60    { return "just now" }
+        if diff < 3600  { return "\(Int(diff/60))m" }
+        if diff < 86400 { return "\(Int(diff/3600))h" }
+        return "\(Int(diff/86400))d"
+    }
+}
+
+// MARK: - Cal.com
+
+struct CalcomBooking: Identifiable, Equatable {
+    let id: Int
+    let title: String
+    let startTime: Date
+    let endTime: Date
+    let status: String
+    let attendeeName: String?
+    let attendeeEmail: String?
+    let attendeeNotes: String?
+
+    var isActive: Bool { status == "ACCEPTED" || status == "PENDING" }
+    var timeLabel: String {
+        let f = DateFormatter(); f.dateFormat = "HH:mm"; return f.string(from: startTime)
+    }
+    var dayKey: String {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: startTime)
+        return "\(c.year!)-\(String(format: "%02d", c.month!))-\(String(format: "%02d", c.day!))"
+    }
+}
+
+// MARK: - Notion
+
+struct N8nRun: Equatable {
+    let workflow: String
+    let detail: String?
+    let success: Bool
+    let date: Date
+}
+
+struct NotionPage: Identifiable {
+    let id: String
+    let title: String
+    let emoji: String?
+    let lastEditedAt: Date
+    let url: String
+
+    var timeAgo: String {
+        let diff = Date().timeIntervalSince(lastEditedAt)
+        if diff < 60 { return "now" }
+        if diff < 3600 { return "\(Int(diff/60))m" }
+        if diff < 86400 { return "\(Int(diff/3600))h" }
+        return "\(Int(diff/86400))d"
+    }
+}
+
+// MARK: - Chat
+
+enum ChatRole { case user, assistant }
+
+struct ChatMessage: Identifiable, Equatable {
+    let id = UUID()
+    let role: ChatRole
+    var content: String   // var for streaming updates
+    /// Чем отвечено: «Claude Code · подписка · sonnet». nil — без подписи (сообщения пользователя, старый путь).
+    var source: String? = nil
+}
+
+/// Действие под заметкой: переключить источник чата и повторить вопрос.
+struct NoteAction: Equatable {
+    let title: String
+    let provider: ChatProvider
+    let query: String
+}

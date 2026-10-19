@@ -1,0 +1,2331 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		00DC65A2D36C1EFB31796FF9 /* SoundEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E3454AEE69052BE283922E9 /* SoundEngine.swift */; };
+		01B8A4C0C422017BCDFB1B72 /* LunaLive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E718FB9480A9BC52B2E0E /* LunaLive.swift */; };
+		0355766FA6E7F3FD93811531 /* ConversationContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B4531A1FF232A3094219BF4 /* ConversationContext.swift */; };
+		04E3F71590903A96857E5CF2 /* DiffEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CFA50F3005883D3BF3B3F18 /* DiffEngine.swift */; };
+		050E085B9C0897029F34B4C2 /* QuestionPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16589E556CE71C24F1997921 /* QuestionPayload.swift */; };
+		060C616AD75076A57F9FF95B /* VoiceQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8385CCF63C3B80880B22D385 /* VoiceQuery.swift */; };
+		061CF7CEF0D63726D53BEEBA /* VoiceTranscriptHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AEBF45B8DCD61C49D7C37DF /* VoiceTranscriptHistory.swift */; };
+		06FA7B1C0566A12BEB71B277 /* BotEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44363FFB879C412B591CCD3F /* BotEngine.swift */; };
+		07E35697D2BF1BC32306F403 /* LunaActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 594D9ED4D2A14D1DD9D34AB6 /* LunaActivityAttributes.swift */; };
+		085F6468FAE2174BB69CC70E /* PillColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535DF74B2C536D2388CDFE34 /* PillColors.swift */; };
+		0862C750AA65DF0C27F116FF /* VoiceActionRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74307EE780A84285B1551A02 /* VoiceActionRunner.swift */; };
+		09798C59602BBA20E682866E /* ChatMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6DBE14071DAC16C4AA76D46 /* ChatMarkdownView.swift */; };
+		0AAABFE6F7FBACDF19919728 /* VoiceIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 275B3FCC6F882C221916FA1E /* VoiceIntent.swift */; };
+		0B05871E9639D3B257A6E350 /* IslandScreenGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E784FB5713B2DCEA3C0B2A4B /* IslandScreenGeometry.swift */; };
+		0B54535A9ABF5AF4E7905244 /* ServiceSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71DEDB8B17317FDD5F24D6B9 /* ServiceSnapshot.swift */; };
+		0CA870176B494DF7E03A63C3 /* VoiceAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B8217C69B506669B3099A2 /* VoiceAudio.swift */; };
+		0CC2C6F16C68A03D7EC35D80 /* ElevenLabsTTS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12C5CE4CE965712AD5FF66E2 /* ElevenLabsTTS.swift */; };
+		0D40AEE7DCE56B5CAFFEEEB4 /* UserIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EF8B1A172378168331A7D61 /* UserIdentity.swift */; };
+		0D9CB807D3F2C3454292BE42 /* VoiceTranscriptHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AEBF45B8DCD61C49D7C37DF /* VoiceTranscriptHistory.swift */; };
+		0EE18BAAA419AB998ECF3633 /* LiveActivityLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDF8DACBC02EC5A0F139F36B /* LiveActivityLink.swift */; };
+		0F06DD85A0071885606921F8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D38BCC26368C264B759304 /* SettingsView.swift */; };
+		0F3CD498BDC6B12EDB4F1E08 /* ColorHex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79418E1F669DA079AEB4FFC8 /* ColorHex.swift */; };
+		10BB2E4A552B3F28F9B0F783 /* LunaFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B2EA9A5BC6393A155E98C31 /* LunaFace.swift */; };
+		11D9BB6F60274BDABA09589E /* AppLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DFF648B3AFA7A00691A495 /* AppLog.swift */; };
+		14334F3A3F8F07470092A283 /* AgentTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82B5CB2E5447F085D11C5DC2 /* AgentTile.swift */; };
+		149DB7BE2E0C1F179923E114 /* sounds in Resources */ = {isa = PBXBuildFile; fileRef = 74ACD19E94C2B06A6D022178 /* sounds */; };
+		15E38559E3D7F4A65B24F5A8 /* ServiceSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71DEDB8B17317FDD5F24D6B9 /* ServiceSnapshot.swift */; };
+		15FA3F95C5DB27511DC9936A /* SearchAndSpotlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26DCAA15D433C1C73D586587 /* SearchAndSpotlight.swift */; };
+		162A818650FA43FDA5450540 /* LunaFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B2EA9A5BC6393A155E98C31 /* LunaFace.swift */; };
+		16A197C0B57AEE58DF52435D /* DiffEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CFA50F3005883D3BF3B3F18 /* DiffEngine.swift */; };
+		17D4ED5B16113D2B736F7A3B /* SafeWebURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = A201C72B4123EE94F91EE322 /* SafeWebURL.swift */; };
+		18E8CF0A4C0216B39B9FF532 /* ClaudeSettingsFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6E866D5D416DC7EB39DBDF6 /* ClaudeSettingsFile.swift */; };
+		18F0E6047F8EB86F526A62D6 /* PillCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82A6CB5BB952DD82E4169759 /* PillCatalog.swift */; };
+		1A131171A34DCB33EAA98CCD /* WindowContextCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F1F1D6B05A768EAFF838D4D /* WindowContextCapture.swift */; };
+		1A197A0A520A4B4D07759054 /* LinkTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE051747B1F8B78F89FD9A7C /* LinkTestView.swift */; };
+		1A7A6D5A3F8F09D45581A305 /* UploadSequenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85B1CBE46C672155B6FD817 /* UploadSequenceEngine.swift */; };
+		1B6C51506C5069BC888EA487 /* VoiceQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8385CCF63C3B80880B22D385 /* VoiceQuery.swift */; };
+		1BB7096266904114DE751014 /* UploadSequenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85B1CBE46C672155B6FD817 /* UploadSequenceEngine.swift */; };
+		1BD30A327F38F34C8AA3D187 /* AppLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DFF648B3AFA7A00691A495 /* AppLog.swift */; };
+		1BD9C89C68F6E77B6AD0A299 /* PillColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535DF74B2C536D2388CDFE34 /* PillColors.swift */; };
+		1F0839A7CE493BD83423BDAF /* ServiceSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71DEDB8B17317FDD5F24D6B9 /* ServiceSnapshot.swift */; };
+		1F2043DDA8163C58FBAE1B44 /* AgentNotchViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3F259EEBB0C246479863A0B /* AgentNotchViews.swift */; };
+		1FDB17C0DF5A2D5F3AA3E952 /* LunaLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9573F4E2855355F0EC8AF88F /* LunaLook.swift */; };
+		200228D0487321E8C03AF622 /* MacDictation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 539F8DFECCAA0962C8AB5406 /* MacDictation.swift */; };
+		203EACA0E83F1EEF0906AD75 /* LiveVoiceControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E4C266FAE979366B2800115 /* LiveVoiceControls.swift */; };
+		21353B7E3B7AB02A71BC5BA1 /* TurnSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68AC65085351FE2271AD1661 /* TurnSnapshot.swift */; };
+		217D4D734619725F8AB29AD2 /* TurnArchive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C4AA5C7B704DACCCA75479B /* TurnArchive.swift */; };
+		22A312FB5F7F8602456A4F72 /* TeamConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB79D11F1C4AC85EF7375DDF /* TeamConfiguration.swift */; };
+		2354A671A6F23CEF13036279 /* QuestionPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16589E556CE71C24F1997921 /* QuestionPayload.swift */; };
+		2372D049F544663C2A9C8BB7 /* ChatMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4919BFC4E23D0CCD1429F67 /* ChatMarkdown.swift */; };
+		258F07DAA1A540C291579B81 /* PillCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82A6CB5BB952DD82E4169759 /* PillCatalog.swift */; };
+		25C31FBD633E981889E6569A /* ApprovalCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F7F677EFAE3C349DAFBAF00 /* ApprovalCard.swift */; };
+		2681D02FAA4DFE97C765B9C7 /* LunaActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 594D9ED4D2A14D1DD9D34AB6 /* LunaActivityAttributes.swift */; };
+		27143DD0AF3ECA6CDAF7A1A4 /* TerminalTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 812620AF40CA0B40927CF1B8 /* TerminalTarget.swift */; };
+		271F010532188647434B4FE6 /* LastTurnView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FA8F8C6AAEF63356336624 /* LastTurnView.swift */; };
+		274BFB2746F6C210D0D24772 /* MacStubs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36A5522CD4E7C718170A6B6B /* MacStubs.swift */; };
+		28650B6CD853A2757375229A /* IslandTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45C3645A0656DEE9A65B915 /* IslandTypes.swift */; };
+		28A3BE36C12C1F0CECFD3AEA /* DesktopLuna.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD17A25E05CECE5E81915E81 /* DesktopLuna.swift */; };
+		28DD744EC58135F7C84F64C0 /* LunaLive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E718FB9480A9BC52B2E0E /* LunaLive.swift */; };
+		2909145671FDCB52DE4E9916 /* QuestionPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16589E556CE71C24F1997921 /* QuestionPayload.swift */; };
+		2B9332C91C470DB889C66AEB /* VoiceDataSources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 263359A987BA6E002CD9A847 /* VoiceDataSources.swift */; };
+		2F4AF8EB23190D2B6EE7EDD1 /* ApprovalRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2182C30224BE101104796194 /* ApprovalRelay.swift */; };
+		320DFBF96FCFFF19BBC433FD /* ServiceDetailRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FA8C4AEB37162AC3B6F3716 /* ServiceDetailRunner.swift */; };
+		32576C0D2B9D2D3B5FBF49ED /* TerminalTarget+AppKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1473F497BB09849FD8E7C428 /* TerminalTarget+AppKit.swift */; };
+		32FFABA4D000EC944BBD3B45 /* ApprovalQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6DD629F96F2359077B3BC3C /* ApprovalQueue.swift */; };
+		3321C2149C7AFDF7E3556506 /* ApprovalQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6DD629F96F2359077B3BC3C /* ApprovalQueue.swift */; };
+		33339F1EBC3AF85ABE8CE9EB /* WakePhrase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA3EA06BFB9E12DCB2F932D /* WakePhrase.swift */; };
+		3376C42898946AD7CD28E80F /* IslandDisplayChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22FB708EE1417249F3F46A10 /* IslandDisplayChoice.swift */; };
+		37807910ED2F60B7B7751C4D /* OpenLeadLunaIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B8F9AFECAB0DE3A36CAFFB8 /* OpenLeadLunaIntent.swift */; };
+		379DE1912CA2EB3FFBCC588A /* SessionPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2DD48C1624815EEB08096A6 /* SessionPublisher.swift */; };
+		3845F08FD3B73B7FABD100F7 /* UploadCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D0A544E71279141F78D469B /* UploadCanvasView.swift */; };
+		38ACE76CF2550EB5D1A750C9 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C67FF0E068B5BA5EF3AA814D /* Localizable.xcstrings */; };
+		38E8596B832BE1888D69275F /* question.wav in Resources */ = {isa = PBXBuildFile; fileRef = C3AD288A0ABCE2D17F30C7C4 /* question.wav */; };
+		396AFD75B1E52B169C7A5F5D /* TurnSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68AC65085351FE2271AD1661 /* TurnSnapshot.swift */; };
+		3A2C18049B98EF569414A765 /* WakeSpotter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E009202BD9A5988F9F0778CD /* WakeSpotter.swift */; };
+		3B513E8510931EFF5A7F4ADA /* TurnSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68AC65085351FE2271AD1661 /* TurnSnapshot.swift */; };
+		3D4ECC71B72FCB3D161C2AD5 /* BotEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44363FFB879C412B591CCD3F /* BotEngine.swift */; };
+		3D5D23606979344D88FE8FED /* CryptoViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1225496ADCE3F4F661D734 /* CryptoViews.swift */; };
+		3D69BCDC065B39962C7DB1DD /* ProcessTTY.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA4C8841CDABB68612AB952C /* ProcessTTY.swift */; };
+		3D6D923627067700B7416BC6 /* ShortcutLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = C16C88728348A71D53AC94BC /* ShortcutLogic.swift */; };
+		3E06819C3145B6DFF933170F /* LunaStill.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E300A2685B521B4B85C5DA /* LunaStill.swift */; };
+		3E49D3F6DA910994D544554C /* TurnShare.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E7D361802C2381CB2F0E1C7 /* TurnShare.swift */; };
+		3E736A8EA0A8A18661A151D2 /* ClaudeCLIChat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20C230BFEAA2C3F4DB477216 /* ClaudeCLIChat.swift */; };
+		3EDFAF6BC0CD335F5C0BD605 /* LunaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 533039DA8089E365D584EE04 /* LunaApp.swift */; };
+		3F6F7E0670D0F8D1A8E1E73B /* ShortcutsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527FC61461CF4E01E3886994 /* ShortcutsSettingsView.swift */; };
+		3FFB58733A9EA4E120B04D23 /* UserIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EF8B1A172378168331A7D61 /* UserIdentity.swift */; };
+		401098CBD97381114D395AC9 /* SpotifyController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 548707C60D20AA401DF34F40 /* SpotifyController.swift */; };
+		409D4C8C9F736071DA67B0E9 /* NowPlayingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABE4FEA8B9BB4D41E0409AE /* NowPlayingViews.swift */; };
+		415F150A94247E8507551668 /* LunaWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 55E9D38C4309E382E7B42369 /* LunaWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4163B6C0811A43FA59839C38 /* ServicePublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7648D142776163B48934E3E2 /* ServicePublisher.swift */; };
+		418D3E4017AC0F86B8753BE9 /* ClaudeVoiceBrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28043A1903887C09521A6F49 /* ClaudeVoiceBrain.swift */; };
+		4257C5798490C3972A684C48 /* SessionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD8FBFE5D085F1E8070C7074 /* SessionStatus.swift */; };
+		42BA9EFBB5B89A9F912AF3A9 /* TurnSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68AC65085351FE2271AD1661 /* TurnSnapshot.swift */; };
+		42E39655065B5AEEB351FA7E /* VoiceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B628D78C5557499E326B514 /* VoiceEngine.swift */; };
+		42F35F9C3DF1DC14C0999112 /* PillSessionRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 376A5C6E0AA9A723FDFDD573 /* PillSessionRegistry.swift */; };
+		4538F8C503F8FB7270A0A2DD /* AgentSessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5538A312CCFDA743DB907AC /* AgentSessions.swift */; };
+		45708DCB7D7021F4BDFDCD9B /* BotCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11204E24F3A564B506E73F85 /* BotCanvasView.swift */; };
+		45A60A332640AB91EBA62B27 /* ClaudePlanGauge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CC98A58797FD28F8865A421 /* ClaudePlanGauge.swift */; };
+		45E40FF772F856BBA1B1EEDE /* CryptoController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68BB8CAF6BB3F9744EB233D5 /* CryptoController.swift */; };
+		46492ED20C59E4B10950E907 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D38BCC26368C264B759304 /* SettingsView.swift */; };
+		46AF2675BCADCE84C52F02E7 /* ClaudeHookDetection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 477B625D1001235BB94CB288 /* ClaudeHookDetection.swift */; };
+		46BD2A8191C27E10CCCCFEA2 /* WeeklyRecapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32179C89DA82A87336E8B17D /* WeeklyRecapView.swift */; };
+		474A446766533EE80A138045 /* IslandStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29102D07D591D3F3CA9EFE4 /* IslandStateMachine.swift */; };
+		480CD740CED70D0B244CF981 /* HookServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE406297471A217B77DEFF9 /* HookServer.swift */; };
+		486DE29C40F8832CEFE0425E /* LunaWardrobe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 635C26B4AA8D155D8F7786FA /* LunaWardrobe.swift */; };
+		489EFE250E196CF398253EAE /* MailController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E4400BA68E44AF0BCD94AB /* MailController.swift */; };
+		4971A10446CB2A5D756A6242 /* AgentPreviewLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10FC3C26D183C8058F0BE567 /* AgentPreviewLogic.swift */; };
+		4A7778B1946FF29D539DE21A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E46550C3DF67438C766934 /* AppDelegate.swift */; };
+		4B5DCC1663AF7A8384D2DC57 /* DenyApprovalIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF9BB4594F01921CF913C1A /* DenyApprovalIntent.swift */; };
+		4B8000FCB3E4A2DED5566B43 /* ClaudeHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7688ECE88213AA75981E64D /* ClaudeHost.swift */; };
+		4C3F78A3613FDB246B5A2DE9 /* DesktopLuna.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD17A25E05CECE5E81915E81 /* DesktopLuna.swift */; };
+		4CC935E5C00C893C69B5E87C /* LunaStill.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E300A2685B521B4B85C5DA /* LunaStill.swift */; };
+		4CCB5277B6800D03EC0ADDF1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B6E55E4E4326C0673C3CC657 /* Assets.xcassets */; };
+		4CE1670E0FA1E011EAB0B6BD /* IslandViewContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88FD48D4E32111AB7D1D8DF9 /* IslandViewContent.swift */; };
+		4DCDE15E26E08C70DB6783A5 /* WindowContextCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F1F1D6B05A768EAFF838D4D /* WindowContextCapture.swift */; };
+		4E03D5B6719C45CD9F6D2272 /* SessionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79D31202598C02A3B5366598 /* SessionDetailView.swift */; };
+		4E05ED7E40AC449AF4779AD3 /* CalcomPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04D14751EDF90D79A378E21 /* CalcomPoller.swift */; };
+		4E2582FB94E642E765E85568 /* PillCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82A6CB5BB952DD82E4169759 /* PillCatalog.swift */; };
+		4E44BA3BE3854EBAE0902BE0 /* LiveActivityRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 605D56A58B0E64294C6FF1AC /* LiveActivityRelay.swift */; };
+		4F8DED2AC09C951EC1BC7392 /* ClaudeSettingsFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6E866D5D416DC7EB39DBDF6 /* ClaudeSettingsFile.swift */; };
+		4FAED6A9C3E446012889C56B /* AgentSessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5538A312CCFDA743DB907AC /* AgentSessions.swift */; };
+		4FF76F4990C1E3F7E5A2FCA7 /* ClaudeStreamParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA027190F665ADCDC0816F6 /* ClaudeStreamParser.swift */; };
+		504B19B237069635B633FB0D /* VoiceBrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EF43DF94F8E25C1E1959B3F /* VoiceBrain.swift */; };
+		529FB287D7C38337363AF96D /* LunaFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B2EA9A5BC6393A155E98C31 /* LunaFace.swift */; };
+		5334C1B85D3F83C2BBF87C3D /* TurnSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68AC65085351FE2271AD1661 /* TurnSnapshot.swift */; };
+		5376ADB6B41F46593CC46E0B /* ServiceSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71DEDB8B17317FDD5F24D6B9 /* ServiceSnapshot.swift */; };
+		55914D5AED24F5FB6462B74D /* approval.wav in Resources */ = {isa = PBXBuildFile; fileRef = 860F3B51E6BF41C1FFC596DE /* approval.wav */; };
+		57A574C31AC6929550897339 /* ServicePublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7648D142776163B48934E3E2 /* ServicePublisher.swift */; };
+		5A53559A56B9EDFC6F2404B9 /* GreetingCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AA664AB9E4B8E162215112A /* GreetingCanvasView.swift */; };
+		5A956260A1B179304735CF53 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E46550C3DF67438C766934 /* AppDelegate.swift */; };
+		5CC8009A39DDF821A0AF21BA /* VoiceCaptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EB5E84D171E2243FC571248 /* VoiceCaptionManager.swift */; };
+		5CE64B5EF04FB8A82E7CB1DD /* SafeWebURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = A201C72B4123EE94F91EE322 /* SafeWebURL.swift */; };
+		5D2FAA04E3FE3E522A4EDE54 /* WakeSpotter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E009202BD9A5988F9F0778CD /* WakeSpotter.swift */; };
+		5DC8C8D052F8DCAECED640D0 /* ApprovalRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2182C30224BE101104796194 /* ApprovalRelay.swift */; };
+		5EBBED2F67D3965595EF1B8E /* MusicController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BAAB2E8F8A239CF487070E8 /* MusicController.swift */; };
+		5F9B654D7A0692FF7E58D698 /* SpotifyController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 548707C60D20AA401DF34F40 /* SpotifyController.swift */; };
+		5FC5B20F0919968FECA6E3C2 /* GitHubPulse.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFB70DF3315F52BC4F715ECF /* GitHubPulse.swift */; };
+		615157841F1882D220C8A5D3 /* LunaActivityState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93FDFAAB4F6C83692B04083D /* LunaActivityState.swift */; };
+		6388038F6F5E674CC748A43C /* PillCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82A6CB5BB952DD82E4169759 /* PillCatalog.swift */; };
+		6397471A9F20921AAAB996E1 /* IslandKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = E029FDF7088D52409420AACC /* IslandKeys.swift */; };
+		64F3EBDA1E6BBC4462E53E3C /* AgentPeek.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81ECF42AB7A03CB76FFE977 /* AgentPeek.swift */; };
+		654561D7F68DF0AF5A0F97A7 /* LunaWardrobe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 635C26B4AA8D155D8F7786FA /* LunaWardrobe.swift */; };
+		65DB50A8F8BBB3F9A1D3EEB8 /* VoiceGenderNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7DC4344A3F486BFFD8201B0 /* VoiceGenderNames.swift */; };
+		6610CCACA8C5D9323D02B82C /* IslandTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45C3645A0656DEE9A65B915 /* IslandTypes.swift */; };
+		67B677D0753ADDB79190920E /* LunaOutfitDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = CECBB083CC80E60704A8F16B /* LunaOutfitDrawing.swift */; };
+		6803FAB617EBD9AD94BC083A /* ServiceSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71DEDB8B17317FDD5F24D6B9 /* ServiceSnapshot.swift */; };
+		6915C9A49B4F031D400A3CFC /* ServiceDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BD2FE2AB9F1357E583606F /* ServiceDetail.swift */; };
+		69EF8D9F3BD4904EBDF53993 /* LiveActivityRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 605D56A58B0E64294C6FF1AC /* LiveActivityRelay.swift */; };
+		69F0D446E167B868D384FF7E /* NotificationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9387C95B5D14751DE9C51BD /* NotificationViewController.swift */; };
+		6C15E8FBB31C1682FD523269 /* IntegrationPages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B2427DA49B3BE2403AF232 /* IntegrationPages.swift */; };
+		6CC6705FE42D32A953B64543 /* IslandTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45C3645A0656DEE9A65B915 /* IslandTypes.swift */; };
+		6D07D4E733D02BB20E112CB4 /* ClaudeResponseText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3327A05568BFD9B4B6C3F94F /* ClaudeResponseText.swift */; };
+		6D6D48A3AA6285EB99E54AB9 /* WakeWindowBackoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D648120C61BAB8822B67B2 /* WakeWindowBackoff.swift */; };
+		6DA62E1A6B8B63A635DC7DE4 /* ProcessTTY.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA4C8841CDABB68612AB952C /* ProcessTTY.swift */; };
+		6E895F8385FA1932F12D015C /* QuestionPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16589E556CE71C24F1997921 /* QuestionPayload.swift */; };
+		6E963D586A9968693BAEA5F2 /* AgentPeek.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81ECF42AB7A03CB76FFE977 /* AgentPeek.swift */; };
+		6FA5496C1AF9E499AD8946A4 /* CloudProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAF9CB6CCD7B3802335DE90B /* CloudProbe.swift */; };
+		6FDC1E26F244DD12B68D9767 /* ChatMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6DBE14071DAC16C4AA76D46 /* ChatMarkdownView.swift */; };
+		6FEF74659A1EDBD63A6295C1 /* MacStubs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36A5522CD4E7C718170A6B6B /* MacStubs.swift */; };
+		7021D30E8EBAECD911A4CB4A /* VoiceGenderNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7DC4344A3F486BFFD8201B0 /* VoiceGenderNames.swift */; };
+		713112F9640C93493C746287 /* IntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A43E485A1E73D23625D0A7 /* IntroView.swift */; };
+		71EF540331F1E7B2055C4DE6 /* IslandTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45C3645A0656DEE9A65B915 /* IslandTypes.swift */; };
+		72D459D5DED5C6B200850DF5 /* VoiceActionRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74307EE780A84285B1551A02 /* VoiceActionRunner.swift */; };
+		7309318B357C15A15C0340BD /* LunaIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5B00E2D13DBBC6513ECCE9 /* LunaIntents.swift */; };
+		7364A0306596B01AC107F0AF /* ClaudeHookDetection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 477B625D1001235BB94CB288 /* ClaudeHookDetection.swift */; };
+		7462E578254E9A256881983E /* VercelPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4876F92C04BDEE0C53BADB0 /* VercelPoller.swift */; };
+		746FFB1F9B5D270DE71704F5 /* LunaLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9573F4E2855355F0EC8AF88F /* LunaLook.swift */; };
+		75568D2E9A4E7726245365CB /* CryptoViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1225496ADCE3F4F661D734 /* CryptoViews.swift */; };
+		7593FCBD793567B8CFF9E32D /* ShortcutsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527FC61461CF4E01E3886994 /* ShortcutsSettingsView.swift */; };
+		76F49F0B34C07C7BAA252B23 /* ServiceDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BD2FE2AB9F1357E583606F /* ServiceDetail.swift */; };
+		7839853729BBAEFD85059644 /* TurnEndPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9DE34C1B69FB5248086052 /* TurnEndPolicy.swift */; };
+		79C4F85CA6233498BD55A325 /* RecapStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408856BC9407AE8F9690888F /* RecapStore.swift */; };
+		7ACFF6E3259ED9ED03D975F1 /* Decisions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DB856CF1C2E87D79FE85EA9 /* Decisions.swift */; };
+		7BA9B39E414A37A0F5D51414 /* DemoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D9935FFB8C9F0A866E5808E /* DemoEngine.swift */; };
+		7CA6B4D86E75455691150EA0 /* LunaStill.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E300A2685B521B4B85C5DA /* LunaStill.swift */; };
+		7D099E2B4F65F92B7280EF86 /* VoiceBrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EF43DF94F8E25C1E1959B3F /* VoiceBrain.swift */; };
+		7D658A16C00374914B505F4B /* VoiceDataSources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 263359A987BA6E002CD9A847 /* VoiceDataSources.swift */; };
+		7EED665694F7623782E66668 /* SoundEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E3454AEE69052BE283922E9 /* SoundEngine.swift */; };
+		7F930FE153ECE4B4BDE8B171 /* HookServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE406297471A217B77DEFF9 /* HookServer.swift */; };
+		813A7727BF1574CE5DB38D7A /* QuestionPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16589E556CE71C24F1997921 /* QuestionPayload.swift */; };
+		81B981D93A749C913EC2E0DB /* BotEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44363FFB879C412B591CCD3F /* BotEngine.swift */; };
+		851CCF41B9C3B7A8B185147C /* QuestionRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D32D3A5760DEA11E14C0B6E8 /* QuestionRelay.swift */; };
+		8538535C5A1D137CFE66DBF0 /* CodexPlanGauge.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0B96E91DEDCBD607B955E2 /* CodexPlanGauge.swift */; };
+		85FDA2B8896DB3E0E9A29C5B /* ServiceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BFEEFCFD17DAB5C842F10CE /* ServiceViews.swift */; };
+		8604371D22201388CB46AA34 /* DiffEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CFA50F3005883D3BF3B3F18 /* DiffEngine.swift */; };
+		86934A1B7898ED83178AA959 /* AgentNotch.swift in Sources */ = {isa = PBXBuildFile; fileRef = F073A2B0C1BE49A251687B7B /* AgentNotch.swift */; };
+		880F472D6EAF021C63A0421B /* ClaudePlanGauge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CC98A58797FD28F8865A421 /* ClaudePlanGauge.swift */; };
+		8AE009DEF3FBAB46D318204C /* NotionPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = D38656EE7465CD833EA05F97 /* NotionPoller.swift */; };
+		8AE8E63EF64FCD1675761D48 /* VoiceSpeaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02D8322728F23AF2E4C6C3D0 /* VoiceSpeaker.swift */; };
+		8B5E3CC25597F4CDF424717B /* InstructionComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 116A0C83C2F147EECD554274 /* InstructionComposer.swift */; };
+		8BBCCBDC9F425A4A13476B29 /* IslandDisplayChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22FB708EE1417249F3F46A10 /* IslandDisplayChoice.swift */; };
+		8CA7A82D46932D5FD9621798 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86D732EEDD2D9CF01BCC891C /* AboutView.swift */; };
+		8D09B20BF29F99BE2B205755 /* IslandRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99F2D9AE449DA2A6AB563013 /* IslandRootView.swift */; };
+		8DB6F466A9EED9D7A7825FE1 /* HotKeyCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0BB956F5CAFEFA5200856B4 /* HotKeyCenter.swift */; };
+		8E174A2F9467F41205D77AE8 /* PillColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535DF74B2C536D2388CDFE34 /* PillColors.swift */; };
+		8E6585D441B75AF74341C84D /* GitHubPulse.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFB70DF3315F52BC4F715ECF /* GitHubPulse.swift */; };
+		8E67EAF5062B9FE30C4AB8B5 /* AgentPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1956DAD469ED15565F36EC /* AgentPreviewView.swift */; };
+		8E7821FF7A0A416746D4ACEF /* VoiceSpeaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02D8322728F23AF2E4C6C3D0 /* VoiceSpeaker.swift */; };
+		8F622B3CEBF9A92544BB4473 /* TerminalTarget+AppKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1473F497BB09849FD8E7C428 /* TerminalTarget+AppKit.swift */; };
+		8FAB6C5E3FAB159602513EB1 /* PillCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82A6CB5BB952DD82E4169759 /* PillCatalog.swift */; };
+		900A20BEE9388EB93946C636 /* AgentJumpPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB7EBB3473366C89138EE834 /* AgentJumpPlan.swift */; };
+		9108D9823DD6768C2FE692B7 /* ColorHex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79418E1F669DA079AEB4FFC8 /* ColorHex.swift */; };
+		91A14D28239EAC9A424AF651 /* AgentJump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F82448BD7DA67B231B90A14 /* AgentJump.swift */; };
+		91BC254FD8A368B654E5CBED /* LunaLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9573F4E2855355F0EC8AF88F /* LunaLook.swift */; };
+		92E67524BCDC1768C2F2AFAB /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C67FF0E068B5BA5EF3AA814D /* Localizable.xcstrings */; };
+		935814BAFEF4098EE6B62B11 /* MailController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E4400BA68E44AF0BCD94AB /* MailController.swift */; };
+		935BAA2F85F3CBFAC6F77197 /* InstructionRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD9769D731BB30C9CB2156F /* InstructionRunner.swift */; };
+		93FB458CE5BE44F7B27A9DE8 /* DiffEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CFA50F3005883D3BF3B3F18 /* DiffEngine.swift */; };
+		9440E5230AC8FA5423EFB320 /* IslandStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29102D07D591D3F3CA9EFE4 /* IslandStateMachine.swift */; };
+		94653CACC83E48846717A526 /* MailViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED2E2E3D05FD4A0C5D515619 /* MailViews.swift */; };
+		94A3075CD8AF77435F1604AB /* AgentNotchViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3F259EEBB0C246479863A0B /* AgentNotchViews.swift */; };
+		94D7D36C8CB131514427301F /* IntentParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 626E066A59CA1486222CD5F5 /* IntentParser.swift */; };
+		9566425518A009D864BDDAE8 /* AgentPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1956DAD469ED15565F36EC /* AgentPreviewView.swift */; };
+		963E2808CAF218D8048EABEC /* ChatMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4919BFC4E23D0CCD1429F67 /* ChatMarkdown.swift */; };
+		966359E20235B569162BA57E /* SharedSessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2313C4A1EF25FC76308A1FB /* SharedSessions.swift */; };
+		9773A9C9C526FA2BE55E422D /* IslandKeyHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B6BB8318E4218EA80FB8C0 /* IslandKeyHelpView.swift */; };
+		978CC8C7DCC86772C95E3A11 /* MacDictation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 539F8DFECCAA0962C8AB5406 /* MacDictation.swift */; };
+		97919E68FE9FA516539FE43E /* AgentNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 583FDBD0A423333F378D47D8 /* AgentNotifier.swift */; };
+		97CB4E6391DD5FC051CDB3E8 /* ClaudeHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7688ECE88213AA75981E64D /* ClaudeHost.swift */; };
+		983A4C1DC4DA2E3F29574870 /* SharedSessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2313C4A1EF25FC76308A1FB /* SharedSessions.swift */; };
+		9951A548EA6590DBBC835B99 /* AgentJumpPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB7EBB3473366C89138EE834 /* AgentJumpPlan.swift */; };
+		9952DB8C0FF8DB092638F325 /* GreetingCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AA664AB9E4B8E162215112A /* GreetingCanvasView.swift */; };
+		999920FB9C1F381F96830CAB /* AskQuestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 664AF0D8FFF6EAF4ADF96F8F /* AskQuestion.swift */; };
+		9B199E49B4F10A7B691CEF64 /* MailViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED2E2E3D05FD4A0C5D515619 /* MailViews.swift */; };
+		9BA6DA8C4A15CF4CEEF37740 /* ServiceDetailRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FA8C4AEB37162AC3B6F3716 /* ServiceDetailRunner.swift */; };
+		9D089E92EB4131E0108FABFF /* StripePoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0F2722346431FD569B885F /* StripePoller.swift */; };
+		9D3A6092D3E96EEB2375D0C1 /* GithubPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 987EB92FCCC601BDE21F345C /* GithubPoller.swift */; };
+		9E0B6FDDC889591211B6D0FC /* IslandKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = E029FDF7088D52409420AACC /* IslandKeys.swift */; };
+		9E3FE4F798CD4C91EA684BC5 /* TerminalTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 812620AF40CA0B40927CF1B8 /* TerminalTarget.swift */; };
+		A141CEA4021223707E6F1102 /* ServiceDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BD2FE2AB9F1357E583606F /* ServiceDetail.swift */; };
+		A1B6E3BFD0092F8C27FD9BD4 /* ResendPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 543CD115B940C37FCDBC801F /* ResendPoller.swift */; };
+		A2015A561B161A008FDAA516 /* LunaOutfitDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = CECBB083CC80E60704A8F16B /* LunaOutfitDrawing.swift */; };
+		A22B618A197D48C75E47EE4B /* VoiceIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4610F5955F32AE4EA8F3F39 /* VoiceIslandView.swift */; };
+		A2378C0F8D8315B912A814A5 /* IslandKeyHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B6BB8318E4218EA80FB8C0 /* IslandKeyHelpView.swift */; };
+		A2671DA034E704D96DB09832 /* CryptoController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68BB8CAF6BB3F9744EB233D5 /* CryptoController.swift */; };
+		A30C97397B2E1C975C02A0F7 /* LunaWardrobe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 635C26B4AA8D155D8F7786FA /* LunaWardrobe.swift */; };
+		A4280D10118427F307A2E77A /* HotKeyCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0BB956F5CAFEFA5200856B4 /* HotKeyCenter.swift */; };
+		A4C9A2B714FBB61D9B658FB8 /* MusicController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BAAB2E8F8A239CF487070E8 /* MusicController.swift */; };
+		A4CC281295F0A87FC7E76672 /* ColorHex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79418E1F669DA079AEB4FFC8 /* ColorHex.swift */; };
+		A520D2BF84596176D1BCF786 /* ClaudeCLIChat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20C230BFEAA2C3F4DB477216 /* ClaudeCLIChat.swift */; };
+		A7CE2F5F596A97F845B53165 /* WeeklyRecapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32179C89DA82A87336E8B17D /* WeeklyRecapView.swift */; };
+		A80217872A97D0A39A6EB71C /* ChatCLIMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06993E50468A329B45FBA0BE /* ChatCLIMessages.swift */; };
+		A8E3A83B8F9F2C303E322D11 /* VoiceIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 275B3FCC6F882C221916FA1E /* VoiceIntent.swift */; };
+		A90DC535D3BA51F252B45810 /* IslandViewContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88FD48D4E32111AB7D1D8DF9 /* IslandViewContent.swift */; };
+		A94DB859B55DF4CAF2CD3490 /* PhoneAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A006B9F6B86B2DEDC34C2CFF /* PhoneAssets.xcassets */; };
+		AA4E445F21E7B101BDAE4C33 /* VoiceWakeFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7E84AC942877583E13E5E9 /* VoiceWakeFilter.swift */; };
+		AAC8F7E0FC7301C557240078 /* VoiceIslandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4610F5955F32AE4EA8F3F39 /* VoiceIslandView.swift */; };
+		AAD60B569521BFD259670B3A /* ClaudeVoiceBrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28043A1903887C09521A6F49 /* ClaudeVoiceBrain.swift */; };
+		AB0E2C473A28A19733899FB4 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63542A71166400B0AE96EA8F /* Haptics.swift */; };
+		AB8072D2B8EF9AA8B2B8B0E4 /* ServiceStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB14CAF7D4107078D8F6AAFF /* ServiceStatus.swift */; };
+		ADD788452707BCFD7F6FC5FF /* VoiceResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B531A2C5DC439484F167275 /* VoiceResultView.swift */; };
+		AE2C234346901FF9AE9E0C5E /* IntegrationPages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B2427DA49B3BE2403AF232 /* IntegrationPages.swift */; };
+		AED0918CA1B3AF3430032923 /* ClaudeResponseText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3327A05568BFD9B4B6C3F94F /* ClaudeResponseText.swift */; };
+		AF8E905554FDE40237406DDA /* UploadCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D0A544E71279141F78D469B /* UploadCanvasView.swift */; };
+		B0BDEA903BF3FD6E213E61CD /* ServiceLiveDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55C6345122F022F750AA1453 /* ServiceLiveDetail.swift */; };
+		B116AB35FF5E37E7D218B883 /* ChatCLI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FC4D321B217800DD8CB2B8A /* ChatCLI.swift */; };
+		B1260EA59429F83778E2100A /* SessionPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2DD48C1624815EEB08096A6 /* SessionPublisher.swift */; };
+		B192BB5DFBC07E63B746C54F /* ServiceDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BD2FE2AB9F1357E583606F /* ServiceDetail.swift */; };
+		B1B8016773A494DB3AE47051 /* LocalChat.swift in Sources */ = {isa = PBXBuildFile; fileRef = B92EEB6CB7F9594F75E3727B /* LocalChat.swift */; };
+		B1E9829FC4952FFDE0556D6F /* CalcomPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04D14751EDF90D79A378E21 /* CalcomPoller.swift */; };
+		B20EDE59803AF82FEB839456 /* SpotifyViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D391CFEE0F736631D10794 /* SpotifyViews.swift */; };
+		B21FC263ADDFD7CFC1A81AFA /* LunaLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9573F4E2855355F0EC8AF88F /* LunaLook.swift */; };
+		B418651542F060632E496226 /* VercelPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4876F92C04BDEE0C53BADB0 /* VercelPoller.swift */; };
+		B5D60FF3075918E2FD2FB44A /* VoiceCaptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EB5E84D171E2243FC571248 /* VoiceCaptionManager.swift */; };
+		B6BCC462395DF248FFB6A5CD /* BotEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44363FFB879C412B591CCD3F /* BotEngine.swift */; };
+		B791D696009B4A58FEF12741 /* VoiceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B628D78C5557499E326B514 /* VoiceEngine.swift */; };
+		B7A42BC01AA8F6828B25B941 /* EntityResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4DEDDBA6F12509FF8421567 /* EntityResolver.swift */; };
+		B92FACF7B299C74A735D3748 /* IslandScreenGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E784FB5713B2DCEA3C0B2A4B /* IslandScreenGeometry.swift */; };
+		B9FAEFCC69D488B28DE19D02 /* BotCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11204E24F3A564B506E73F85 /* BotCanvasView.swift */; };
+		BA3719FA49A848760874DB43 /* AgentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AC942741ABB0C987624286B /* AgentsView.swift */; };
+		BB513BB030897465FCD42128 /* N8nPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57B192F5E1847A38B83754CC /* N8nPoller.swift */; };
+		BB65E54546A06004328288C0 /* ChatCLIMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06993E50468A329B45FBA0BE /* ChatCLIMessages.swift */; };
+		BCBBA08F92440C9598AF4350 /* FileDropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCC968D7DDE920469C79876 /* FileDropView.swift */; };
+		BF397EFC7763CD88E88AF78A /* GitHubPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C6DE22D24A4B0B51F1004 /* GitHubPageView.swift */; };
+		C02F3E39EBAEBCB87A5D7F64 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E86289D772C66391D49714 /* AppState.swift */; };
+		C1BDFA5D6FBCF0B48416D2A2 /* TurnRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E28E3B041CAA137E2124FF37 /* TurnRecorder.swift */; };
+		C264F4B033C7E8188BC39082 /* DemoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D9935FFB8C9F0A866E5808E /* DemoEngine.swift */; };
+		C29D35E20F366205D71864CB /* CloudProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAF9CB6CCD7B3802335DE90B /* CloudProbe.swift */; };
+		C327E7EF14561613315BDC26 /* N8nPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57B192F5E1847A38B83754CC /* N8nPoller.swift */; };
+		C40B36E17F3EEDF61A4E82FB /* InstructionRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD9769D731BB30C9CB2156F /* InstructionRunner.swift */; };
+		C42812B4760CD31C577A4692 /* IslandWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAE2FF106BBDFF9073AA5F63 /* IslandWindowController.swift */; };
+		C44DE9FF9A0A4E6E48F2A93E /* QuestionRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D32D3A5760DEA11E14C0B6E8 /* QuestionRelay.swift */; };
+		C450556F126B5170FDD0A83F /* AgentTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82B5CB2E5447F085D11C5DC2 /* AgentTile.swift */; };
+		C6559D106F6139ACD7781697 /* IntentParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 626E066A59CA1486222CD5F5 /* IntentParser.swift */; };
+		C6B4EC7D1753BF3D171C8FD4 /* ResendPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 543CD115B940C37FCDBC801F /* ResendPoller.swift */; };
+		C746DE74C945F1C7A7D6610B /* GitHubActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8799290543F43D111DAF55AE /* GitHubActivity.swift */; };
+		C852EE9FDAE3FEFA60797662 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E86289D772C66391D49714 /* AppState.swift */; };
+		C895C4FCF18C3DEF87687BCC /* EntityResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4DEDDBA6F12509FF8421567 /* EntityResolver.swift */; };
+		C9A7E28BBCDFF59B8B43BACB /* AgentLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC06E98EE9B0A8D9B2B4820 /* AgentLook.swift */; };
+		C9D06261492D9E125E53676F /* VoiceResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B531A2C5DC439484F167275 /* VoiceResultView.swift */; };
+		C9D3FB496EE664101568A642 /* DesktopLunaLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB8C71C3F022053B644FAD2C /* DesktopLunaLogic.swift */; };
+		C9E32A8A561BACD5699753EB /* PillColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535DF74B2C536D2388CDFE34 /* PillColors.swift */; };
+		C9F7CA38B829F77F36C4BFDE /* MacStubs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36A5522CD4E7C718170A6B6B /* MacStubs.swift */; };
+		CA218E302D0396F10756777A /* LunaActivityState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93FDFAAB4F6C83692B04083D /* LunaActivityState.swift */; };
+		CAAABC3342067014B5A16141 /* GitHubPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C6DE22D24A4B0B51F1004 /* GitHubPageView.swift */; };
+		CB370090FE099F6E41827BDF /* PillSessionRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 376A5C6E0AA9A723FDFDD573 /* PillSessionRegistry.swift */; };
+		CB840725DF27E0FBF7ACD767 /* BotEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44363FFB879C412B591CCD3F /* BotEngine.swift */; };
+		CCF3AED01BD66714A5E95A24 /* LunaFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B2EA9A5BC6393A155E98C31 /* LunaFace.swift */; };
+		CE10153D3675C7F80EFE7ECF /* IslandScreenGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E784FB5713B2DCEA3C0B2A4B /* IslandScreenGeometry.swift */; };
+		CE73928030800D56EC47E29D /* ClaudeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F4D34615FC2FB4F03D34D50 /* ClaudeService.swift */; };
+		CF3114A060CC3E5F0D6169B5 /* LiveVoiceControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E4C266FAE979366B2800115 /* LiveVoiceControls.swift */; };
+		CFB094A0CD37304906F3CE75 /* FileDropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCC968D7DDE920469C79876 /* FileDropView.swift */; };
+		CFEEB2FBF35EC4E7A683567B /* LunaActivityState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93FDFAAB4F6C83692B04083D /* LunaActivityState.swift */; };
+		D04C326562B720E56B2CD53D /* PhoneLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60161789FC74688C9CA54584 /* PhoneLink.swift */; };
+		D0778D6EBA3907D6C9B97949 /* LunaLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = D09D7B75E523FEEFE766EA28 /* LunaLiveActivity.swift */; };
+		D11094C3540ED731B9E3E766 /* LunaActivityState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93FDFAAB4F6C83692B04083D /* LunaActivityState.swift */; };
+		D1D4D01AA39E9FB4032CB639 /* VoiceWakeFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7E84AC942877583E13E5E9 /* VoiceWakeFilter.swift */; };
+		D1DB233EF8E248D1AEF809D2 /* SpotterGeneration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BC1584EA6538498CA707C95 /* SpotterGeneration.swift */; };
+		D28CBFEFCD127E4794DB22BB /* RecapStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408856BC9407AE8F9690888F /* RecapStore.swift */; };
+		D2D75B17EBE970274F6D4E7E /* DesktopLunaLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB8C71C3F022053B644FAD2C /* DesktopLunaLogic.swift */; };
+		D35CB4275AF833614AA587D0 /* ShortcutLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = C16C88728348A71D53AC94BC /* ShortcutLogic.swift */; };
+		D483F5F261EA5852843491A3 /* LunaOutfitDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = CECBB083CC80E60704A8F16B /* LunaOutfitDrawing.swift */; };
+		D5237E02EEDB3534F3037366 /* ColorHex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79418E1F669DA079AEB4FFC8 /* ColorHex.swift */; };
+		D572D37E6A8D21005FAF7157 /* ChatCLI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FC4D321B217800DD8CB2B8A /* ChatCLI.swift */; };
+		D68C4B677F66EDFF0F29EE6E /* NowPlayingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABE4FEA8B9BB4D41E0409AE /* NowPlayingViews.swift */; };
+		D77F5B65FD9BAB270A3CB117 /* EnergyVAD.swift in Sources */ = {isa = PBXBuildFile; fileRef = 579B61E30BF224FA20D632B8 /* EnergyVAD.swift */; };
+		D86A92A4C877F82237CAC527 /* GitHubActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8799290543F43D111DAF55AE /* GitHubActivity.swift */; };
+		D8DE04F68BAF2109B4140FB0 /* LunaWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D98E2E19DAE359377218DBBC /* LunaWidgets.swift */; };
+		D8F0813E3548EC4B525ED8C2 /* WakeWindowBackoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D648120C61BAB8822B67B2 /* WakeWindowBackoff.swift */; };
+		D90F69A59CAE470642AE5401 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2385416C6804B0845FE996B /* HomeView.swift */; };
+		D9EA3A2BD8ADE35FD21F7025 /* QuestionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A250F4FB6AE4B58322CC20 /* QuestionCard.swift */; };
+		DA1D74D8C911F0394357A2D2 /* LunaFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B2EA9A5BC6393A155E98C31 /* LunaFace.swift */; };
+		DA22BF2519EF4ABA0D1C1F7F /* DenyApprovalIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF9BB4594F01921CF913C1A /* DenyApprovalIntent.swift */; };
+		DA49405DBBA92F79CFE7E870 /* GithubPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 987EB92FCCC601BDE21F345C /* GithubPoller.swift */; };
+		DA5EF7A9D2EB6B5283B2610B /* LunaNotificationContent.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9B275F452B15DA770AEFB67D /* LunaNotificationContent.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		DB4878EBE63F6590F45B0983 /* LunaActivityState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93FDFAAB4F6C83692B04083D /* LunaActivityState.swift */; };
+		DB5D6F3DE5DCADE51B70ECFA /* VoiceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93683250BFF48A95395116EC /* VoiceSettings.swift */; };
+		DB6AAFCD3A79ADAE6A3969D6 /* ClaudeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F4D34615FC2FB4F03D34D50 /* ClaudeService.swift */; };
+		DB71657B90B9B9422C4E5A15 /* IslandScreenGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E784FB5713B2DCEA3C0B2A4B /* IslandScreenGeometry.swift */; };
+		DBA4C8EFDF4D6646220A45F9 /* LocalChat.swift in Sources */ = {isa = PBXBuildFile; fileRef = B92EEB6CB7F9594F75E3727B /* LocalChat.swift */; };
+		DD800A8B1BF6DC4F42F50909 /* NotionPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = D38656EE7465CD833EA05F97 /* NotionPoller.swift */; };
+		DF04621E2734BA0A4A270340 /* AgentLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC06E98EE9B0A8D9B2B4820 /* AgentLook.swift */; };
+		DFB29992C95143259E07679F /* ColorHex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79418E1F669DA079AEB4FFC8 /* ColorHex.swift */; };
+		E0F95A5F4B8B91F017CAB778 /* WakePhrase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA3EA06BFB9E12DCB2F932D /* WakePhrase.swift */; };
+		E173FB3245E92B83D9E1B704 /* VoiceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93683250BFF48A95395116EC /* VoiceSettings.swift */; };
+		E24F88B8E8E06519F0AF9EF5 /* TurnRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E28E3B041CAA137E2124FF37 /* TurnRecorder.swift */; };
+		E3DFC7CC19D143D9DC73EF91 /* LunaLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9573F4E2855355F0EC8AF88F /* LunaLook.swift */; };
+		E3FE436402FBFE454A6B3D1A /* ConversationContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B4531A1FF232A3094219BF4 /* ConversationContext.swift */; };
+		E40CB664E65C024358A3C458 /* AgentPreviewLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10FC3C26D183C8058F0BE567 /* AgentPreviewLogic.swift */; };
+		E47D55F6DF236EB830BDF087 /* LunaStill.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E300A2685B521B4B85C5DA /* LunaStill.swift */; };
+		E6671286C61C9871FCD3537B /* LunaOutfitDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = CECBB083CC80E60704A8F16B /* LunaOutfitDrawing.swift */; };
+		E689A6403D9E342F35EC69FE /* ClaudePlanCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E0929D0069CBBFDE1BFB976 /* ClaudePlanCardView.swift */; };
+		E6A3C03E4016F8AE14969F9B /* sounds in Resources */ = {isa = PBXBuildFile; fileRef = 74ACD19E94C2B06A6D022178 /* sounds */; };
+		E6F29557218CC0C2A41D0133 /* EnergyVAD.swift in Sources */ = {isa = PBXBuildFile; fileRef = 579B61E30BF224FA20D632B8 /* EnergyVAD.swift */; };
+		E7295FB627118C360448C51C /* AskQuestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 664AF0D8FFF6EAF4ADF96F8F /* AskQuestion.swift */; };
+		E8903062EEEDED79DC76A07F /* LunaPhoneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFB7E0DC621CC984895E01FE /* LunaPhoneApp.swift */; };
+		EA094EC81C610995B69E1FF9 /* ClaudeStreamParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA027190F665ADCDC0816F6 /* ClaudeStreamParser.swift */; };
+		EA9B1180B2B8786548B4B365 /* CodexPlanGauge.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0B96E91DEDCBD607B955E2 /* CodexPlanGauge.swift */; };
+		EB2F3C1BC9DF801AAFA115CE /* LunaStill.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E300A2685B521B4B85C5DA /* LunaStill.swift */; };
+		EB62B6D36E7FB6EC52D75256 /* KitPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 487242C07730BA5D7131B39E /* KitPreviewView.swift */; };
+		ED073A5A8A2BE69A8440190E /* IslandRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99F2D9AE449DA2A6AB563013 /* IslandRootView.swift */; };
+		EDE0F7BC22F231271DF6CEF8 /* error.wav in Resources */ = {isa = PBXBuildFile; fileRef = 5EE01EBB280EC89D6650708D /* error.wav */; };
+		EF1B859E886308ADBC8DCBC2 /* LunaWardrobe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 635C26B4AA8D155D8F7786FA /* LunaWardrobe.swift */; };
+		EF5E8C2166E18D6C970468FF /* DiffEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CFA50F3005883D3BF3B3F18 /* DiffEngine.swift */; };
+		F09BA8967FB6E28DDE37BB59 /* ClaudePlanCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E0929D0069CBBFDE1BFB976 /* ClaudePlanCardView.swift */; };
+		F0B51AE4B2D3D7214FF600A5 /* LunaOutfitDrawing.swift in Sources */ = {isa = PBXBuildFile; fileRef = CECBB083CC80E60704A8F16B /* LunaOutfitDrawing.swift */; };
+		F0DD51DB9B4D0C3B1E8698A6 /* VoiceAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B8217C69B506669B3099A2 /* VoiceAudio.swift */; };
+		F16626674CA2D33CC38342E3 /* IslandTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45C3645A0656DEE9A65B915 /* IslandTypes.swift */; };
+		F36C56EE68A3C37518D74D45 /* IslandWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAE2FF106BBDFF9073AA5F63 /* IslandWindowController.swift */; };
+		F49718FE1323A232D03A344A /* LunaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 533039DA8089E365D584EE04 /* LunaApp.swift */; };
+		F5811291CEA505E500C00C42 /* PillColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535DF74B2C536D2388CDFE34 /* PillColors.swift */; };
+		F5C99E95A074518E070E871A /* AgentJump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F82448BD7DA67B231B90A14 /* AgentJump.swift */; };
+		F641558426ED24A41F965597 /* finish.wav in Resources */ = {isa = PBXBuildFile; fileRef = B78443D8191BCC902BBE5564 /* finish.wav */; };
+		F65703A5003F5AAD35453919 /* LunaControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B57892ECB6150BFCD2FEBE /* LunaControl.swift */; };
+		F658017B33616ABA6F71AAA8 /* AppleStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4330A2CEDED4F19B28458325 /* AppleStyle.swift */; };
+		F6E3E94CCAEB5A843536BAF1 /* SpotifyViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D391CFEE0F736631D10794 /* SpotifyViews.swift */; };
+		F8C37B0F16675BA828DBF84C /* OpenLeadLunaIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B8F9AFECAB0DE3A36CAFFB8 /* OpenLeadLunaIntent.swift */; };
+		F978D21A34E86C65A7C748DC /* StripePoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0F2722346431FD569B885F /* StripePoller.swift */; };
+		F9BFD4572D4DE440C6F01EE9 /* ElevenLabsTTS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12C5CE4CE965712AD5FF66E2 /* ElevenLabsTTS.swift */; };
+		FA9A0F988DA59FD0826C87F1 /* SpotterGeneration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BC1584EA6538498CA707C95 /* SpotterGeneration.swift */; };
+		FB6E72CD1D58567567697A97 /* IslandScreenGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E784FB5713B2DCEA3C0B2A4B /* IslandScreenGeometry.swift */; };
+		FC479B62ED9961A7E3996B07 /* ServiceDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BD2FE2AB9F1357E583606F /* ServiceDetail.swift */; };
+		FDD65F554A01203EFF335CB1 /* AgentNotch.swift in Sources */ = {isa = PBXBuildFile; fileRef = F073A2B0C1BE49A251687B7B /* AgentNotch.swift */; };
+		FDDAF30B824FAD91233A9DCF /* LunaWardrobe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 635C26B4AA8D155D8F7786FA /* LunaWardrobe.swift */; };
+		FE084DB94ED6AFE5A91358A5 /* AgentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AC942741ABB0C987624286B /* AgentsView.swift */; };
+		FE10151D89B1DCDACCC9A989 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B6E55E4E4326C0673C3CC657 /* Assets.xcassets */; };
+		FFF40A2E0A5A92A9DCB2153A /* TurnEndPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9DE34C1B69FB5248086052 /* TurnEndPolicy.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0F025BF6884B97DD5DF536AD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 17A65B085E12EE34B8A63E88 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F05E1BF236A9829FBD21CB64;
+			remoteInfo = LunaWidgets;
+		};
+		6C47BD6D1A846EED6972BF25 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 17A65B085E12EE34B8A63E88 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3F2390047B1A12F6CE17ADA6;
+			remoteInfo = LunaNotificationContent;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5E7FD42536CD4A79E9C3D42E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				415F150A94247E8507551668 /* LunaWidgets.appex in Embed Foundation Extensions */,
+				DA5EF7A9D2EB6B5283B2610B /* LunaNotificationContent.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		02D8322728F23AF2E4C6C3D0 /* VoiceSpeaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSpeaker.swift; sourceTree = "<group>"; };
+		04DFF648B3AFA7A00691A495 /* AppLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLog.swift; sourceTree = "<group>"; };
+		06993E50468A329B45FBA0BE /* ChatCLIMessages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCLIMessages.swift; sourceTree = "<group>"; };
+		06B8217C69B506669B3099A2 /* VoiceAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceAudio.swift; sourceTree = "<group>"; };
+		0AE406297471A217B77DEFF9 /* HookServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookServer.swift; sourceTree = "<group>"; };
+		0B628D78C5557499E326B514 /* VoiceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceEngine.swift; sourceTree = "<group>"; };
+		0D9935FFB8C9F0A866E5808E /* DemoEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoEngine.swift; sourceTree = "<group>"; };
+		0F1F1D6B05A768EAFF838D4D /* WindowContextCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowContextCapture.swift; sourceTree = "<group>"; };
+		10FC3C26D183C8058F0BE567 /* AgentPreviewLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPreviewLogic.swift; sourceTree = "<group>"; };
+		11204E24F3A564B506E73F85 /* BotCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BotCanvasView.swift; sourceTree = "<group>"; };
+		116A0C83C2F147EECD554274 /* InstructionComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstructionComposer.swift; sourceTree = "<group>"; };
+		12C5CE4CE965712AD5FF66E2 /* ElevenLabsTTS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElevenLabsTTS.swift; sourceTree = "<group>"; };
+		1473F497BB09849FD8E7C428 /* TerminalTarget+AppKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TerminalTarget+AppKit.swift"; sourceTree = "<group>"; };
+		16589E556CE71C24F1997921 /* QuestionPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionPayload.swift; sourceTree = "<group>"; };
+		1AEBF45B8DCD61C49D7C37DF /* VoiceTranscriptHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceTranscriptHistory.swift; sourceTree = "<group>"; };
+		1F5B00E2D13DBBC6513ECCE9 /* LunaIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaIntents.swift; sourceTree = "<group>"; };
+		1FC4D321B217800DD8CB2B8A /* ChatCLI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCLI.swift; sourceTree = "<group>"; };
+		20C230BFEAA2C3F4DB477216 /* ClaudeCLIChat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCLIChat.swift; sourceTree = "<group>"; };
+		2182C30224BE101104796194 /* ApprovalRelay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalRelay.swift; sourceTree = "<group>"; };
+		22FB708EE1417249F3F46A10 /* IslandDisplayChoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandDisplayChoice.swift; sourceTree = "<group>"; };
+		263359A987BA6E002CD9A847 /* VoiceDataSources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceDataSources.swift; sourceTree = "<group>"; };
+		26DCAA15D433C1C73D586587 /* SearchAndSpotlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchAndSpotlight.swift; sourceTree = "<group>"; };
+		275B3FCC6F882C221916FA1E /* VoiceIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceIntent.swift; sourceTree = "<group>"; };
+		28043A1903887C09521A6F49 /* ClaudeVoiceBrain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeVoiceBrain.swift; sourceTree = "<group>"; };
+		2B8F9AFECAB0DE3A36CAFFB8 /* OpenLeadLunaIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenLeadLunaIntent.swift; sourceTree = "<group>"; };
+		2BAAB2E8F8A239CF487070E8 /* MusicController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicController.swift; sourceTree = "<group>"; };
+		2DB856CF1C2E87D79FE85EA9 /* Decisions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Decisions.swift; sourceTree = "<group>"; };
+		2EF43DF94F8E25C1E1959B3F /* VoiceBrain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceBrain.swift; sourceTree = "<group>"; };
+		2EF8B1A172378168331A7D61 /* UserIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserIdentity.swift; sourceTree = "<group>"; };
+		32179C89DA82A87336E8B17D /* WeeklyRecapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyRecapView.swift; sourceTree = "<group>"; };
+		3327A05568BFD9B4B6C3F94F /* ClaudeResponseText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeResponseText.swift; sourceTree = "<group>"; };
+		36A5522CD4E7C718170A6B6B /* MacStubs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacStubs.swift; sourceTree = "<group>"; };
+		376A5C6E0AA9A723FDFDD573 /* PillSessionRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillSessionRegistry.swift; sourceTree = "<group>"; };
+		3B2EA9A5BC6393A155E98C31 /* LunaFace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaFace.swift; sourceTree = "<group>"; };
+		3E3454AEE69052BE283922E9 /* SoundEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundEngine.swift; sourceTree = "<group>"; };
+		3EB5E84D171E2243FC571248 /* VoiceCaptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCaptionManager.swift; sourceTree = "<group>"; };
+		3F0F2722346431FD569B885F /* StripePoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StripePoller.swift; sourceTree = "<group>"; };
+		408856BC9407AE8F9690888F /* RecapStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecapStore.swift; sourceTree = "<group>"; };
+		4330A2CEDED4F19B28458325 /* AppleStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleStyle.swift; sourceTree = "<group>"; };
+		43B2427DA49B3BE2403AF232 /* IntegrationPages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationPages.swift; sourceTree = "<group>"; };
+		44363FFB879C412B591CCD3F /* BotEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BotEngine.swift; sourceTree = "<group>"; };
+		477B625D1001235BB94CB288 /* ClaudeHookDetection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeHookDetection.swift; sourceTree = "<group>"; };
+		487242C07730BA5D7131B39E /* KitPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitPreviewView.swift; sourceTree = "<group>"; };
+		48B6BB8318E4218EA80FB8C0 /* IslandKeyHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandKeyHelpView.swift; sourceTree = "<group>"; };
+		4AC942741ABB0C987624286B /* AgentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentsView.swift; sourceTree = "<group>"; };
+		4C4AA5C7B704DACCCA75479B /* TurnArchive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnArchive.swift; sourceTree = "<group>"; };
+		4D0A544E71279141F78D469B /* UploadCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadCanvasView.swift; sourceTree = "<group>"; };
+		4E7D361802C2381CB2F0E1C7 /* TurnShare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnShare.swift; sourceTree = "<group>"; };
+		4F4D34615FC2FB4F03D34D50 /* ClaudeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeService.swift; sourceTree = "<group>"; };
+		4F7F677EFAE3C349DAFBAF00 /* ApprovalCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalCard.swift; sourceTree = "<group>"; };
+		4FA8C4AEB37162AC3B6F3716 /* ServiceDetailRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceDetailRunner.swift; sourceTree = "<group>"; };
+		527FC61461CF4E01E3886994 /* ShortcutsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsSettingsView.swift; sourceTree = "<group>"; };
+		533039DA8089E365D584EE04 /* LunaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaApp.swift; sourceTree = "<group>"; };
+		535DF74B2C536D2388CDFE34 /* PillColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillColors.swift; sourceTree = "<group>"; };
+		539F8DFECCAA0962C8AB5406 /* MacDictation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacDictation.swift; sourceTree = "<group>"; };
+		543CD115B940C37FCDBC801F /* ResendPoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResendPoller.swift; sourceTree = "<group>"; };
+		548707C60D20AA401DF34F40 /* SpotifyController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyController.swift; sourceTree = "<group>"; };
+		55C6345122F022F750AA1453 /* ServiceLiveDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceLiveDetail.swift; sourceTree = "<group>"; };
+		55E9D38C4309E382E7B42369 /* LunaWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = LunaWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		579B61E30BF224FA20D632B8 /* EnergyVAD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnergyVAD.swift; sourceTree = "<group>"; };
+		57B192F5E1847A38B83754CC /* N8nPoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = N8nPoller.swift; sourceTree = "<group>"; };
+		583FDBD0A423333F378D47D8 /* AgentNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentNotifier.swift; sourceTree = "<group>"; };
+		594D9ED4D2A14D1DD9D34AB6 /* LunaActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaActivityAttributes.swift; sourceTree = "<group>"; };
+		5A7E84AC942877583E13E5E9 /* VoiceWakeFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceWakeFilter.swift; sourceTree = "<group>"; };
+		5ABE4FEA8B9BB4D41E0409AE /* NowPlayingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingViews.swift; sourceTree = "<group>"; };
+		5E0929D0069CBBFDE1BFB976 /* ClaudePlanCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudePlanCardView.swift; sourceTree = "<group>"; };
+		5EE01EBB280EC89D6650708D /* error.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = error.wav; sourceTree = "<group>"; };
+		60161789FC74688C9CA54584 /* PhoneLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneLink.swift; sourceTree = "<group>"; };
+		605D56A58B0E64294C6FF1AC /* LiveActivityRelay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityRelay.swift; sourceTree = "<group>"; };
+		61B57892ECB6150BFCD2FEBE /* LunaControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaControl.swift; sourceTree = "<group>"; };
+		626E066A59CA1486222CD5F5 /* IntentParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentParser.swift; sourceTree = "<group>"; };
+		63542A71166400B0AE96EA8F /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
+		635C26B4AA8D155D8F7786FA /* LunaWardrobe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaWardrobe.swift; sourceTree = "<group>"; };
+		664AF0D8FFF6EAF4ADF96F8F /* AskQuestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskQuestion.swift; sourceTree = "<group>"; };
+		66BD2FE2AB9F1357E583606F /* ServiceDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceDetail.swift; sourceTree = "<group>"; };
+		68AC65085351FE2271AD1661 /* TurnSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnSnapshot.swift; sourceTree = "<group>"; };
+		68BB8CAF6BB3F9744EB233D5 /* CryptoController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoController.swift; sourceTree = "<group>"; };
+		6B4531A1FF232A3094219BF4 /* ConversationContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationContext.swift; sourceTree = "<group>"; };
+		6CC98A58797FD28F8865A421 /* ClaudePlanGauge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudePlanGauge.swift; sourceTree = "<group>"; };
+		71DEDB8B17317FDD5F24D6B9 /* ServiceSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceSnapshot.swift; sourceTree = "<group>"; };
+		74307EE780A84285B1551A02 /* VoiceActionRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceActionRunner.swift; sourceTree = "<group>"; };
+		74ACD19E94C2B06A6D022178 /* sounds */ = {isa = PBXFileReference; lastKnownFileType = folder; name = sounds; path = Resources/sounds; sourceTree = SOURCE_ROOT; };
+		7648D142776163B48934E3E2 /* ServicePublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicePublisher.swift; sourceTree = "<group>"; };
+		79418E1F669DA079AEB4FFC8 /* ColorHex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorHex.swift; sourceTree = "<group>"; };
+		79D31202598C02A3B5366598 /* SessionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDetailView.swift; sourceTree = "<group>"; };
+		7B531A2C5DC439484F167275 /* VoiceResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceResultView.swift; sourceTree = "<group>"; };
+		7E4C266FAE979366B2800115 /* LiveVoiceControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveVoiceControls.swift; sourceTree = "<group>"; };
+		812620AF40CA0B40927CF1B8 /* TerminalTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalTarget.swift; sourceTree = "<group>"; };
+		82A6CB5BB952DD82E4169759 /* PillCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillCatalog.swift; sourceTree = "<group>"; };
+		82B5CB2E5447F085D11C5DC2 /* AgentTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentTile.swift; sourceTree = "<group>"; };
+		8385CCF63C3B80880B22D385 /* VoiceQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceQuery.swift; sourceTree = "<group>"; };
+		84A43E485A1E73D23625D0A7 /* IntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntroView.swift; sourceTree = "<group>"; };
+		860F3B51E6BF41C1FFC596DE /* approval.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = approval.wav; sourceTree = "<group>"; };
+		86D732EEDD2D9CF01BCC891C /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		8799290543F43D111DAF55AE /* GitHubActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubActivity.swift; sourceTree = "<group>"; };
+		88FD48D4E32111AB7D1D8DF9 /* IslandViewContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandViewContent.swift; sourceTree = "<group>"; };
+		8AA664AB9E4B8E162215112A /* GreetingCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GreetingCanvasView.swift; sourceTree = "<group>"; };
+		8AF9BB4594F01921CF913C1A /* DenyApprovalIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DenyApprovalIntent.swift; sourceTree = "<group>"; };
+		8BC1584EA6538498CA707C95 /* SpotterGeneration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotterGeneration.swift; sourceTree = "<group>"; };
+		8DA4830F9DB22E72FE70EC15 /* LunaAppStore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LunaAppStore.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8FA3EA06BFB9E12DCB2F932D /* WakePhrase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WakePhrase.swift; sourceTree = "<group>"; };
+		927E718FB9480A9BC52B2E0E /* LunaLive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaLive.swift; sourceTree = "<group>"; };
+		93683250BFF48A95395116EC /* VoiceSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSettings.swift; sourceTree = "<group>"; };
+		93FDFAAB4F6C83692B04083D /* LunaActivityState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaActivityState.swift; sourceTree = "<group>"; };
+		9573F4E2855355F0EC8AF88F /* LunaLook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaLook.swift; sourceTree = "<group>"; };
+		95A250F4FB6AE4B58322CC20 /* QuestionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionCard.swift; sourceTree = "<group>"; };
+		987EB92FCCC601BDE21F345C /* GithubPoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GithubPoller.swift; sourceTree = "<group>"; };
+		99F2D9AE449DA2A6AB563013 /* IslandRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandRootView.swift; sourceTree = "<group>"; };
+		9B275F452B15DA770AEFB67D /* LunaNotificationContent.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = LunaNotificationContent.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		9B9DE34C1B69FB5248086052 /* TurnEndPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnEndPolicy.swift; sourceTree = "<group>"; };
+		9BFEEFCFD17DAB5C842F10CE /* ServiceViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceViews.swift; sourceTree = "<group>"; };
+		9CFA50F3005883D3BF3B3F18 /* DiffEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiffEngine.swift; sourceTree = "<group>"; };
+		9F82448BD7DA67B231B90A14 /* AgentJump.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentJump.swift; sourceTree = "<group>"; };
+		A006B9F6B86B2DEDC34C2CFF /* PhoneAssets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = PhoneAssets.xcassets; sourceTree = "<group>"; };
+		A1D391CFEE0F736631D10794 /* SpotifyViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyViews.swift; sourceTree = "<group>"; };
+		A201C72B4123EE94F91EE322 /* SafeWebURL.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafeWebURL.swift; sourceTree = "<group>"; };
+		A29102D07D591D3F3CA9EFE4 /* IslandStateMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandStateMachine.swift; sourceTree = "<group>"; };
+		A32C6DE22D24A4B0B51F1004 /* GitHubPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubPageView.swift; sourceTree = "<group>"; };
+		A6DBE14071DAC16C4AA76D46 /* ChatMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMarkdownView.swift; sourceTree = "<group>"; };
+		A7688ECE88213AA75981E64D /* ClaudeHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeHost.swift; sourceTree = "<group>"; };
+		AB8C71C3F022053B644FAD2C /* DesktopLunaLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopLunaLogic.swift; sourceTree = "<group>"; };
+		AD17A25E05CECE5E81915E81 /* DesktopLuna.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopLuna.swift; sourceTree = "<group>"; };
+		B04D14751EDF90D79A378E21 /* CalcomPoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalcomPoller.swift; sourceTree = "<group>"; };
+		B1FA8F8C6AAEF63356336624 /* LastTurnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastTurnView.swift; sourceTree = "<group>"; };
+		B4919BFC4E23D0CCD1429F67 /* ChatMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMarkdown.swift; sourceTree = "<group>"; };
+		B6DD629F96F2359077B3BC3C /* ApprovalQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalQueue.swift; sourceTree = "<group>"; };
+		B6E55E4E4326C0673C3CC657 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B78443D8191BCC902BBE5564 /* finish.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = finish.wav; sourceTree = "<group>"; };
+		B85B1CBE46C672155B6FD817 /* UploadSequenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadSequenceEngine.swift; sourceTree = "<group>"; };
+		B8D38BCC26368C264B759304 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B8E46550C3DF67438C766934 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		B92EEB6CB7F9594F75E3727B /* LocalChat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalChat.swift; sourceTree = "<group>"; };
+		BAE2FF106BBDFF9073AA5F63 /* IslandWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandWindowController.swift; sourceTree = "<group>"; };
+		BE051747B1F8B78F89FD9A7C /* LinkTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkTestView.swift; sourceTree = "<group>"; };
+		BFB70DF3315F52BC4F715ECF /* GitHubPulse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubPulse.swift; sourceTree = "<group>"; };
+		C16C88728348A71D53AC94BC /* ShortcutLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutLogic.swift; sourceTree = "<group>"; };
+		C3AD288A0ABCE2D17F30C7C4 /* question.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = question.wav; sourceTree = "<group>"; };
+		C3F259EEBB0C246479863A0B /* AgentNotchViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentNotchViews.swift; sourceTree = "<group>"; };
+		C4610F5955F32AE4EA8F3F39 /* VoiceIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceIslandView.swift; sourceTree = "<group>"; };
+		C4E86289D772C66391D49714 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		C5538A312CCFDA743DB907AC /* AgentSessions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSessions.swift; sourceTree = "<group>"; };
+		C67FF0E068B5BA5EF3AA814D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		C6E866D5D416DC7EB39DBDF6 /* ClaudeSettingsFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeSettingsFile.swift; sourceTree = "<group>"; };
+		C81ECF42AB7A03CB76FFE977 /* AgentPeek.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPeek.swift; sourceTree = "<group>"; };
+		CA1956DAD469ED15565F36EC /* AgentPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPreviewView.swift; sourceTree = "<group>"; };
+		CB14CAF7D4107078D8F6AAFF /* ServiceStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceStatus.swift; sourceTree = "<group>"; };
+		CBA027190F665ADCDC0816F6 /* ClaudeStreamParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeStreamParser.swift; sourceTree = "<group>"; };
+		CC0B96E91DEDCBD607B955E2 /* CodexPlanGauge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexPlanGauge.swift; sourceTree = "<group>"; };
+		CD8FBFE5D085F1E8070C7074 /* SessionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStatus.swift; sourceTree = "<group>"; };
+		CDF8DACBC02EC5A0F139F36B /* LiveActivityLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityLink.swift; sourceTree = "<group>"; };
+		CECBB083CC80E60704A8F16B /* LunaOutfitDrawing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaOutfitDrawing.swift; sourceTree = "<group>"; };
+		CF1225496ADCE3F4F661D734 /* CryptoViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoViews.swift; sourceTree = "<group>"; };
+		D09D7B75E523FEEFE766EA28 /* LunaLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaLiveActivity.swift; sourceTree = "<group>"; };
+		D2313C4A1EF25FC76308A1FB /* SharedSessions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedSessions.swift; sourceTree = "<group>"; };
+		D32D3A5760DEA11E14C0B6E8 /* QuestionRelay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionRelay.swift; sourceTree = "<group>"; };
+		D38656EE7465CD833EA05F97 /* NotionPoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionPoller.swift; sourceTree = "<group>"; };
+		D399E4DA6B951325F78CD25C /* Luna.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Luna.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D45C3645A0656DEE9A65B915 /* IslandTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandTypes.swift; sourceTree = "<group>"; };
+		D8E300A2685B521B4B85C5DA /* LunaStill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaStill.swift; sourceTree = "<group>"; };
+		D8E4400BA68E44AF0BCD94AB /* MailController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailController.swift; sourceTree = "<group>"; };
+		D9387C95B5D14751DE9C51BD /* NotificationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationViewController.swift; sourceTree = "<group>"; };
+		D98E2E19DAE359377218DBBC /* LunaWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaWidgets.swift; sourceTree = "<group>"; };
+		DB79D11F1C4AC85EF7375DDF /* TeamConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamConfiguration.swift; sourceTree = "<group>"; };
+		DB7EBB3473366C89138EE834 /* AgentJumpPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentJumpPlan.swift; sourceTree = "<group>"; };
+		DCD9769D731BB30C9CB2156F /* InstructionRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstructionRunner.swift; sourceTree = "<group>"; };
+		E009202BD9A5988F9F0778CD /* WakeSpotter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WakeSpotter.swift; sourceTree = "<group>"; };
+		E029FDF7088D52409420AACC /* IslandKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandKeys.swift; sourceTree = "<group>"; };
+		E28E3B041CAA137E2124FF37 /* TurnRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnRecorder.swift; sourceTree = "<group>"; };
+		E4DEDDBA6F12509FF8421567 /* EntityResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityResolver.swift; sourceTree = "<group>"; };
+		E784FB5713B2DCEA3C0B2A4B /* IslandScreenGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandScreenGeometry.swift; sourceTree = "<group>"; };
+		EAF9CB6CCD7B3802335DE90B /* CloudProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudProbe.swift; sourceTree = "<group>"; };
+		ED2E2E3D05FD4A0C5D515619 /* MailViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailViews.swift; sourceTree = "<group>"; };
+		F073A2B0C1BE49A251687B7B /* AgentNotch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentNotch.swift; sourceTree = "<group>"; };
+		F0BB956F5CAFEFA5200856B4 /* HotKeyCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyCenter.swift; sourceTree = "<group>"; };
+		F2191B29BD88C2E1AA12DA07 /* LunaPhone.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = LunaPhone.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F2385416C6804B0845FE996B /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		F2D648120C61BAB8822B67B2 /* WakeWindowBackoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WakeWindowBackoff.swift; sourceTree = "<group>"; };
+		F2DD48C1624815EEB08096A6 /* SessionPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPublisher.swift; sourceTree = "<group>"; };
+		F4876F92C04BDEE0C53BADB0 /* VercelPoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VercelPoller.swift; sourceTree = "<group>"; };
+		F7DC4344A3F486BFFD8201B0 /* VoiceGenderNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceGenderNames.swift; sourceTree = "<group>"; };
+		FA4C8841CDABB68612AB952C /* ProcessTTY.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessTTY.swift; sourceTree = "<group>"; };
+		FAC06E98EE9B0A8D9B2B4820 /* AgentLook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentLook.swift; sourceTree = "<group>"; };
+		FCCC968D7DDE920469C79876 /* FileDropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDropView.swift; sourceTree = "<group>"; };
+		FFB7E0DC621CC984895E01FE /* LunaPhoneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunaPhoneApp.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		07EBA084C90D3AA34828EF90 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				9F82448BD7DA67B231B90A14 /* AgentJump.swift */,
+				DB7EBB3473366C89138EE834 /* AgentJumpPlan.swift */,
+				FAC06E98EE9B0A8D9B2B4820 /* AgentLook.swift */,
+				F073A2B0C1BE49A251687B7B /* AgentNotch.swift */,
+				C3F259EEBB0C246479863A0B /* AgentNotchViews.swift */,
+				C81ECF42AB7A03CB76FFE977 /* AgentPeek.swift */,
+				10FC3C26D183C8058F0BE567 /* AgentPreviewLogic.swift */,
+				CA1956DAD469ED15565F36EC /* AgentPreviewView.swift */,
+				C5538A312CCFDA743DB907AC /* AgentSessions.swift */,
+				4AC942741ABB0C987624286B /* AgentsView.swift */,
+				82B5CB2E5447F085D11C5DC2 /* AgentTile.swift */,
+				B8E46550C3DF67438C766934 /* AppDelegate.swift */,
+				04DFF648B3AFA7A00691A495 /* AppLog.swift */,
+				B6DD629F96F2359077B3BC3C /* ApprovalQueue.swift */,
+				C4E86289D772C66391D49714 /* AppState.swift */,
+				664AF0D8FFF6EAF4ADF96F8F /* AskQuestion.swift */,
+				11204E24F3A564B506E73F85 /* BotCanvasView.swift */,
+				B04D14751EDF90D79A378E21 /* CalcomPoller.swift */,
+				1FC4D321B217800DD8CB2B8A /* ChatCLI.swift */,
+				06993E50468A329B45FBA0BE /* ChatCLIMessages.swift */,
+				B4919BFC4E23D0CCD1429F67 /* ChatMarkdown.swift */,
+				A6DBE14071DAC16C4AA76D46 /* ChatMarkdownView.swift */,
+				20C230BFEAA2C3F4DB477216 /* ClaudeCLIChat.swift */,
+				477B625D1001235BB94CB288 /* ClaudeHookDetection.swift */,
+				A7688ECE88213AA75981E64D /* ClaudeHost.swift */,
+				5E0929D0069CBBFDE1BFB976 /* ClaudePlanCardView.swift */,
+				6CC98A58797FD28F8865A421 /* ClaudePlanGauge.swift */,
+				3327A05568BFD9B4B6C3F94F /* ClaudeResponseText.swift */,
+				4F4D34615FC2FB4F03D34D50 /* ClaudeService.swift */,
+				C6E866D5D416DC7EB39DBDF6 /* ClaudeSettingsFile.swift */,
+				CBA027190F665ADCDC0816F6 /* ClaudeStreamParser.swift */,
+				CC0B96E91DEDCBD607B955E2 /* CodexPlanGauge.swift */,
+				68BB8CAF6BB3F9744EB233D5 /* CryptoController.swift */,
+				CF1225496ADCE3F4F661D734 /* CryptoViews.swift */,
+				0D9935FFB8C9F0A866E5808E /* DemoEngine.swift */,
+				AD17A25E05CECE5E81915E81 /* DesktopLuna.swift */,
+				AB8C71C3F022053B644FAD2C /* DesktopLunaLogic.swift */,
+				FCCC968D7DDE920469C79876 /* FileDropView.swift */,
+				8799290543F43D111DAF55AE /* GitHubActivity.swift */,
+				A32C6DE22D24A4B0B51F1004 /* GitHubPageView.swift */,
+				987EB92FCCC601BDE21F345C /* GithubPoller.swift */,
+				BFB70DF3315F52BC4F715ECF /* GitHubPulse.swift */,
+				8AA664AB9E4B8E162215112A /* GreetingCanvasView.swift */,
+				0AE406297471A217B77DEFF9 /* HookServer.swift */,
+				F0BB956F5CAFEFA5200856B4 /* HotKeyCenter.swift */,
+				43B2427DA49B3BE2403AF232 /* IntegrationPages.swift */,
+				22FB708EE1417249F3F46A10 /* IslandDisplayChoice.swift */,
+				48B6BB8318E4218EA80FB8C0 /* IslandKeyHelpView.swift */,
+				E029FDF7088D52409420AACC /* IslandKeys.swift */,
+				99F2D9AE449DA2A6AB563013 /* IslandRootView.swift */,
+				A29102D07D591D3F3CA9EFE4 /* IslandStateMachine.swift */,
+				88FD48D4E32111AB7D1D8DF9 /* IslandViewContent.swift */,
+				BAE2FF106BBDFF9073AA5F63 /* IslandWindowController.swift */,
+				B92EEB6CB7F9594F75E3727B /* LocalChat.swift */,
+				533039DA8089E365D584EE04 /* LunaApp.swift */,
+				539F8DFECCAA0962C8AB5406 /* MacDictation.swift */,
+				D8E4400BA68E44AF0BCD94AB /* MailController.swift */,
+				ED2E2E3D05FD4A0C5D515619 /* MailViews.swift */,
+				2BAAB2E8F8A239CF487070E8 /* MusicController.swift */,
+				57B192F5E1847A38B83754CC /* N8nPoller.swift */,
+				D38656EE7465CD833EA05F97 /* NotionPoller.swift */,
+				5ABE4FEA8B9BB4D41E0409AE /* NowPlayingViews.swift */,
+				376A5C6E0AA9A723FDFDD573 /* PillSessionRegistry.swift */,
+				FA4C8841CDABB68612AB952C /* ProcessTTY.swift */,
+				408856BC9407AE8F9690888F /* RecapStore.swift */,
+				543CD115B940C37FCDBC801F /* ResendPoller.swift */,
+				A201C72B4123EE94F91EE322 /* SafeWebURL.swift */,
+				B8D38BCC26368C264B759304 /* SettingsView.swift */,
+				C16C88728348A71D53AC94BC /* ShortcutLogic.swift */,
+				527FC61461CF4E01E3886994 /* ShortcutsSettingsView.swift */,
+				3E3454AEE69052BE283922E9 /* SoundEngine.swift */,
+				548707C60D20AA401DF34F40 /* SpotifyController.swift */,
+				A1D391CFEE0F736631D10794 /* SpotifyViews.swift */,
+				3F0F2722346431FD569B885F /* StripePoller.swift */,
+				812620AF40CA0B40927CF1B8 /* TerminalTarget.swift */,
+				1473F497BB09849FD8E7C428 /* TerminalTarget+AppKit.swift */,
+				4D0A544E71279141F78D469B /* UploadCanvasView.swift */,
+				B85B1CBE46C672155B6FD817 /* UploadSequenceEngine.swift */,
+				2EF8B1A172378168331A7D61 /* UserIdentity.swift */,
+				F4876F92C04BDEE0C53BADB0 /* VercelPoller.swift */,
+				32179C89DA82A87336E8B17D /* WeeklyRecapView.swift */,
+				0F1F1D6B05A768EAFF838D4D /* WindowContextCapture.swift */,
+				A5FEB56BBDBF8ED42BFBEFD7 /* PhoneLink */,
+				D0D96696947BA6A08F606143 /* Voice */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		0E258EAC185F83A209546F0A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D399E4DA6B951325F78CD25C /* Luna.app */,
+				8DA4830F9DB22E72FE70EC15 /* LunaAppStore.app */,
+				9B275F452B15DA770AEFB67D /* LunaNotificationContent.appex */,
+				F2191B29BD88C2E1AA12DA07 /* LunaPhone.app */,
+				55E9D38C4309E382E7B42369 /* LunaWidgets.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		122D5369534009A135C893AD /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				C67FF0E068B5BA5EF3AA814D /* Localizable.xcstrings */,
+				74ACD19E94C2B06A6D022178 /* sounds */,
+				98EA6A6B0C2460F2A0974470 /* sounds */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		52B6F07583DF410C8F6C272F /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				07EBA084C90D3AA34828EF90 /* App */,
+				9FEBC1221CF973439B52598E /* LunaKit */,
+				5D8B29889DAC863F7E6910FA /* NotificationContent */,
+				E9ABCB3D7201A2FED375A876 /* Phone */,
+				5DC8AA6CF01F6757D38321CF /* Widgets */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		5D8B29889DAC863F7E6910FA /* NotificationContent */ = {
+			isa = PBXGroup;
+			children = (
+				D9387C95B5D14751DE9C51BD /* NotificationViewController.swift */,
+			);
+			path = NotificationContent;
+			sourceTree = "<group>";
+		};
+		5DC8AA6CF01F6757D38321CF /* Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				61B57892ECB6150BFCD2FEBE /* LunaControl.swift */,
+				D09D7B75E523FEEFE766EA28 /* LunaLiveActivity.swift */,
+				D98E2E19DAE359377218DBBC /* LunaWidgets.swift */,
+				DB79D11F1C4AC85EF7375DDF /* TeamConfiguration.swift */,
+			);
+			path = Widgets;
+			sourceTree = "<group>";
+		};
+		98EA6A6B0C2460F2A0974470 /* sounds */ = {
+			isa = PBXGroup;
+			children = (
+				860F3B51E6BF41C1FFC596DE /* approval.wav */,
+				5EE01EBB280EC89D6650708D /* error.wav */,
+				B78443D8191BCC902BBE5564 /* finish.wav */,
+				C3AD288A0ABCE2D17F30C7C4 /* question.wav */,
+			);
+			path = sounds;
+			sourceTree = "<group>";
+		};
+		9FEBC1221CF973439B52598E /* LunaKit */ = {
+			isa = PBXGroup;
+			children = (
+				44363FFB879C412B591CCD3F /* BotEngine.swift */,
+				79418E1F669DA079AEB4FFC8 /* ColorHex.swift */,
+				9CFA50F3005883D3BF3B3F18 /* DiffEngine.swift */,
+				E784FB5713B2DCEA3C0B2A4B /* IslandScreenGeometry.swift */,
+				D45C3645A0656DEE9A65B915 /* IslandTypes.swift */,
+				93FDFAAB4F6C83692B04083D /* LunaActivityState.swift */,
+				3B2EA9A5BC6393A155E98C31 /* LunaFace.swift */,
+				9573F4E2855355F0EC8AF88F /* LunaLook.swift */,
+				CECBB083CC80E60704A8F16B /* LunaOutfitDrawing.swift */,
+				D8E300A2685B521B4B85C5DA /* LunaStill.swift */,
+				635C26B4AA8D155D8F7786FA /* LunaWardrobe.swift */,
+				82A6CB5BB952DD82E4169759 /* PillCatalog.swift */,
+				535DF74B2C536D2388CDFE34 /* PillColors.swift */,
+				16589E556CE71C24F1997921 /* QuestionPayload.swift */,
+				66BD2FE2AB9F1357E583606F /* ServiceDetail.swift */,
+				71DEDB8B17317FDD5F24D6B9 /* ServiceSnapshot.swift */,
+				68AC65085351FE2271AD1661 /* TurnSnapshot.swift */,
+			);
+			path = LunaKit;
+			sourceTree = "<group>";
+		};
+		A5FEB56BBDBF8ED42BFBEFD7 /* PhoneLink */ = {
+			isa = PBXGroup;
+			children = (
+				2182C30224BE101104796194 /* ApprovalRelay.swift */,
+				EAF9CB6CCD7B3802335DE90B /* CloudProbe.swift */,
+				DCD9769D731BB30C9CB2156F /* InstructionRunner.swift */,
+				605D56A58B0E64294C6FF1AC /* LiveActivityRelay.swift */,
+				D32D3A5760DEA11E14C0B6E8 /* QuestionRelay.swift */,
+				4FA8C4AEB37162AC3B6F3716 /* ServiceDetailRunner.swift */,
+				7648D142776163B48934E3E2 /* ServicePublisher.swift */,
+				F2DD48C1624815EEB08096A6 /* SessionPublisher.swift */,
+				E28E3B041CAA137E2124FF37 /* TurnRecorder.swift */,
+			);
+			path = PhoneLink;
+			sourceTree = "<group>";
+		};
+		BCE224A24DD6FDE472019650 = {
+			isa = PBXGroup;
+			children = (
+				B6E55E4E4326C0673C3CC657 /* Assets.xcassets */,
+				A006B9F6B86B2DEDC34C2CFF /* PhoneAssets.xcassets */,
+				122D5369534009A135C893AD /* Resources */,
+				52B6F07583DF410C8F6C272F /* Sources */,
+				0E258EAC185F83A209546F0A /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D0D96696947BA6A08F606143 /* Voice */ = {
+			isa = PBXGroup;
+			children = (
+				28043A1903887C09521A6F49 /* ClaudeVoiceBrain.swift */,
+				6B4531A1FF232A3094219BF4 /* ConversationContext.swift */,
+				12C5CE4CE965712AD5FF66E2 /* ElevenLabsTTS.swift */,
+				579B61E30BF224FA20D632B8 /* EnergyVAD.swift */,
+				E4DEDDBA6F12509FF8421567 /* EntityResolver.swift */,
+				626E066A59CA1486222CD5F5 /* IntentParser.swift */,
+				7E4C266FAE979366B2800115 /* LiveVoiceControls.swift */,
+				8BC1584EA6538498CA707C95 /* SpotterGeneration.swift */,
+				9B9DE34C1B69FB5248086052 /* TurnEndPolicy.swift */,
+				74307EE780A84285B1551A02 /* VoiceActionRunner.swift */,
+				06B8217C69B506669B3099A2 /* VoiceAudio.swift */,
+				2EF43DF94F8E25C1E1959B3F /* VoiceBrain.swift */,
+				3EB5E84D171E2243FC571248 /* VoiceCaptionManager.swift */,
+				263359A987BA6E002CD9A847 /* VoiceDataSources.swift */,
+				0B628D78C5557499E326B514 /* VoiceEngine.swift */,
+				F7DC4344A3F486BFFD8201B0 /* VoiceGenderNames.swift */,
+				275B3FCC6F882C221916FA1E /* VoiceIntent.swift */,
+				C4610F5955F32AE4EA8F3F39 /* VoiceIslandView.swift */,
+				8385CCF63C3B80880B22D385 /* VoiceQuery.swift */,
+				7B531A2C5DC439484F167275 /* VoiceResultView.swift */,
+				93683250BFF48A95395116EC /* VoiceSettings.swift */,
+				02D8322728F23AF2E4C6C3D0 /* VoiceSpeaker.swift */,
+				1AEBF45B8DCD61C49D7C37DF /* VoiceTranscriptHistory.swift */,
+				5A7E84AC942877583E13E5E9 /* VoiceWakeFilter.swift */,
+				8FA3EA06BFB9E12DCB2F932D /* WakePhrase.swift */,
+				E009202BD9A5988F9F0778CD /* WakeSpotter.swift */,
+				F2D648120C61BAB8822B67B2 /* WakeWindowBackoff.swift */,
+			);
+			path = Voice;
+			sourceTree = "<group>";
+		};
+		E9ABCB3D7201A2FED375A876 /* Phone */ = {
+			isa = PBXGroup;
+			children = (
+				86D732EEDD2D9CF01BCC891C /* AboutView.swift */,
+				583FDBD0A423333F378D47D8 /* AgentNotifier.swift */,
+				4330A2CEDED4F19B28458325 /* AppleStyle.swift */,
+				4F7F677EFAE3C349DAFBAF00 /* ApprovalCard.swift */,
+				2DB856CF1C2E87D79FE85EA9 /* Decisions.swift */,
+				8AF9BB4594F01921CF913C1A /* DenyApprovalIntent.swift */,
+				63542A71166400B0AE96EA8F /* Haptics.swift */,
+				F2385416C6804B0845FE996B /* HomeView.swift */,
+				116A0C83C2F147EECD554274 /* InstructionComposer.swift */,
+				84A43E485A1E73D23625D0A7 /* IntroView.swift */,
+				487242C07730BA5D7131B39E /* KitPreviewView.swift */,
+				B1FA8F8C6AAEF63356336624 /* LastTurnView.swift */,
+				BE051747B1F8B78F89FD9A7C /* LinkTestView.swift */,
+				CDF8DACBC02EC5A0F139F36B /* LiveActivityLink.swift */,
+				594D9ED4D2A14D1DD9D34AB6 /* LunaActivityAttributes.swift */,
+				1F5B00E2D13DBBC6513ECCE9 /* LunaIntents.swift */,
+				927E718FB9480A9BC52B2E0E /* LunaLive.swift */,
+				FFB7E0DC621CC984895E01FE /* LunaPhoneApp.swift */,
+				36A5522CD4E7C718170A6B6B /* MacStubs.swift */,
+				2B8F9AFECAB0DE3A36CAFFB8 /* OpenLeadLunaIntent.swift */,
+				60161789FC74688C9CA54584 /* PhoneLink.swift */,
+				95A250F4FB6AE4B58322CC20 /* QuestionCard.swift */,
+				26DCAA15D433C1C73D586587 /* SearchAndSpotlight.swift */,
+				55C6345122F022F750AA1453 /* ServiceLiveDetail.swift */,
+				CB14CAF7D4107078D8F6AAFF /* ServiceStatus.swift */,
+				9BFEEFCFD17DAB5C842F10CE /* ServiceViews.swift */,
+				79D31202598C02A3B5366598 /* SessionDetailView.swift */,
+				CD8FBFE5D085F1E8070C7074 /* SessionStatus.swift */,
+				D2313C4A1EF25FC76308A1FB /* SharedSessions.swift */,
+				4C4AA5C7B704DACCCA75479B /* TurnArchive.swift */,
+				4E7D361802C2381CB2F0E1C7 /* TurnShare.swift */,
+			);
+			path = Phone;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3F2390047B1A12F6CE17ADA6 /* LunaNotificationContent */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3B5349848D231979E6E2B691 /* Build configuration list for PBXNativeTarget "LunaNotificationContent" */;
+			buildPhases = (
+				3B0F585580780CF7008A47FB /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LunaNotificationContent;
+			packageProductDependencies = (
+			);
+			productName = LunaNotificationContent;
+			productReference = 9B275F452B15DA770AEFB67D /* LunaNotificationContent.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		BC432DA9CFAAD84B3DE15C49 /* LunaAppStore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 921F4CEBCA88C26C3E8EE3F2 /* Build configuration list for PBXNativeTarget "LunaAppStore" */;
+			buildPhases = (
+				B33AB7AB8E84DC88326A66B2 /* Sources */,
+				A47E74707B00DB1C6197847F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LunaAppStore;
+			packageProductDependencies = (
+			);
+			productName = LunaAppStore;
+			productReference = 8DA4830F9DB22E72FE70EC15 /* LunaAppStore.app */;
+			productType = "com.apple.product-type.application";
+		};
+		DC8329499D0CC669060F8231 /* LunaPhone */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EE144350121998D068D1A9E4 /* Build configuration list for PBXNativeTarget "LunaPhone" */;
+			buildPhases = (
+				264DF6818E119DCEB563189D /* Sources */,
+				8B63FAD4D020434D25FBE8D9 /* Resources */,
+				5E7FD42536CD4A79E9C3D42E /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3EB0E88EC9AB7A7BFFF93F44 /* PBXTargetDependency */,
+				003C26FA7499B4F154FE31A6 /* PBXTargetDependency */,
+			);
+			name = LunaPhone;
+			packageProductDependencies = (
+			);
+			productName = LunaPhone;
+			productReference = F2191B29BD88C2E1AA12DA07 /* LunaPhone.app */;
+			productType = "com.apple.product-type.application";
+		};
+		EDEBD772AE9343A01D9935A3 /* Luna */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 402FB2144CA133517A0F616E /* Build configuration list for PBXNativeTarget "Luna" */;
+			buildPhases = (
+				52D303B0782F30C5862FA0FC /* Sources */,
+				D18FBD20BFCC381C6C6B544C /* Resources */,
+				0B8D04AF1FA85ED88705A972 /* Write Git Hash to Info.plist */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Luna;
+			packageProductDependencies = (
+			);
+			productName = Luna;
+			productReference = D399E4DA6B951325F78CD25C /* Luna.app */;
+			productType = "com.apple.product-type.application";
+		};
+		F05E1BF236A9829FBD21CB64 /* LunaWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 81E1B1FDAB3D46EC602BBCB0 /* Build configuration list for PBXNativeTarget "LunaWidgets" */;
+			buildPhases = (
+				88FBF709E63CBE44288522E9 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LunaWidgets;
+			packageProductDependencies = (
+			);
+			productName = LunaWidgets;
+			productReference = 55E9D38C4309E382E7B42369 /* LunaWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		17A65B085E12EE34B8A63E88 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					3F2390047B1A12F6CE17ADA6 = {
+						ProvisioningStyle = Automatic;
+					};
+					BC432DA9CFAAD84B3DE15C49 = {
+						ProvisioningStyle = Automatic;
+					};
+					DC8329499D0CC669060F8231 = {
+						ProvisioningStyle = Automatic;
+					};
+					F05E1BF236A9829FBD21CB64 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 9C7285D4C14B8A8DF926CBB7 /* Build configuration list for PBXProject "Luna" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = BCE224A24DD6FDE472019650;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 0E258EAC185F83A209546F0A /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				EDEBD772AE9343A01D9935A3 /* Luna */,
+				BC432DA9CFAAD84B3DE15C49 /* LunaAppStore */,
+				DC8329499D0CC669060F8231 /* LunaPhone */,
+				F05E1BF236A9829FBD21CB64 /* LunaWidgets */,
+				3F2390047B1A12F6CE17ADA6 /* LunaNotificationContent */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8B63FAD4D020434D25FBE8D9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A94DB859B55DF4CAF2CD3490 /* PhoneAssets.xcassets in Resources */,
+				55914D5AED24F5FB6462B74D /* approval.wav in Resources */,
+				EDE0F7BC22F231271DF6CEF8 /* error.wav in Resources */,
+				F641558426ED24A41F965597 /* finish.wav in Resources */,
+				38E8596B832BE1888D69275F /* question.wav in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A47E74707B00DB1C6197847F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FE10151D89B1DCDACCC9A989 /* Assets.xcassets in Resources */,
+				92E67524BCDC1768C2F2AFAB /* Localizable.xcstrings in Resources */,
+				149DB7BE2E0C1F179923E114 /* sounds in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D18FBD20BFCC381C6C6B544C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4CCB5277B6800D03EC0ADDF1 /* Assets.xcassets in Resources */,
+				38ACE76CF2550EB5D1A750C9 /* Localizable.xcstrings in Resources */,
+				E6A3C03E4016F8AE14969F9B /* sounds in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		0B8D04AF1FA85ED88705A972 /* Write Git Hash to Info.plist */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Write Git Hash to Info.plist";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "HASH=$(git -C \"${SRCROOT}/..\" rev-parse --short HEAD 2>/dev/null || echo \"unknown\")\n/usr/libexec/PlistBuddy -c \"Set :LunaGitHash ${HASH}\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\" 2>/dev/null \\\n  || /usr/libexec/PlistBuddy -c \"Add :LunaGitHash string ${HASH}\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		264DF6818E119DCEB563189D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8CA7A82D46932D5FD9621798 /* AboutView.swift in Sources */,
+				97919E68FE9FA516539FE43E /* AgentNotifier.swift in Sources */,
+				F658017B33616ABA6F71AAA8 /* AppleStyle.swift in Sources */,
+				25C31FBD633E981889E6569A /* ApprovalCard.swift in Sources */,
+				B6BCC462395DF248FFB6A5CD /* BotEngine.swift in Sources */,
+				DFB29992C95143259E07679F /* ColorHex.swift in Sources */,
+				7ACFF6E3259ED9ED03D975F1 /* Decisions.swift in Sources */,
+				4B5DCC1663AF7A8384D2DC57 /* DenyApprovalIntent.swift in Sources */,
+				93FB458CE5BE44F7B27A9DE8 /* DiffEngine.swift in Sources */,
+				AB0E2C473A28A19733899FB4 /* Haptics.swift in Sources */,
+				D90F69A59CAE470642AE5401 /* HomeView.swift in Sources */,
+				8B5E3CC25597F4CDF424717B /* InstructionComposer.swift in Sources */,
+				713112F9640C93493C746287 /* IntroView.swift in Sources */,
+				CE10153D3675C7F80EFE7ECF /* IslandScreenGeometry.swift in Sources */,
+				F16626674CA2D33CC38342E3 /* IslandTypes.swift in Sources */,
+				EB62B6D36E7FB6EC52D75256 /* KitPreviewView.swift in Sources */,
+				271F010532188647434B4FE6 /* LastTurnView.swift in Sources */,
+				1A197A0A520A4B4D07759054 /* LinkTestView.swift in Sources */,
+				0EE18BAAA419AB998ECF3633 /* LiveActivityLink.swift in Sources */,
+				2681D02FAA4DFE97C765B9C7 /* LunaActivityAttributes.swift in Sources */,
+				615157841F1882D220C8A5D3 /* LunaActivityState.swift in Sources */,
+				CCF3AED01BD66714A5E95A24 /* LunaFace.swift in Sources */,
+				7309318B357C15A15C0340BD /* LunaIntents.swift in Sources */,
+				28DD744EC58135F7C84F64C0 /* LunaLive.swift in Sources */,
+				1FDB17C0DF5A2D5F3AA3E952 /* LunaLook.swift in Sources */,
+				D483F5F261EA5852843491A3 /* LunaOutfitDrawing.swift in Sources */,
+				E8903062EEEDED79DC76A07F /* LunaPhoneApp.swift in Sources */,
+				EB2F3C1BC9DF801AAFA115CE /* LunaStill.swift in Sources */,
+				654561D7F68DF0AF5A0F97A7 /* LunaWardrobe.swift in Sources */,
+				C9F7CA38B829F77F36C4BFDE /* MacStubs.swift in Sources */,
+				F8C37B0F16675BA828DBF84C /* OpenLeadLunaIntent.swift in Sources */,
+				D04C326562B720E56B2CD53D /* PhoneLink.swift in Sources */,
+				8FAB6C5E3FAB159602513EB1 /* PillCatalog.swift in Sources */,
+				F5811291CEA505E500C00C42 /* PillColors.swift in Sources */,
+				D9EA3A2BD8ADE35FD21F7025 /* QuestionCard.swift in Sources */,
+				2354A671A6F23CEF13036279 /* QuestionPayload.swift in Sources */,
+				15FA3F95C5DB27511DC9936A /* SearchAndSpotlight.swift in Sources */,
+				76F49F0B34C07C7BAA252B23 /* ServiceDetail.swift in Sources */,
+				B0BDEA903BF3FD6E213E61CD /* ServiceLiveDetail.swift in Sources */,
+				0B54535A9ABF5AF4E7905244 /* ServiceSnapshot.swift in Sources */,
+				AB8072D2B8EF9AA8B2B8B0E4 /* ServiceStatus.swift in Sources */,
+				85FDA2B8896DB3E0E9A29C5B /* ServiceViews.swift in Sources */,
+				4E03D5B6719C45CD9F6D2272 /* SessionDetailView.swift in Sources */,
+				4257C5798490C3972A684C48 /* SessionStatus.swift in Sources */,
+				983A4C1DC4DA2E3F29574870 /* SharedSessions.swift in Sources */,
+				217D4D734619725F8AB29AD2 /* TurnArchive.swift in Sources */,
+				3E49D3F6DA910994D544554C /* TurnShare.swift in Sources */,
+				5334C1B85D3F83C2BBF87C3D /* TurnSnapshot.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3B0F585580780CF7008A47FB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				06FA7B1C0566A12BEB71B277 /* BotEngine.swift in Sources */,
+				D5237E02EEDB3534F3037366 /* ColorHex.swift in Sources */,
+				EF5E8C2166E18D6C970468FF /* DiffEngine.swift in Sources */,
+				DB71657B90B9B9422C4E5A15 /* IslandScreenGeometry.swift in Sources */,
+				6610CCACA8C5D9323D02B82C /* IslandTypes.swift in Sources */,
+				CA218E302D0396F10756777A /* LunaActivityState.swift in Sources */,
+				DA1D74D8C911F0394357A2D2 /* LunaFace.swift in Sources */,
+				01B8A4C0C422017BCDFB1B72 /* LunaLive.swift in Sources */,
+				91BC254FD8A368B654E5CBED /* LunaLook.swift in Sources */,
+				F0B51AE4B2D3D7214FF600A5 /* LunaOutfitDrawing.swift in Sources */,
+				7CA6B4D86E75455691150EA0 /* LunaStill.swift in Sources */,
+				EF1B859E886308ADBC8DCBC2 /* LunaWardrobe.swift in Sources */,
+				274BFB2746F6C210D0D24772 /* MacStubs.swift in Sources */,
+				69F0D446E167B868D384FF7E /* NotificationViewController.swift in Sources */,
+				4E2582FB94E642E765E85568 /* PillCatalog.swift in Sources */,
+				085F6468FAE2174BB69CC70E /* PillColors.swift in Sources */,
+				813A7727BF1574CE5DB38D7A /* QuestionPayload.swift in Sources */,
+				B192BB5DFBC07E63B746C54F /* ServiceDetail.swift in Sources */,
+				5376ADB6B41F46593CC46E0B /* ServiceSnapshot.swift in Sources */,
+				396AFD75B1E52B169C7A5F5D /* TurnSnapshot.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		52D303B0782F30C5862FA0FC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F5C99E95A074518E070E871A /* AgentJump.swift in Sources */,
+				900A20BEE9388EB93946C636 /* AgentJumpPlan.swift in Sources */,
+				C9A7E28BBCDFF59B8B43BACB /* AgentLook.swift in Sources */,
+				86934A1B7898ED83178AA959 /* AgentNotch.swift in Sources */,
+				1F2043DDA8163C58FBAE1B44 /* AgentNotchViews.swift in Sources */,
+				6E963D586A9968693BAEA5F2 /* AgentPeek.swift in Sources */,
+				E40CB664E65C024358A3C458 /* AgentPreviewLogic.swift in Sources */,
+				8E67EAF5062B9FE30C4AB8B5 /* AgentPreviewView.swift in Sources */,
+				4FAED6A9C3E446012889C56B /* AgentSessions.swift in Sources */,
+				C450556F126B5170FDD0A83F /* AgentTile.swift in Sources */,
+				BA3719FA49A848760874DB43 /* AgentsView.swift in Sources */,
+				4A7778B1946FF29D539DE21A /* AppDelegate.swift in Sources */,
+				1BD30A327F38F34C8AA3D187 /* AppLog.swift in Sources */,
+				C02F3E39EBAEBCB87A5D7F64 /* AppState.swift in Sources */,
+				3321C2149C7AFDF7E3556506 /* ApprovalQueue.swift in Sources */,
+				2F4AF8EB23190D2B6EE7EDD1 /* ApprovalRelay.swift in Sources */,
+				999920FB9C1F381F96830CAB /* AskQuestion.swift in Sources */,
+				45708DCB7D7021F4BDFDCD9B /* BotCanvasView.swift in Sources */,
+				81B981D93A749C913EC2E0DB /* BotEngine.swift in Sources */,
+				B1E9829FC4952FFDE0556D6F /* CalcomPoller.swift in Sources */,
+				B116AB35FF5E37E7D218B883 /* ChatCLI.swift in Sources */,
+				A80217872A97D0A39A6EB71C /* ChatCLIMessages.swift in Sources */,
+				963E2808CAF218D8048EABEC /* ChatMarkdown.swift in Sources */,
+				09798C59602BBA20E682866E /* ChatMarkdownView.swift in Sources */,
+				3E736A8EA0A8A18661A151D2 /* ClaudeCLIChat.swift in Sources */,
+				7364A0306596B01AC107F0AF /* ClaudeHookDetection.swift in Sources */,
+				97CB4E6391DD5FC051CDB3E8 /* ClaudeHost.swift in Sources */,
+				E689A6403D9E342F35EC69FE /* ClaudePlanCardView.swift in Sources */,
+				45A60A332640AB91EBA62B27 /* ClaudePlanGauge.swift in Sources */,
+				6D07D4E733D02BB20E112CB4 /* ClaudeResponseText.swift in Sources */,
+				DB6AAFCD3A79ADAE6A3969D6 /* ClaudeService.swift in Sources */,
+				4F8DED2AC09C951EC1BC7392 /* ClaudeSettingsFile.swift in Sources */,
+				4FF76F4990C1E3F7E5A2FCA7 /* ClaudeStreamParser.swift in Sources */,
+				418D3E4017AC0F86B8753BE9 /* ClaudeVoiceBrain.swift in Sources */,
+				C29D35E20F366205D71864CB /* CloudProbe.swift in Sources */,
+				EA9B1180B2B8786548B4B365 /* CodexPlanGauge.swift in Sources */,
+				A4CC281295F0A87FC7E76672 /* ColorHex.swift in Sources */,
+				E3FE436402FBFE454A6B3D1A /* ConversationContext.swift in Sources */,
+				45E40FF772F856BBA1B1EEDE /* CryptoController.swift in Sources */,
+				75568D2E9A4E7726245365CB /* CryptoViews.swift in Sources */,
+				7BA9B39E414A37A0F5D51414 /* DemoEngine.swift in Sources */,
+				4C3F78A3613FDB246B5A2DE9 /* DesktopLuna.swift in Sources */,
+				D2D75B17EBE970274F6D4E7E /* DesktopLunaLogic.swift in Sources */,
+				8604371D22201388CB46AA34 /* DiffEngine.swift in Sources */,
+				0CC2C6F16C68A03D7EC35D80 /* ElevenLabsTTS.swift in Sources */,
+				D77F5B65FD9BAB270A3CB117 /* EnergyVAD.swift in Sources */,
+				B7A42BC01AA8F6828B25B941 /* EntityResolver.swift in Sources */,
+				CFB094A0CD37304906F3CE75 /* FileDropView.swift in Sources */,
+				D86A92A4C877F82237CAC527 /* GitHubActivity.swift in Sources */,
+				CAAABC3342067014B5A16141 /* GitHubPageView.swift in Sources */,
+				5FC5B20F0919968FECA6E3C2 /* GitHubPulse.swift in Sources */,
+				9D3A6092D3E96EEB2375D0C1 /* GithubPoller.swift in Sources */,
+				5A53559A56B9EDFC6F2404B9 /* GreetingCanvasView.swift in Sources */,
+				7F930FE153ECE4B4BDE8B171 /* HookServer.swift in Sources */,
+				A4280D10118427F307A2E77A /* HotKeyCenter.swift in Sources */,
+				C40B36E17F3EEDF61A4E82FB /* InstructionRunner.swift in Sources */,
+				6C15E8FBB31C1682FD523269 /* IntegrationPages.swift in Sources */,
+				C6559D106F6139ACD7781697 /* IntentParser.swift in Sources */,
+				8BBCCBDC9F425A4A13476B29 /* IslandDisplayChoice.swift in Sources */,
+				A2378C0F8D8315B912A814A5 /* IslandKeyHelpView.swift in Sources */,
+				9E0B6FDDC889591211B6D0FC /* IslandKeys.swift in Sources */,
+				8D09B20BF29F99BE2B205755 /* IslandRootView.swift in Sources */,
+				B92FACF7B299C74A735D3748 /* IslandScreenGeometry.swift in Sources */,
+				474A446766533EE80A138045 /* IslandStateMachine.swift in Sources */,
+				28650B6CD853A2757375229A /* IslandTypes.swift in Sources */,
+				4CE1670E0FA1E011EAB0B6BD /* IslandViewContent.swift in Sources */,
+				F36C56EE68A3C37518D74D45 /* IslandWindowController.swift in Sources */,
+				69EF8D9F3BD4904EBDF53993 /* LiveActivityRelay.swift in Sources */,
+				CF3114A060CC3E5F0D6169B5 /* LiveVoiceControls.swift in Sources */,
+				B1B8016773A494DB3AE47051 /* LocalChat.swift in Sources */,
+				DB4878EBE63F6590F45B0983 /* LunaActivityState.swift in Sources */,
+				F49718FE1323A232D03A344A /* LunaApp.swift in Sources */,
+				10BB2E4A552B3F28F9B0F783 /* LunaFace.swift in Sources */,
+				B21FC263ADDFD7CFC1A81AFA /* LunaLook.swift in Sources */,
+				A2015A561B161A008FDAA516 /* LunaOutfitDrawing.swift in Sources */,
+				3E06819C3145B6DFF933170F /* LunaStill.swift in Sources */,
+				486DE29C40F8832CEFE0425E /* LunaWardrobe.swift in Sources */,
+				978CC8C7DCC86772C95E3A11 /* MacDictation.swift in Sources */,
+				489EFE250E196CF398253EAE /* MailController.swift in Sources */,
+				94653CACC83E48846717A526 /* MailViews.swift in Sources */,
+				A4C9A2B714FBB61D9B658FB8 /* MusicController.swift in Sources */,
+				C327E7EF14561613315BDC26 /* N8nPoller.swift in Sources */,
+				DD800A8B1BF6DC4F42F50909 /* NotionPoller.swift in Sources */,
+				409D4C8C9F736071DA67B0E9 /* NowPlayingViews.swift in Sources */,
+				258F07DAA1A540C291579B81 /* PillCatalog.swift in Sources */,
+				8E174A2F9467F41205D77AE8 /* PillColors.swift in Sources */,
+				CB370090FE099F6E41827BDF /* PillSessionRegistry.swift in Sources */,
+				6DA62E1A6B8B63A635DC7DE4 /* ProcessTTY.swift in Sources */,
+				050E085B9C0897029F34B4C2 /* QuestionPayload.swift in Sources */,
+				C44DE9FF9A0A4E6E48F2A93E /* QuestionRelay.swift in Sources */,
+				79C4F85CA6233498BD55A325 /* RecapStore.swift in Sources */,
+				A1B6E3BFD0092F8C27FD9BD4 /* ResendPoller.swift in Sources */,
+				17D4ED5B16113D2B736F7A3B /* SafeWebURL.swift in Sources */,
+				FC479B62ED9961A7E3996B07 /* ServiceDetail.swift in Sources */,
+				320DFBF96FCFFF19BBC433FD /* ServiceDetailRunner.swift in Sources */,
+				4163B6C0811A43FA59839C38 /* ServicePublisher.swift in Sources */,
+				1F0839A7CE493BD83423BDAF /* ServiceSnapshot.swift in Sources */,
+				B1260EA59429F83778E2100A /* SessionPublisher.swift in Sources */,
+				0F06DD85A0071885606921F8 /* SettingsView.swift in Sources */,
+				3D6D923627067700B7416BC6 /* ShortcutLogic.swift in Sources */,
+				7593FCBD793567B8CFF9E32D /* ShortcutsSettingsView.swift in Sources */,
+				7EED665694F7623782E66668 /* SoundEngine.swift in Sources */,
+				401098CBD97381114D395AC9 /* SpotifyController.swift in Sources */,
+				F6E3E94CCAEB5A843536BAF1 /* SpotifyViews.swift in Sources */,
+				FA9A0F988DA59FD0826C87F1 /* SpotterGeneration.swift in Sources */,
+				F978D21A34E86C65A7C748DC /* StripePoller.swift in Sources */,
+				32576C0D2B9D2D3B5FBF49ED /* TerminalTarget+AppKit.swift in Sources */,
+				9E3FE4F798CD4C91EA684BC5 /* TerminalTarget.swift in Sources */,
+				7839853729BBAEFD85059644 /* TurnEndPolicy.swift in Sources */,
+				C1BDFA5D6FBCF0B48416D2A2 /* TurnRecorder.swift in Sources */,
+				42BA9EFBB5B89A9F912AF3A9 /* TurnSnapshot.swift in Sources */,
+				AF8E905554FDE40237406DDA /* UploadCanvasView.swift in Sources */,
+				1BB7096266904114DE751014 /* UploadSequenceEngine.swift in Sources */,
+				0D40AEE7DCE56B5CAFFEEEB4 /* UserIdentity.swift in Sources */,
+				B418651542F060632E496226 /* VercelPoller.swift in Sources */,
+				0862C750AA65DF0C27F116FF /* VoiceActionRunner.swift in Sources */,
+				F0DD51DB9B4D0C3B1E8698A6 /* VoiceAudio.swift in Sources */,
+				504B19B237069635B633FB0D /* VoiceBrain.swift in Sources */,
+				5CC8009A39DDF821A0AF21BA /* VoiceCaptionManager.swift in Sources */,
+				7D658A16C00374914B505F4B /* VoiceDataSources.swift in Sources */,
+				B791D696009B4A58FEF12741 /* VoiceEngine.swift in Sources */,
+				65DB50A8F8BBB3F9A1D3EEB8 /* VoiceGenderNames.swift in Sources */,
+				A8E3A83B8F9F2C303E322D11 /* VoiceIntent.swift in Sources */,
+				AAC8F7E0FC7301C557240078 /* VoiceIslandView.swift in Sources */,
+				1B6C51506C5069BC888EA487 /* VoiceQuery.swift in Sources */,
+				C9D06261492D9E125E53676F /* VoiceResultView.swift in Sources */,
+				DB5D6F3DE5DCADE51B70ECFA /* VoiceSettings.swift in Sources */,
+				8AE8E63EF64FCD1675761D48 /* VoiceSpeaker.swift in Sources */,
+				061CF7CEF0D63726D53BEEBA /* VoiceTranscriptHistory.swift in Sources */,
+				D1D4D01AA39E9FB4032CB639 /* VoiceWakeFilter.swift in Sources */,
+				33339F1EBC3AF85ABE8CE9EB /* WakePhrase.swift in Sources */,
+				3A2C18049B98EF569414A765 /* WakeSpotter.swift in Sources */,
+				D8F0813E3548EC4B525ED8C2 /* WakeWindowBackoff.swift in Sources */,
+				A7CE2F5F596A97F845B53165 /* WeeklyRecapView.swift in Sources */,
+				1A131171A34DCB33EAA98CCD /* WindowContextCapture.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		88FBF709E63CBE44288522E9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3D4ECC71B72FCB3D161C2AD5 /* BotEngine.swift in Sources */,
+				0F3CD498BDC6B12EDB4F1E08 /* ColorHex.swift in Sources */,
+				DA22BF2519EF4ABA0D1C1F7F /* DenyApprovalIntent.swift in Sources */,
+				16A197C0B57AEE58DF52435D /* DiffEngine.swift in Sources */,
+				FB6E72CD1D58567567697A97 /* IslandScreenGeometry.swift in Sources */,
+				6CC6705FE42D32A953B64543 /* IslandTypes.swift in Sources */,
+				07E35697D2BF1BC32306F403 /* LunaActivityAttributes.swift in Sources */,
+				CFEEB2FBF35EC4E7A683567B /* LunaActivityState.swift in Sources */,
+				F65703A5003F5AAD35453919 /* LunaControl.swift in Sources */,
+				162A818650FA43FDA5450540 /* LunaFace.swift in Sources */,
+				D0778D6EBA3907D6C9B97949 /* LunaLiveActivity.swift in Sources */,
+				746FFB1F9B5D270DE71704F5 /* LunaLook.swift in Sources */,
+				E6671286C61C9871FCD3537B /* LunaOutfitDrawing.swift in Sources */,
+				E47D55F6DF236EB830BDF087 /* LunaStill.swift in Sources */,
+				A30C97397B2E1C975C02A0F7 /* LunaWardrobe.swift in Sources */,
+				D8DE04F68BAF2109B4140FB0 /* LunaWidgets.swift in Sources */,
+				6FEF74659A1EDBD63A6295C1 /* MacStubs.swift in Sources */,
+				37807910ED2F60B7B7751C4D /* OpenLeadLunaIntent.swift in Sources */,
+				6388038F6F5E674CC748A43C /* PillCatalog.swift in Sources */,
+				C9E32A8A561BACD5699753EB /* PillColors.swift in Sources */,
+				6E895F8385FA1932F12D015C /* QuestionPayload.swift in Sources */,
+				A141CEA4021223707E6F1102 /* ServiceDetail.swift in Sources */,
+				6803FAB617EBD9AD94BC083A /* ServiceSnapshot.swift in Sources */,
+				966359E20235B569162BA57E /* SharedSessions.swift in Sources */,
+				22A312FB5F7F8602456A4F72 /* TeamConfiguration.swift in Sources */,
+				21353B7E3B7AB02A71BC5BA1 /* TurnSnapshot.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B33AB7AB8E84DC88326A66B2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				91A14D28239EAC9A424AF651 /* AgentJump.swift in Sources */,
+				9951A548EA6590DBBC835B99 /* AgentJumpPlan.swift in Sources */,
+				DF04621E2734BA0A4A270340 /* AgentLook.swift in Sources */,
+				FDD65F554A01203EFF335CB1 /* AgentNotch.swift in Sources */,
+				94A3075CD8AF77435F1604AB /* AgentNotchViews.swift in Sources */,
+				64F3EBDA1E6BBC4462E53E3C /* AgentPeek.swift in Sources */,
+				4971A10446CB2A5D756A6242 /* AgentPreviewLogic.swift in Sources */,
+				9566425518A009D864BDDAE8 /* AgentPreviewView.swift in Sources */,
+				4538F8C503F8FB7270A0A2DD /* AgentSessions.swift in Sources */,
+				14334F3A3F8F07470092A283 /* AgentTile.swift in Sources */,
+				FE084DB94ED6AFE5A91358A5 /* AgentsView.swift in Sources */,
+				5A956260A1B179304735CF53 /* AppDelegate.swift in Sources */,
+				11D9BB6F60274BDABA09589E /* AppLog.swift in Sources */,
+				C852EE9FDAE3FEFA60797662 /* AppState.swift in Sources */,
+				32FFABA4D000EC944BBD3B45 /* ApprovalQueue.swift in Sources */,
+				5DC8C8D052F8DCAECED640D0 /* ApprovalRelay.swift in Sources */,
+				E7295FB627118C360448C51C /* AskQuestion.swift in Sources */,
+				B9FAEFCC69D488B28DE19D02 /* BotCanvasView.swift in Sources */,
+				CB840725DF27E0FBF7ACD767 /* BotEngine.swift in Sources */,
+				4E05ED7E40AC449AF4779AD3 /* CalcomPoller.swift in Sources */,
+				D572D37E6A8D21005FAF7157 /* ChatCLI.swift in Sources */,
+				BB65E54546A06004328288C0 /* ChatCLIMessages.swift in Sources */,
+				2372D049F544663C2A9C8BB7 /* ChatMarkdown.swift in Sources */,
+				6FDC1E26F244DD12B68D9767 /* ChatMarkdownView.swift in Sources */,
+				A520D2BF84596176D1BCF786 /* ClaudeCLIChat.swift in Sources */,
+				46AF2675BCADCE84C52F02E7 /* ClaudeHookDetection.swift in Sources */,
+				4B8000FCB3E4A2DED5566B43 /* ClaudeHost.swift in Sources */,
+				F09BA8967FB6E28DDE37BB59 /* ClaudePlanCardView.swift in Sources */,
+				880F472D6EAF021C63A0421B /* ClaudePlanGauge.swift in Sources */,
+				AED0918CA1B3AF3430032923 /* ClaudeResponseText.swift in Sources */,
+				CE73928030800D56EC47E29D /* ClaudeService.swift in Sources */,
+				18E8CF0A4C0216B39B9FF532 /* ClaudeSettingsFile.swift in Sources */,
+				EA094EC81C610995B69E1FF9 /* ClaudeStreamParser.swift in Sources */,
+				AAD60B569521BFD259670B3A /* ClaudeVoiceBrain.swift in Sources */,
+				6FA5496C1AF9E499AD8946A4 /* CloudProbe.swift in Sources */,
+				8538535C5A1D137CFE66DBF0 /* CodexPlanGauge.swift in Sources */,
+				9108D9823DD6768C2FE692B7 /* ColorHex.swift in Sources */,
+				0355766FA6E7F3FD93811531 /* ConversationContext.swift in Sources */,
+				A2671DA034E704D96DB09832 /* CryptoController.swift in Sources */,
+				3D5D23606979344D88FE8FED /* CryptoViews.swift in Sources */,
+				C264F4B033C7E8188BC39082 /* DemoEngine.swift in Sources */,
+				28A3BE36C12C1F0CECFD3AEA /* DesktopLuna.swift in Sources */,
+				C9D3FB496EE664101568A642 /* DesktopLunaLogic.swift in Sources */,
+				04E3F71590903A96857E5CF2 /* DiffEngine.swift in Sources */,
+				F9BFD4572D4DE440C6F01EE9 /* ElevenLabsTTS.swift in Sources */,
+				E6F29557218CC0C2A41D0133 /* EnergyVAD.swift in Sources */,
+				C895C4FCF18C3DEF87687BCC /* EntityResolver.swift in Sources */,
+				BCBBA08F92440C9598AF4350 /* FileDropView.swift in Sources */,
+				C746DE74C945F1C7A7D6610B /* GitHubActivity.swift in Sources */,
+				BF397EFC7763CD88E88AF78A /* GitHubPageView.swift in Sources */,
+				8E6585D441B75AF74341C84D /* GitHubPulse.swift in Sources */,
+				DA49405DBBA92F79CFE7E870 /* GithubPoller.swift in Sources */,
+				9952DB8C0FF8DB092638F325 /* GreetingCanvasView.swift in Sources */,
+				480CD740CED70D0B244CF981 /* HookServer.swift in Sources */,
+				8DB6F466A9EED9D7A7825FE1 /* HotKeyCenter.swift in Sources */,
+				935BAA2F85F3CBFAC6F77197 /* InstructionRunner.swift in Sources */,
+				AE2C234346901FF9AE9E0C5E /* IntegrationPages.swift in Sources */,
+				94D7D36C8CB131514427301F /* IntentParser.swift in Sources */,
+				3376C42898946AD7CD28E80F /* IslandDisplayChoice.swift in Sources */,
+				9773A9C9C526FA2BE55E422D /* IslandKeyHelpView.swift in Sources */,
+				6397471A9F20921AAAB996E1 /* IslandKeys.swift in Sources */,
+				ED073A5A8A2BE69A8440190E /* IslandRootView.swift in Sources */,
+				0B05871E9639D3B257A6E350 /* IslandScreenGeometry.swift in Sources */,
+				9440E5230AC8FA5423EFB320 /* IslandStateMachine.swift in Sources */,
+				71EF540331F1E7B2055C4DE6 /* IslandTypes.swift in Sources */,
+				A90DC535D3BA51F252B45810 /* IslandViewContent.swift in Sources */,
+				C42812B4760CD31C577A4692 /* IslandWindowController.swift in Sources */,
+				4E44BA3BE3854EBAE0902BE0 /* LiveActivityRelay.swift in Sources */,
+				203EACA0E83F1EEF0906AD75 /* LiveVoiceControls.swift in Sources */,
+				DBA4C8EFDF4D6646220A45F9 /* LocalChat.swift in Sources */,
+				D11094C3540ED731B9E3E766 /* LunaActivityState.swift in Sources */,
+				3EDFAF6BC0CD335F5C0BD605 /* LunaApp.swift in Sources */,
+				529FB287D7C38337363AF96D /* LunaFace.swift in Sources */,
+				E3DFC7CC19D143D9DC73EF91 /* LunaLook.swift in Sources */,
+				67B677D0753ADDB79190920E /* LunaOutfitDrawing.swift in Sources */,
+				4CC935E5C00C893C69B5E87C /* LunaStill.swift in Sources */,
+				FDDAF30B824FAD91233A9DCF /* LunaWardrobe.swift in Sources */,
+				200228D0487321E8C03AF622 /* MacDictation.swift in Sources */,
+				935814BAFEF4098EE6B62B11 /* MailController.swift in Sources */,
+				9B199E49B4F10A7B691CEF64 /* MailViews.swift in Sources */,
+				5EBBED2F67D3965595EF1B8E /* MusicController.swift in Sources */,
+				BB513BB030897465FCD42128 /* N8nPoller.swift in Sources */,
+				8AE009DEF3FBAB46D318204C /* NotionPoller.swift in Sources */,
+				D68C4B677F66EDFF0F29EE6E /* NowPlayingViews.swift in Sources */,
+				18F0E6047F8EB86F526A62D6 /* PillCatalog.swift in Sources */,
+				1BD9C89C68F6E77B6AD0A299 /* PillColors.swift in Sources */,
+				42F35F9C3DF1DC14C0999112 /* PillSessionRegistry.swift in Sources */,
+				3D69BCDC065B39962C7DB1DD /* ProcessTTY.swift in Sources */,
+				2909145671FDCB52DE4E9916 /* QuestionPayload.swift in Sources */,
+				851CCF41B9C3B7A8B185147C /* QuestionRelay.swift in Sources */,
+				D28CBFEFCD127E4794DB22BB /* RecapStore.swift in Sources */,
+				C6B4EC7D1753BF3D171C8FD4 /* ResendPoller.swift in Sources */,
+				5CE64B5EF04FB8A82E7CB1DD /* SafeWebURL.swift in Sources */,
+				6915C9A49B4F031D400A3CFC /* ServiceDetail.swift in Sources */,
+				9BA6DA8C4A15CF4CEEF37740 /* ServiceDetailRunner.swift in Sources */,
+				57A574C31AC6929550897339 /* ServicePublisher.swift in Sources */,
+				15E38559E3D7F4A65B24F5A8 /* ServiceSnapshot.swift in Sources */,
+				379DE1912CA2EB3FFBCC588A /* SessionPublisher.swift in Sources */,
+				46492ED20C59E4B10950E907 /* SettingsView.swift in Sources */,
+				D35CB4275AF833614AA587D0 /* ShortcutLogic.swift in Sources */,
+				3F6F7E0670D0F8D1A8E1E73B /* ShortcutsSettingsView.swift in Sources */,
+				00DC65A2D36C1EFB31796FF9 /* SoundEngine.swift in Sources */,
+				5F9B654D7A0692FF7E58D698 /* SpotifyController.swift in Sources */,
+				B20EDE59803AF82FEB839456 /* SpotifyViews.swift in Sources */,
+				D1DB233EF8E248D1AEF809D2 /* SpotterGeneration.swift in Sources */,
+				9D089E92EB4131E0108FABFF /* StripePoller.swift in Sources */,
+				8F622B3CEBF9A92544BB4473 /* TerminalTarget+AppKit.swift in Sources */,
+				27143DD0AF3ECA6CDAF7A1A4 /* TerminalTarget.swift in Sources */,
+				FFF40A2E0A5A92A9DCB2153A /* TurnEndPolicy.swift in Sources */,
+				E24F88B8E8E06519F0AF9EF5 /* TurnRecorder.swift in Sources */,
+				3B513E8510931EFF5A7F4ADA /* TurnSnapshot.swift in Sources */,
+				3845F08FD3B73B7FABD100F7 /* UploadCanvasView.swift in Sources */,
+				1A7A6D5A3F8F09D45581A305 /* UploadSequenceEngine.swift in Sources */,
+				3FFB58733A9EA4E120B04D23 /* UserIdentity.swift in Sources */,
+				7462E578254E9A256881983E /* VercelPoller.swift in Sources */,
+				72D459D5DED5C6B200850DF5 /* VoiceActionRunner.swift in Sources */,
+				0CA870176B494DF7E03A63C3 /* VoiceAudio.swift in Sources */,
+				7D099E2B4F65F92B7280EF86 /* VoiceBrain.swift in Sources */,
+				B5D60FF3075918E2FD2FB44A /* VoiceCaptionManager.swift in Sources */,
+				2B9332C91C470DB889C66AEB /* VoiceDataSources.swift in Sources */,
+				42E39655065B5AEEB351FA7E /* VoiceEngine.swift in Sources */,
+				7021D30E8EBAECD911A4CB4A /* VoiceGenderNames.swift in Sources */,
+				0AAABFE6F7FBACDF19919728 /* VoiceIntent.swift in Sources */,
+				A22B618A197D48C75E47EE4B /* VoiceIslandView.swift in Sources */,
+				060C616AD75076A57F9FF95B /* VoiceQuery.swift in Sources */,
+				ADD788452707BCFD7F6FC5FF /* VoiceResultView.swift in Sources */,
+				E173FB3245E92B83D9E1B704 /* VoiceSettings.swift in Sources */,
+				8E7821FF7A0A416746D4ACEF /* VoiceSpeaker.swift in Sources */,
+				0D9CB807D3F2C3454292BE42 /* VoiceTranscriptHistory.swift in Sources */,
+				AA4E445F21E7B101BDAE4C33 /* VoiceWakeFilter.swift in Sources */,
+				E0F95A5F4B8B91F017CAB778 /* WakePhrase.swift in Sources */,
+				5D2FAA04E3FE3E522A4EDE54 /* WakeSpotter.swift in Sources */,
+				6D6D48A3AA6285EB99E54AB9 /* WakeWindowBackoff.swift in Sources */,
+				46BD2A8191C27E10CCCCFEA2 /* WeeklyRecapView.swift in Sources */,
+				4DCDE15E26E08C70DB6783A5 /* WindowContextCapture.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		003C26FA7499B4F154FE31A6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3F2390047B1A12F6CE17ADA6 /* LunaNotificationContent */;
+			targetProxy = 6C47BD6D1A846EED6972BF25 /* PBXContainerItemProxy */;
+		};
+		3EB0E88EC9AB7A7BFFF93F44 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F05E1BF236A9829FBD21CB64 /* LunaWidgets */;
+			targetProxy = 0F025BF6884B97DD5DF536AD /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		1969CB8D53AF6852AF716F72 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/Luna.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				OTHER_SWIFT_FLAGS = "-strict-concurrency=complete";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		1B93ACAF0A4F8FD3A64C8CE8 /* DebugCloud */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Blue AppIcon-Green AppIcon-Purple AppIcon-Pink AppIcon-Graphite";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/LunaPhoneProduction.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Resources/InfoPhone.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LUNA_APNS_ENV = development;
+				OTHER_CODE_SIGN_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone;
+				PRODUCT_NAME = Luna;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = DebugCloud;
+		};
+		1FA08760E3D882DDEA115ABE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/LunaAppStore.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Resources/InfoAppStore.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone;
+				PRODUCT_NAME = Luna;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = APPSTORE;
+			};
+			name = Debug;
+		};
+		227C532D373BE68E8173539E /* DebugCloud */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/LunaAppStoreCloud.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Resources/InfoAppStore.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone;
+				PRODUCT_NAME = Luna;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "APPSTORE PHONE_LINK";
+			};
+			name = DebugCloud;
+		};
+		3840EB918425B0971536D119 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Blue AppIcon-Green AppIcon-Purple AppIcon-Pink AppIcon-Graphite";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/LunaPhone.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Resources/InfoPhone.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LUNA_APNS_ENV = development;
+				OTHER_CODE_SIGN_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone;
+				PRODUCT_NAME = Luna;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		3F779F6FED0156BB10755CDD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/LunaWidgets.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Resources/InfoWidgets.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				OTHER_CODE_SIGN_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone.Widgets;
+				PRODUCT_NAME = LunaWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WIDGET_EXTENSION";
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		42B44B2221C5FB310EF602FD /* ReleaseCloud */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Resources/InfoNotificationContent.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				OTHER_CODE_SIGN_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone.NotificationContent;
+				PRODUCT_NAME = LunaNotificationContent;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = ReleaseCloud;
+		};
+		43C13E2FA334A6B7FC971D2A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/LunaAppStoreCloud.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Resources/InfoAppStore.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone;
+				PRODUCT_NAME = Luna;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "APPSTORE PHONE_LINK";
+			};
+			name = Release;
+		};
+		46FF29A791349D8393D18802 /* ReleaseCloud */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Resources/LunaReleaseCloud.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_SANDBOX = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.Luna;
+				PRODUCT_NAME = Luna;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = PHONE_LINK;
+			};
+			name = ReleaseCloud;
+		};
+		4AA7F828EADF40BEABDA1634 /* DebugCloud */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Resources/InfoNotificationContent.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				OTHER_CODE_SIGN_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone.NotificationContent;
+				PRODUCT_NAME = LunaNotificationContent;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = DebugCloud;
+		};
+		6888AC49B2BEB3FC8EBA37AD /* DebugCloud */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/LunaWidgets.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Resources/InfoWidgets.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				OTHER_CODE_SIGN_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone.Widgets;
+				PRODUCT_NAME = LunaWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WIDGET_EXTENSION";
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = DebugCloud;
+		};
+		6BB921729C9A48B1C235A6D6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/LunaWidgets.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Resources/InfoWidgets.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				OTHER_CODE_SIGN_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone.Widgets;
+				PRODUCT_NAME = LunaWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WIDGET_EXTENSION";
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		7C8AE2BDC5E8CC349CFED976 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Resources/InfoNotificationContent.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				OTHER_CODE_SIGN_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone.NotificationContent;
+				PRODUCT_NAME = LunaNotificationContent;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		84D2771497886F76A490F2BD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_SANDBOX = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.Luna;
+				PRODUCT_NAME = Luna;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		893627782EA19FF0C9B9F867 /* ReleaseCloud */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/LunaAppStore.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Resources/InfoAppStore.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone;
+				PRODUCT_NAME = Luna;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = APPSTORE;
+			};
+			name = ReleaseCloud;
+		};
+		A656E583166AE2A51EF0E151 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_SWIFT_FLAGS = "-strict-concurrency=complete";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		B14D778FC8A9F107F7D42E07 /* ReleaseCloud */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				OTHER_SWIFT_FLAGS = "-strict-concurrency=complete";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = ReleaseCloud;
+		};
+		B56D638F476241E38F6F749E /* DebugCloud */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_SWIFT_FLAGS = "-strict-concurrency=complete";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = DebugCloud;
+		};
+		BBF74C703B8D318437440368 /* ReleaseCloud */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Blue AppIcon-Green AppIcon-Purple AppIcon-Pink AppIcon-Graphite";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/LunaPhone.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Resources/InfoPhone.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LUNA_APNS_ENV = production;
+				OTHER_CODE_SIGN_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone;
+				PRODUCT_NAME = Luna;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = ReleaseCloud;
+		};
+		C18D7E14F16E8E4255680E3D /* ReleaseCloud */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/LunaWidgets.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Resources/InfoWidgets.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				OTHER_CODE_SIGN_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone.Widgets;
+				PRODUCT_NAME = LunaWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WIDGET_EXTENSION";
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = ReleaseCloud;
+		};
+		E4B091AB0A6F3EA401007C21 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Resources/Luna.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_SANDBOX = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.Luna;
+				PRODUCT_NAME = Luna;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		ECBC5FFB7A91170983C15933 /* DebugCloud */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Resources/LunaCloud.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_SANDBOX = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.Luna;
+				PRODUCT_NAME = Luna;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG PHONE_LINK";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = DebugCloud;
+		};
+		F0B32FE034B14717764EB316 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Blue AppIcon-Green AppIcon-Purple AppIcon-Pink AppIcon-Graphite";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/LunaPhone.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Resources/InfoPhone.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LUNA_APNS_ENV = production;
+				OTHER_CODE_SIGN_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone;
+				PRODUCT_NAME = Luna;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		F0F8DFDFA759427D3DED53A8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGNING_REQUIRED = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Resources/InfoNotificationContent.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				OTHER_CODE_SIGN_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.luna.LunaPhone.NotificationContent;
+				PRODUCT_NAME = LunaNotificationContent;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3B5349848D231979E6E2B691 /* Build configuration list for PBXNativeTarget "LunaNotificationContent" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F0F8DFDFA759427D3DED53A8 /* Debug */,
+				4AA7F828EADF40BEABDA1634 /* DebugCloud */,
+				7C8AE2BDC5E8CC349CFED976 /* Release */,
+				42B44B2221C5FB310EF602FD /* ReleaseCloud */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		402FB2144CA133517A0F616E /* Build configuration list for PBXNativeTarget "Luna" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				84D2771497886F76A490F2BD /* Debug */,
+				ECBC5FFB7A91170983C15933 /* DebugCloud */,
+				E4B091AB0A6F3EA401007C21 /* Release */,
+				46FF29A791349D8393D18802 /* ReleaseCloud */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		81E1B1FDAB3D46EC602BBCB0 /* Build configuration list for PBXNativeTarget "LunaWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6BB921729C9A48B1C235A6D6 /* Debug */,
+				6888AC49B2BEB3FC8EBA37AD /* DebugCloud */,
+				3F779F6FED0156BB10755CDD /* Release */,
+				C18D7E14F16E8E4255680E3D /* ReleaseCloud */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		921F4CEBCA88C26C3E8EE3F2 /* Build configuration list for PBXNativeTarget "LunaAppStore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1FA08760E3D882DDEA115ABE /* Debug */,
+				227C532D373BE68E8173539E /* DebugCloud */,
+				43C13E2FA334A6B7FC971D2A /* Release */,
+				893627782EA19FF0C9B9F867 /* ReleaseCloud */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9C7285D4C14B8A8DF926CBB7 /* Build configuration list for PBXProject "Luna" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A656E583166AE2A51EF0E151 /* Debug */,
+				B56D638F476241E38F6F749E /* DebugCloud */,
+				1969CB8D53AF6852AF716F72 /* Release */,
+				B14D778FC8A9F107F7D42E07 /* ReleaseCloud */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		EE144350121998D068D1A9E4 /* Build configuration list for PBXNativeTarget "LunaPhone" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3840EB918425B0971536D119 /* Debug */,
+				1B93ACAF0A4F8FD3A64C8CE8 /* DebugCloud */,
+				F0B32FE034B14717764EB316 /* Release */,
+				BBF74C703B8D318437440368 /* ReleaseCloud */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 17A65B085E12EE34B8A63E88 /* Project object */;
+}

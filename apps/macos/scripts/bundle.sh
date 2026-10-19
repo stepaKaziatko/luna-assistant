@@ -1,64 +1,52 @@
 #!/bin/sh
-# Собирает build/Luna.app: бинарник shell, ядро (core/dist) и Info.plist.
+# Собирает build/Luna.app из Xcode-проекта: xcodegen → xcodebuild → подпись.
 # Запускать приложение нужно бандлом (open build/Luna.app): только так macOS выдаёт права
-# Automation и Accessibility самой Luna, а не терминалу, из которого её запустили.
+# Automation, микрофона и Accessibility самой Luna, а не терминалу, из которого её запустили.
 #
 #   scripts/bundle.sh            # release: universal (arm64 + x86_64), переносится на другую машину
-#   scripts/bundle.sh debug      # быстрая сборка под свою архитектуру, с debug-командами (scripts/debug-command.sh)
+#   scripts/bundle.sh debug      # быстрая сборка под свою архитектуру
 #
 # LUNA_SIGN_IDENTITY — сертификат для подписи. По умолчанию подпись ad-hoc: она меняется с каждой
 # сборкой, и macOS может попросить выдать права заново. С постоянным сертификатом права сохраняются.
 # LUNA_BUILD_NUMBER — номер сборки (CFBundleVersion); в CI это номер прогона.
+#
+# Нужны Xcode 26+ (код рассчитан на Swift 6.2) и xcodegen (brew install xcodegen).
 set -eu
 
 config="${1:-release}"
 macos_dir="$(cd "$(dirname "$0")/.." && pwd)"
-repo_dir="$(cd "$macos_dir/../.." && pwd)"
 app="$macos_dir/build/Luna.app"
 
-(cd "$repo_dir" && npm run build --silent)
+fail() { printf '✗ %s\n' "$*" >&2; exit 1; }
+command -v xcodegen >/dev/null || fail "нужен xcodegen: brew install xcodegen"
 
 case "$config" in
-  release)
-    # Релиз собирает xcodebuild: `swift build` с двумя --arch падает на этом пакете, а его
-    # загрузчик ресурсов ищет бандлы зависимостей по абсолютному пути сборки. У xcodebuild
-    # загрузчик смотрит в Contents/Resources, и приложение работает на любой машине.
-    # Покрытие кода выключаем явно: схема пакета включает его и в Release, и приложение
-    # при выходе писало бы default.profraw.
-    (cd "$macos_dir" && xcodebuild -quiet -scheme Luna -configuration Release \
-      -destination 'generic/platform=macOS' -derivedDataPath .build/xcode \
-      ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
-      CLANG_ENABLE_CODE_COVERAGE=NO CLANG_COVERAGE_MAPPING=NO build)
-    bin_dir="$macos_dir/.build/xcode/Build/Products/Release"
-    ;;
-  debug)
-    (cd "$macos_dir" && swift build -c debug)
-    bin_dir="$(cd "$macos_dir" && swift build -c debug --show-bin-path)"
-    ;;
-  *)
-    echo "неизвестная конфигурация: $config (release | debug)" >&2
-    exit 1
-    ;;
+  release) configuration=Release; archs='ARCHS=arm64 x86_64' ;;
+  debug) configuration=Debug; archs='ONLY_ACTIVE_ARCH=YES' ;;
+  *) fail "неизвестная конфигурация: $config (release | debug)" ;;
 esac
 
+cd "$macos_dir"
+xcodegen generate --quiet
+# Подпись — ниже, своим сертификатом или ad-hoc: в проекте нет команды Apple Developer.
+xcodebuild -quiet -project Luna.xcodeproj -scheme Luna -configuration "$configuration" \
+  -destination 'generic/platform=macOS' -derivedDataPath .build/xcode \
+  "$archs" ONLY_ACTIVE_ARCH="$([ "$config" = release ] && echo NO || echo YES)" \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+
 rm -rf "$app"
-mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/core"
-cp "$macos_dir/Bundle/Info.plist" "$app/Contents/Info.plist"
+mkdir -p "$macos_dir/build"
+cp -R ".build/xcode/Build/Products/$configuration/Luna.app" "$app"
 if [ -n "${LUNA_BUILD_NUMBER:-}" ]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $LUNA_BUILD_NUMBER" "$app/Contents/Info.plist"
 fi
-cp "$bin_dir/Luna" "$app/Contents/MacOS/Luna"
-if [ "$config" = release ]; then
-  # Ресурсные бандлы зависимостей (локализация KeyboardShortcuts). Debug-сборка находит их
-  # по абсолютному пути в .build, и в .app их класть некуда: в корне бандла они ломают подпись.
-  for bundle in "$bin_dir"/*.bundle; do
-    if [ -e "$bundle" ]; then cp -R "$bundle" "$app/Contents/Resources/"; fi
-  done
-fi
 
-# У ядра нет runtime-зависимостей: достаточно скомпилированных файлов и пометки, что это ES-модули.
-(cd "$repo_dir/core/dist" && find . -name '*.js' | cpio -pdm --quiet "$app/Contents/Resources/core")
-printf '{ "type": "module" }\n' > "$app/Contents/Resources/core/package.json"
-
-codesign --force --sign "${LUNA_SIGN_IDENTITY:--}" "$app"
+# Вложенный код подписывается раньше бандла: Debug-сборка Xcode 26 кладёт рядом с бинарником
+# Luna.debug.dylib, и без своей подписи у неё codesign отказывается подписывать приложение.
+identity="${LUNA_SIGN_IDENTITY:--}"
+find "$app/Contents" -name '*.dylib' -print0 | xargs -0 -r codesign --force --sign "$identity"
+# Энтайтлменты (микрофон, контакты, Apple Events) нужны в подписи: без них hardened runtime
+# не даст macOS спросить разрешение.
+codesign --force --options runtime --entitlements "$macos_dir/Resources/Luna.entitlements" \
+  --sign "$identity" "$app"
 echo "Готово: $app"

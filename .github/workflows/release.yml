@@ -1,9 +1,9 @@
 name: Release
 
-# Коммит в main с версией, у которой ещё нет тега, — это выпуск: бандлы собираются здесь
-# и выкладываются релизом в публичный репозиторий, исходники остаются в этом. Тег ставится
+# Коммит в main с версией, у которой ещё нет тега, — это выпуск: бандл собирается здесь
+# и выкладывается релизом в публичный репозиторий, исходники остаются в этом. Тег ставится
 # последним шагом, поэтому упавший выпуск повторяется перезапуском прогона.
-# Ручной запуск собирает бандлы без публикации — их можно скачать из прогона.
+# Ручной запуск собирает бандл без публикации — его можно скачать из прогона.
 on:
   push:
     branches: [main]
@@ -51,19 +51,16 @@ jobs:
     name: Luna.app (macOS, universal)
     needs: version
     if: needs.version.outputs.build == 'true'
-    runs-on: macos-15
+    # Код рассчитан на Swift 6.2 и SDK macOS 26: нужен Xcode 26+, он есть на образе macos-26.
+    runs-on: macos-26
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: npm test
-      - run: swift test
-        working-directory: apps/macos
+      - name: XcodeGen
+        run: brew install xcodegen
+      - name: Тесты
+        run: for t in scripts/test-*.sh; do echo "== $t"; bash "$t"; done
       - name: Собрать бандл
         env:
           LUNA_BUILD_NUMBER: ${{ github.run_number }}
@@ -82,37 +79,9 @@ jobs:
           path: dist/
           if-no-files-found: error
 
-  # Приложения под другие ОС пока нет — для них собирается ядро без оболочки.
-  # Новая платформа добавляется строкой в matrix.
-  core:
-    name: Ядро (${{ matrix.platform }})
-    needs: version
-    if: needs.version.outputs.build == 'true'
-    strategy:
-      matrix:
-        include:
-          - platform: linux
-            os: ubuntu-latest
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: npm test
-      - name: Упаковать ядро
-        run: scripts/pack-core.sh "${{ matrix.platform }}" dist
-      - uses: actions/upload-artifact@v7
-        with:
-          name: core-${{ matrix.platform }}
-          path: dist/
-          if-no-files-found: error
-
   publish:
     name: Выложить релиз
-    needs: [version, macos, core]
+    needs: [version, macos]
     if: needs.version.outputs.publish == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -125,7 +94,7 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Бандлы — в публичный репозиторий
+      - name: Бандл — в публичный репозиторий
         env:
           GH_TOKEN: ${{ secrets.LUNA_RELEASES_TOKEN }}
         run: scripts/publish-release.sh "$TAG" dist
