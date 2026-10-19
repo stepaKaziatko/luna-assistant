@@ -1,9 +1,13 @@
 name: CI
 
+# PR эпика-версии копит задачи черновиком — на его пуши CI не идёт. На приёмке PR переводят
+# в ready (`gh pr ready`), и дальше CI проверяет каждый пуш до слияния. Вручную — workflow_dispatch.
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -13,10 +17,10 @@ permissions:
   contents: read
 
 jobs:
-  # Минуты macOS-раннеров в закрытом репозитории стоят вдесятеро дороже, поэтому приложение
-  # проверяется, только когда изменение может его затронуть.
+  # Приложение на macOS проверяется, только когда изменение может его затронуть.
   changes:
     name: Что изменилось
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     outputs:
       app: ${{ steps.filter.outputs.app }}
@@ -50,6 +54,7 @@ jobs:
 
   version:
     name: Версия согласована
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
