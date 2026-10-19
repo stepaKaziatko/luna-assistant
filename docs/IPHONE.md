@@ -8,17 +8,15 @@ Your Mac does the work, your iPhone keeps you in the loop when you step away: yo
 
 | | |
 |---|---|
-| **Mac** | Luna **0.1.9 or later** on macOS 15+: the [GitHub build](https://github.com/Louis-CFM/coucou/releases/latest), or the Mac App Store version once it is out |
+| **Mac** | Luna on macOS 15+, built from this repository with the same Apple developer team as the iPhone app (see [Build it yourself](#build-it-yourself-developers)) |
 | **iPhone** | iOS 18 or later. The Lock Screen and Dynamic Island need an iPhone with a Dynamic Island for the island part; every iPhone gets the Lock Screen |
 | **iCloud** | The **same Apple Account** signed in to iCloud on the Mac and the iPhone. That's the whole link: no account to create, no server, no pairing code |
-| **Luna on iPhone** | From the App Store (coming soon) or [Join the TestFlight beta](https://testflight.apple.com/join/3GpeHv2b) — free, up to 10,000 testers |
+| **Luna on iPhone** | Not distributed: there is no App Store or TestFlight build. Build it yourself from this repository |
 
 ## Get it on your iPhone
 
-1. **Install Luna on your iPhone.**
-   - **App Store:** coming soon, the link will be here.
-   - **TestFlight beta:** install [TestFlight](https://apps.apple.com/app/testflight/id899247664) from the App Store, then [Join the TestFlight beta](https://testflight.apple.com/join/3GpeHv2b). The beta is free; Apple limits it to 10,000 testers.
-2. **Update Luna on your Mac** to 0.1.9 or later.
+1. **Install Luna on your iPhone:** build and run it from Xcode, see [Build it yourself](#build-it-yourself-developers).
+2. **Run the Mac app built with the same team**, so both apps share your iCloud container.
 3. **On the Mac:** click the Luna icon in the menu bar → **Settings… → General → iPhone**, and turn on:
    - **Show my agent sessions on my iPhone** (required)
    - **Move Luna to my iPhone's Dynamic Island when my Mac is locked** (the Live Activity)
@@ -52,8 +50,6 @@ Nothing shows up? See [Troubleshooting](#troubleshooting).
 - The Live Activity goes through a small relay ([`relay/`](../relay/)) that holds Apple's push key. It only sees the agent's name and state, never a project name, a command or a path, and it stores and logs nothing.
 - No account, no analytics. Turning the iPhone switch off on the Mac deletes your sessions from iCloud.
 
-Details in the [privacy policy](https://louis-cfm.github.io/coucou/privacy.html).
-
 ## Troubleshooting
 
 **Nothing shows up on the iPhone**
@@ -78,7 +74,7 @@ Details in the [privacy policy](https://louis-cfm.github.io/coucou/privacy.html)
 **I can't send instructions**
 - Instructions need the GitHub build of the Mac app, with **Let my iPhone send instructions to Claude Code** on.
 
-Still stuck? [Open an issue](https://github.com/Louis-CFM/coucou/issues) or see [Support](https://louis-cfm.github.io/coucou/support.html).
+Still stuck? [Open an issue](https://github.com/stepaKaziatko/luna-assistant/issues).
 
 ## Build it yourself (developers)
 
@@ -90,7 +86,7 @@ To run it from source on your own iPhone, the Mac app and the iPhone app have to
 2. In `apps/macos/project.yml`, set `bundleIdPrefix` and every `DEVELOPMENT_TEAM` to yours.
 3. Replace `iCloud.dev.luna.Luna` with your own container (for example `iCloud.com.you.Luna`) everywhere it appears: the `.entitlements` files in `apps/macos/Resources` and the Swift files under `Sources/App/PhoneLink` and `Sources/Phone` (`grep -rn "iCloud.dev.luna.Luna" Luna`).
 4. Create the container in the [CloudKit console](https://icloud.developer.apple.com/) and run both apps once in Debug: the record types are created in the Development environment.
-5. For the Live Activity, deploy your own relay with your APNs key ([`relay/README.md`](../relay/README.md)), set `APNS_TOPIC` in `relay/wrangler.toml` to your iPhone app's bundle ID followed by `.push-type.liveactivity`, and put your relay's address in `LiveActivityRelay.defaultRelayURL`.
+5. For the Live Activity, deploy your own relay with your APNs key ([`relay/README.md`](../relay/README.md)), set `APNS_TEAM_ID` in `relay/wrangler.toml` to your team ID and `APNS_TOPIC` to your iPhone app's bundle ID followed by `.push-type.liveactivity`, and put your relay's address in `LiveActivityRelay.defaultRelayURL`.
 6. Build:
    ```bash
    cd apps/macos
@@ -98,4 +94,4 @@ To run it from source on your own iPhone, the Mac app and the iPhone app have to
    open Luna.xcodeproj   # scheme Luna for the Mac, LunaPhone for the iPhone
    ```
 
-The name Luna, Luna, the icon and the sounds are not under the MIT license ([LICENSE-ASSETS.md](../LICENSE-ASSETS.md)): a build for yourself is fine; a build you share needs its own name and character.
+Luna's code, character, icon and sounds are under the MIT license ([LICENSE](../LICENSE)); the coucou code it grew from is credited in [LICENSE-COUCOU](../LICENSE-COUCOU).

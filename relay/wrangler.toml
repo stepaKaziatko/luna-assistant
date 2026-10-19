@@ -6,7 +6,9 @@ compatibility_date = "2026-09-01"
 workers_dev = true
 
 [vars]
-APNS_TEAM_ID = "256AUJ9555"
+# Your Apple developer team ID (10 characters, developer.apple.com → Membership) and your
+# iPhone app's bundle ID followed by .push-type.liveactivity. See docs/IPHONE.md.
+APNS_TEAM_ID = "YOUR_TEAM_ID"
 APNS_TOPIC = "dev.luna.LunaPhone.push-type.liveactivity"
 
 [observability]
