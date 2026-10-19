@@ -169,8 +169,13 @@ jobs:
     steps:
       - name: Последний релиз, архив и суммы по публичным адресам
         run: |
-          latest=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$GITHUB_REPOSITORY/releases/latest")
-          echo "последний релиз: $latest"
+          # Сразу после публикации адрес последнего релиза может ещё отдавать прежний — ждём до минуты.
+          for attempt in 1 2 3 4 5 6; do
+            latest=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$GITHUB_REPOSITORY/releases/latest" || true)
+            echo "последний релиз: $latest"
+            case "$latest" in */tag/"$TAG") break ;; esac
+            sleep 10
+          done
           case "$latest" in
             */tag/"$TAG") ;;
             *) echo "✗ последний релиз — не $TAG" >&2; exit 1 ;;
