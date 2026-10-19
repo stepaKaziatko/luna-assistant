@@ -43,6 +43,9 @@ struct ClaudeHost: Equatable {
         "zed":            "dev.zed.Zed",
     ]
 
+    /// Whether the bundle id is one of the known terminals.
+    static func isTerminal(bundleId: String) -> Bool { terminals[bundleId] != nil }
+
     /// The terminal a session runs in, or nil when it isn't a known terminal.
     static func terminal(termProgram: String, bundleId: String) -> ClaudeHost? {
         if let name = terminals[bundleId] { return ClaudeHost(bundleId: bundleId, name: name) }

@@ -73,6 +73,27 @@ enum AgentWait: Equatable, Sendable {
     case question
 }
 
+/// A permission request the app holds, as the preview page reads it. Only a view of
+/// `HookServer.approvals`: the queue stays the one source of truth, and the page answers
+/// through the same `sendApprovalDecision(_:for:)` the card uses.
+struct AgentRequest: Equatable, Identifiable, Sendable {
+    /// The id of the queued request: a decision is accepted for this id only.
+    let id: UUID
+    /// `AgentSessionKey.id` of the session that asks.
+    let sessionKey: String
+    let pill: String
+    let tool: String
+    /// The command or the tool name: what the card shows in its code block.
+    let command: String
+    /// 1-based place in the queue; 1 is the request on the card.
+    let position: Int
+    /// Requests waiting in total.
+    let total: Int
+
+    /// Only the head of the queue may be answered: the order of answers does not change.
+    var isHead: Bool { position == 1 }
+}
+
 // MARK: - Hook events → phase
 
 enum AgentTransition: Equatable, Sendable {
@@ -114,6 +135,12 @@ struct AgentSessionWho: Equatable, Sendable {
     var agent: String
     /// The app that hosts the session (a terminal, an editor): bundle id, empty when unknown.
     var hostBundleId: String = ""
+    /// The working directory the agent reported, whatever the agent: the tile of a third-party
+    /// agent carries the agent's name, but "go to the agent" still needs the folder. Empty when unknown.
+    var cwd: String = ""
+    /// The controlling terminal of the process that sent the hook (`/dev/ttys003`), found by Luna
+    /// itself (`ProcessTTY`). Empty when unknown or not a valid device name.
+    var tty: String = ""
 }
 
 // MARK: - Snapshot
@@ -126,7 +153,7 @@ struct AgentSessionInfo: Equatable, Identifiable, Sendable {
     let phase: AgentPhase
     /// Set while the app holds a request of this session (permission or question).
     let wait: AgentWait?
-    /// Up to `AgentSessionBook.maxSteps`, the newest last.
+    /// Up to `AgentSessionBook.maxSteps`, the newest last. The tile shows the last `tileSteps`.
     let steps: [AgentStep]
     /// The last answer of the agent, one short line.
     let finalLine: String?
@@ -204,8 +231,10 @@ enum AgentHost {
 /// change goes through a `mutating` call.
 struct AgentSessionBook: Sendable {
 
+    /// Steps the book keeps for one session: the preview page shows them all.
+    static let maxSteps = 20
     /// Steps on a tile.
-    static let maxSteps = 5
+    static let tileSteps = 5
     /// A turn that sends no event for this long lost its `Stop`: no longer "working".
     static let maxTurnSilence = PillSessionRegistry.maxTurnSilence
     /// A session between turns that is silent this long is gone: some agents never send
@@ -276,9 +305,13 @@ struct AgentSessionBook: Sendable {
         guard var rec = records[key] else { return }
         let before = rec.phase
 
-        // The name and the host follow the latest event; a missing host keeps the known one.
-        let host = who.hostBundleId.isEmpty ? rec.who.hostBundleId : who.hostBundleId
-        rec.who = AgentSessionWho(project: who.project, agent: who.agent, hostBundleId: host)
+        // The name and the host follow the latest event; a missing host, folder or terminal
+        // keeps the known one.
+        rec.who = AgentSessionWho(
+            project: who.project, agent: who.agent,
+            hostBundleId: who.hostBundleId.isEmpty ? rec.who.hostBundleId : who.hostBundleId,
+            cwd: who.cwd.isEmpty ? rec.who.cwd : who.cwd,
+            tty: who.tty.isEmpty ? rec.who.tty : who.tty)
         rec.lastEvent = now
 
         switch transition {

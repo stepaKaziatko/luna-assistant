@@ -90,17 +90,60 @@ enum AgentSessionsTests {
             check("SessionEnd removes the session", b.snapshot(now: at(51)).isEmpty)
         }
 
-        // ── steps: five at most, newest last ────────────────────────────────────
+        // ── steps: twenty kept, five on a tile, newest last ─────────────────────
         print("\nSteps")
         do {
             var b = AgentSessionBook()
             let k = key("a")
-            for n in 1...9 {
+            for n in 1...30 {
                 b.apply(event: "PreToolUse", key: k, who: who("luna"), tool: "Read", step: "step \(n)", now: at(Double(n)))
             }
-            let steps = info(b, k, now: at(10))?.steps ?? []
-            check("at most five", steps.count == AgentSessionBook.maxSteps)
-            check("newest last", steps.last?.text == "step 9" && steps.first?.text == "step 5")
+            let steps = info(b, k, now: at(40))?.steps ?? []
+            check("twenty steps are kept", AgentSessionBook.maxSteps == 20 && steps.count == AgentSessionBook.maxSteps)
+            check("newest last", steps.last?.text == "step 30" && steps.first?.text == "step 11")
+            let tile = Array(steps.suffix(AgentSessionBook.tileSteps))
+            check("a tile takes the last five, in the same order",
+                  AgentSessionBook.tileSteps == 5 && tile.map(\.text) == ["step 26", "step 27", "step 28", "step 29", "step 30"])
+
+            var few = AgentSessionBook()
+            for n in 1...3 {
+                few.apply(event: "PreToolUse", key: k, who: who("luna"), tool: "Read", step: "s\(n)", now: at(Double(n)))
+            }
+            check("fewer steps are all kept", info(few, k, now: at(10))?.steps.map(\.text) == ["s1", "s2", "s3"])
+        }
+
+        // ── folder and terminal for "go to the agent" ───────────────────────────
+        print("\nFolder and terminal")
+        do {
+            var b = AgentSessionBook()
+            let k = key("a")
+            let withPlace = AgentSessionWho(project: "shop", agent: "Claude Code", hostBundleId: "com.apple.Terminal",
+                                            cwd: "/Users/me/shop", tty: "/dev/ttys003")
+            b.apply(event: "SessionStart", key: k, who: withPlace, now: at(0))
+            check("the snapshot carries cwd and tty",
+                  info(b, k, now: at(1))?.who.cwd == "/Users/me/shop" && info(b, k, now: at(1))?.who.tty == "/dev/ttys003")
+            // A later event that does not know them keeps what is known.
+            b.apply(event: "PreToolUse", key: k, who: who("shop", host: "com.apple.Terminal"), tool: "Read", step: "x", now: at(2))
+            check("an event without cwd and tty keeps the known ones",
+                  info(b, k, now: at(3))?.who.cwd == "/Users/me/shop" && info(b, k, now: at(3))?.who.tty == "/dev/ttys003")
+            // A new tty (the session was resumed in another tab) replaces the old one.
+            b.apply(event: "PreToolUse", key: k,
+                    who: AgentSessionWho(project: "shop", agent: "Claude Code", hostBundleId: "com.apple.Terminal",
+                                         cwd: "/Users/me/shop", tty: "/dev/ttys007"),
+                    tool: "Read", step: "y", now: at(4))
+            check("a new tty replaces the old one", info(b, k, now: at(5))?.who.tty == "/dev/ttys007")
+
+            // A third-party agent: its tile carries the agent's name, the folder is kept for the jump.
+            let gk = key("g", pill: "agent_gemini")
+            b.apply(event: "SessionStart", key: gk,
+                    who: AgentSessionWho(project: "Gemini CLI", agent: "Gemini CLI", cwd: "/Users/me/api"), now: at(6))
+            let g = info(b, gk, now: at(7))
+            check("the tile of a third-party agent keeps its name and still knows the folder",
+                  g?.who.project == "Gemini CLI" && g?.who.cwd == "/Users/me/api")
+
+            b.apply(event: "SessionEnd", key: k, who: withPlace, now: at(8))
+            check("a session that ended takes its folder and tty with it",
+                  info(b, k, now: at(9)) == nil && b.snapshot(now: at(9)).allSatisfy { $0.who.tty.isEmpty })
         }
 
         // ── two sessions behind one pill ────────────────────────────────────────

@@ -163,7 +163,7 @@ struct AgentTile: View {
                     hostIcon
                 }
                 HStack(spacing: 4) {
-                    ForEach(Array(session.steps.suffix(AgentSessionBook.maxSteps).enumerated()), id: \.offset) { _, step in
+                    ForEach(Array(session.steps.suffix(AgentSessionBook.tileSteps).enumerated()), id: \.offset) { _, step in
                         Image(systemName: AgentLook.symbol(step.kind))
                             .font(.system(size: 10))
                             .foregroundColor(Color(hex: "#8E939C"))

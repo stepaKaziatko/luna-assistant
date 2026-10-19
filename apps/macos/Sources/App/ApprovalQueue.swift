@@ -38,6 +38,14 @@ struct ApprovalQueue: Sendable {
 
     func contains(id: UUID) -> Bool { entries.contains { $0.id == id } }
 
+    /// Whether a decision given for the request `id` may be taken: only the head of the queue is
+    /// answered, so a late click on a request that has moved or gone, and an answer to a request
+    /// that is not at the head yet, are refused. Without an id the head is meant.
+    func accepts(decisionFor id: UUID?) -> Bool {
+        guard let head else { return false }
+        return id == nil || id == head.id
+    }
+
     /// 1-based position of the entry in the queue, nil if absent.
     func position(of id: UUID) -> Int? {
         entries.firstIndex { $0.id == id }.map { $0 + 1 }
@@ -81,5 +89,19 @@ struct ApprovalQueue: Sendable {
         default:
             return []
         }
+    }
+}
+
+// MARK: - Choices on a request
+
+/// Which buttons a permission request offers. One function for the card and the preview page:
+/// two copies of the rule would drift apart.
+enum ApprovalChoices {
+    /// Pills whose agents ignore `updatedPermissions`: "Always" would do nothing there.
+    static let withoutAlways: Set<String> = ["agent_codex", "agent_copilot", "agent_muse"]
+
+    static func offersAlways(pillId: String?) -> Bool {
+        guard let pillId else { return true }
+        return !withoutAlways.contains(pillId)
     }
 }

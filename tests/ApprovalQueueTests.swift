@@ -63,6 +63,29 @@ enum ApprovalQueueTests {
         _ = same.enqueue(entry(1)); _ = same.enqueue(entry(2, tool: "Edit"))
         precondition(!same.hasMixedSources)
 
+        // Only the head is answered, by id: a request behind it, a gone one and a stale click are refused
+        var order = ApprovalQueue()
+        let o1 = entry(1, session: "s1"), o2 = entry(2, session: "s2"), o3 = entry(3, session: "s3")
+        precondition(!order.accepts(decisionFor: nil), "an empty queue answers nothing")
+        for e in [o1, o2, o3] { _ = order.enqueue(e) }
+        precondition(order.accepts(decisionFor: o1.id) && order.accepts(decisionFor: nil), "the head is answered")
+        precondition(!order.accepts(decisionFor: o2.id) && !order.accepts(decisionFor: o3.id), "a request behind the head is not")
+        precondition(!order.accepts(decisionFor: UUID()), "an unknown request is not")
+        order.remove(id: o1.id)
+        precondition(!order.accepts(decisionFor: o1.id), "an answered request is not answered twice")
+        precondition(order.accepts(decisionFor: o2.id) && !order.accepts(decisionFor: o3.id), "the next one takes its turn")
+        order.remove(id: o3.id)
+        precondition(order.accepts(decisionFor: o2.id), "a removal behind the head leaves the head")
+
+        // The buttons of a request: one rule for the card and the preview page
+        for pill in ["agent_codex", "agent_copilot", "agent_muse"] {
+            precondition(!ApprovalChoices.offersAlways(pillId: pill), "\(pill) has no Always")
+        }
+        for pill in ["integration_claude", "agent_cursor", "agent_hermes", "agent_gemini"] {
+            precondition(ApprovalChoices.offersAlways(pillId: pill), "\(pill) has Always")
+        }
+        precondition(ApprovalChoices.offersAlways(pillId: nil), "an unknown card keeps its Always")
+
         print("pass")
     }
 }
