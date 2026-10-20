@@ -191,6 +191,59 @@ enum AskQuestionTests {
                       q.estimatedPreviewHeight >= q.estimatedIslandHeight && q.estimatedPreviewHeight <= 560)
         }
 
+        // ── переводы строк в оценке высоты (LUNA-78) ───────────────────────────
+        print("\nОценка высоты: переводы строк")
+        do {
+            func item(_ text: String) -> AskQuestionItem {
+                AskQuestionItem(question: text, header: "", options: [
+                    AskQuestionOption(label: "Да", description: ""),
+                    AskQuestionOption(label: "Нет", description: ""),
+                    AskQuestionOption(label: "Остановиться", description: "")
+                ], multiSelect: false)
+            }
+            // Каждая строка короткая: без учёта \n всё считается одной строкой.
+            let lines = (1...6).map { "Пункт \($0)" }
+            let flat = AskQuestion(questions: [item(lines.joined(separator: " "))])
+            let broken = AskQuestion(questions: [item(lines.joined(separator: "\n"))])
+            checkTrue("текст с \\n выше того же текста в одну строку",
+                      broken.estimatedIslandHeight > flat.estimatedIslandHeight)
+            checkTrue("шесть строк — на пять строк выше одной (17 pt на строку)",
+                      broken.estimatedIslandHeight - flat.estimatedIslandHeight == 5 * 17)
+            // Пустая строка между абзацами тоже занимает строку.
+            let paragraphs = AskQuestion(questions: [item("Абзац один\n\nАбзац два")])
+            let twoLines = AskQuestion(questions: [item("Абзац один\nАбзац два")])
+            checkTrue("пустая строка между абзацами считается",
+                      paragraphs.estimatedIslandHeight - twoLines.estimatedIslandHeight == 17)
+            checkTrue("\\n в конце не добавляет строку",
+                      AskQuestion(questions: [item("Абзац один\nАбзац два\n")]).estimatedIslandHeight
+                      == twoLines.estimatedIslandHeight)
+            // \r\n — тот же перевод строки.
+            checkTrue("\\r\\n считается как \\n",
+                      AskQuestion(questions: [item("Абзац один\r\nАбзац два")]).estimatedIslandHeight
+                      == twoLines.estimatedIslandHeight)
+            // Описание варианта со строками тоже выше.
+            let descFlat = AskQuestionItem(question: "Q?", header: "", options: [
+                AskQuestionOption(label: "A", description: "раз два три"),
+                AskQuestionOption(label: "B", description: "")
+            ], multiSelect: false)
+            var descBroken = descFlat
+            descBroken.options[0].description = "раз\nдва\nтри"
+            checkTrue("описание варианта с \\n выше",
+                      AskQuestion(questions: [descBroken]).estimatedIslandHeight
+                      > AskQuestion(questions: [descFlat]).estimatedIslandHeight)
+
+            // Вопрос апрува на ~25 строк с абзацами и списками: упирается в потолок, остров не растёт выше.
+            var long = "Подтверди план:\n\n"
+            for n in 1...10 { long += "- шаг \(n): короткое описание\n" }
+            long += "\nРиски:\n"
+            for n in 1...10 { long += "• риск \(n)\n" }
+            let tallQ = AskQuestion(questions: [item(long)])
+            checkTrue("длинный вопрос со строками упирается в потолок 560", tallQ.estimatedIslandHeight == 560)
+            checkTrue("и на странице превью — тоже 560", tallQ.estimatedPreviewHeight == 560)
+            let huge = AskQuestion(questions: [item(String(repeating: "строка\n", count: 400))])
+            checkTrue("потолок не превышается", huge.estimatedIslandHeight == 560 && huge.estimatedPreviewHeight == 560)
+        }
+
         // ── finish ─────────────────────────────────────────────────────────────
         if failures == 0 {
             print("\nAll tests passed.")

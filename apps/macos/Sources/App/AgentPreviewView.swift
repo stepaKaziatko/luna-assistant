@@ -259,11 +259,11 @@ struct AgentPreviewView: View {
     private func rightColumn(_ session: AgentSessionInfo, request: AgentPreviewLogic.Request) -> some View {
         switch request {
         case .question(let id):
-            ScrollView(.vertical, showsIndicators: false) {
-                QuestionPanel(question: state.pendingQuestion, questionId: id, showsAsker: false,
-                              onAnswered: { answeredHere = $0 })
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-            }
+            // Длинный вопрос прокручивает сама панель: «Reply in terminal» и Send остаются на месте,
+            // выбранный клавишами вариант въезжает в видимую часть (LUNA-78).
+            QuestionPanel(question: state.pendingQuestion, questionId: id, showsAsker: false,
+                          onAnswered: { answeredHere = $0 })
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         case .approval(let req):
             approvalCard(req)
         case .queued(let req):
@@ -363,8 +363,8 @@ struct AgentPreviewView: View {
                         .monospacedDigit()
                 }
             }
-            CodeBlock(text: req.command)
-                .lineLimit(5)
+            // Длинная команда прокручивается, а не обрезается (LUNA-78).
+            ScrollingCodeBlock(text: req.command, maxLines: 5)
             HStack(spacing: 8) {
                 SecondaryButton("Deny") { decide("deny", req) }
                     .keyPickCapsule(picked == 0)

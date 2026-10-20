@@ -99,8 +99,14 @@ struct AskQuestion: Equatable {
     var estimatedPreviewHeight: CGFloat { min(max(estimatedHeight(textWidth: 380) + 28, 240), 560) }
 
     private func estimatedHeight(textWidth: CGFloat) -> CGFloat {
+        // Каждая строка текста (между переводами строк, пустая тоже) переносится сама по себе;
+        // перевод строки в конце строки не добавляет (LUNA-78).
         func lines(_ text: String, charWidth: CGFloat) -> CGFloat {
-            max(1, (CGFloat(text.count) * charWidth / textWidth).rounded(.up))
+            var rows = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+            if rows.count > 1, rows.last?.isEmpty == true { rows.removeLast() }
+            return rows.reduce(0) { sum, row in
+                sum + max(1, (CGFloat(row.count) * charWidth / textWidth).rounded(.up))
+            }
         }
         let tallest = questions.map { item -> CGFloat in
             var h: CGFloat = 20 + lines(item.question, charWidth: 7) * 17 + 64
