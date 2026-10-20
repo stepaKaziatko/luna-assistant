@@ -288,10 +288,7 @@ final class AppState: ObservableObject {
     /// Смена проекта при непустой истории — новый разговор, как «Новый разговор».
     func selectChatProject(_ id: UUID?) {
         guard id != chatProjectID else { return }
-        if !chatHistory.isEmpty {
-            chatHistory = []
-            ClaudeService.shared.clearConversation()
-        }
+        if !chatHistory.isEmpty { startNewChat() }
         chatProjectID = id
     }
 
@@ -299,6 +296,133 @@ final class AppState: ObservableObject {
     func reconcileChatProjectSelection() {
         let resolved = ChatProjectSelection.resolve(savedID: chatProjectID?.uuidString, in: chatProjects)
         if resolved?.id != chatProjectID { selectChatProject(resolved?.id) }
+    }
+
+    // MARK: История чатов (LUNA-76)
+
+    /// Settings → Chat → «Хранить историю чатов». UserDefaults `chatHistoryEnabled`, по умолчанию
+    /// включено (решение человека В1). Выключение не стирает записанное — для этого «Очистить историю».
+    @Published var chatHistoryEnabled: Bool =
+        (UserDefaults.standard.object(forKey: ChatHistory.defaultsKey) as? Bool) ?? true {
+        didSet { UserDefaults.standard.set(chatHistoryEnabled, forKey: ChatHistory.defaultsKey) }
+    }
+
+    /// `~/Library/Application Support/Luna/ChatHistory`. Читается при первом открытии списка или
+    /// первой записи; пишется только по законченному ответу и удалению — таймеров нет.
+    private let chatHistoryStore = ChatHistoryStore(directory: ChatHistoryStore.defaultDirectory)
+
+    /// Строки окна истории, новые сверху.
+    @Published private(set) var chatHistoryEntries: [ChatHistoryEntry] = []
+
+    /// Какой чат открыт на странице запроса. Ход берёт билет (`chatOpen.ticket()`): ответ после «+»
+    /// или открытия другого чата в открытый чат не попадает.
+    @Published private(set) var chatOpen = ChatOpenState()
+    private var openChatCreated: Date?
+    private var openChatContextLabel: String?
+
+    /// Пометки над полем ввода у чата, открытого из истории (источник другой, проект недоступен).
+    @Published var chatNotices: [ChatHistoryNotice] = []
+
+    func loadChatHistory() {
+        chatHistoryEntries = chatHistoryStore.load()
+    }
+
+    /// «+», ⌘K, смена проекта: новый чат вместо открытого. Открытый остаётся в истории.
+    func startNewChat() {
+        chatOpen.newChat()
+        resetOpenChatPage()
+    }
+
+    private func resetOpenChatPage() {
+        chatHistory = []
+        ClaudeService.shared.clearConversation()
+        openChatCreated = nil
+        openChatContextLabel = nil
+        chatNotices = []
+        if stateOverride == .thinking { stateOverride = nil }
+    }
+
+    /// Законченный ответ открытого чата → запись в историю. Не в демо и не при выключенном хранении.
+    func recordOpenChat(provider: ChatProvider, cliSession: ChatHistoryCLISession?) {
+        guard ChatHistory.shouldRecord(enabled: chatHistoryEnabled, demo: DemoEngine.shared.isActive) else { return }
+        if openChatContextLabel == nil { openChatContextLabel = Self.historyContextLabel(promptContext) }
+        // Проект чата — папка его сессии Claude Code (вопрос в проекте бывает только у неё).
+        let project: ChatHistoryProject? = cliSession?.projectPath.map { path in
+            if let known = chatProjects.projects.first(where: { $0.path == path }) {
+                return ChatHistoryProject(id: known.id, name: known.name, path: known.path)
+            }
+            return ChatHistoryProject(id: nil, name: URL(fileURLWithPath: path).lastPathComponent, path: path)
+        }
+        guard let record = ChatHistoryRecord.make(
+            id: chatOpen.chatID, messages: chatHistory, created: openChatCreated, now: Date(),
+            provider: provider.rawValue, project: project, cliSession: cliSession,
+            contextLabel: openChatContextLabel) else { return }
+        openChatCreated = record.created
+        chatHistoryStore.save(record, openID: chatOpen.chatID)
+        chatHistoryEntries = chatHistoryStore.entries
+    }
+
+    /// Чат из истории — на страницу запроса. Источник и модель не меняются (инвариант: между
+    /// подпиской и ключом Luna сама не переключается) — только пометка с кнопкой.
+    func openHistoryChat(_ id: UUID) {
+        guard id != chatOpen.chatID || chatHistory.isEmpty else { return }
+        guard let record = chatHistoryStore.record(id) else {
+            chatHistoryEntries = chatHistoryStore.entries   // файла нет или испорчен: строка убрана
+            return
+        }
+        let projectID: UUID? = record.project.flatMap { saved in
+            let match = saved.id.flatMap { chatProjects.project(id: $0) }
+                ?? chatProjects.projects.first(where: { $0.path == saved.path })
+            return match.flatMap { ChatProjectFolder.inspect($0.path).isUsable ? $0.id : nil }
+        }
+        let chatSource = record.source ?? ChatProvider(rawValue: record.provider)?.displayName ?? record.provider
+        let plan = ChatContinuation.plan(for: record, currentProvider: chatProvider.rawValue,
+                                         chatSourceName: chatSource, projectID: projectID)
+        chatOpen.open(record.id)
+        resetOpenChatPage()
+        ClaudeService.shared.restoreConversation(turns: ChatHistory.apiTurns(from: record.messages),
+                                                 cliSession: plan.cliSession)
+        openChatCreated = record.created
+        openChatContextLabel = record.contextLabel
+        chatHistory = record.messages
+        switch plan.project {
+        case .keep: break
+        case .none: chatProjectID = nil              // без очистки истории, в отличие от selectChatProject
+        case .project(let id): chatProjectID = id
+        }
+        chatNotices = plan.notices
+    }
+
+    /// Кнопка пометки «Продолжить через …»: единственное место, где открытый чат меняет источник,
+    /// и только по клику.
+    func continueChat(with provider: ChatProvider) {
+        chatProvider = provider
+        chatNotices.removeAll { if case .sourceDiffers = $0 { true } else { false } }
+    }
+
+    /// Корзина в списке. Удалён открытый — страница становится новым чатом. Транскрипт Claude Code
+    /// в `~/.claude/projects` не трогается.
+    func deleteHistoryChat(_ id: UUID) {
+        chatHistoryStore.delete(id)
+        chatHistoryEntries = chatHistoryStore.entries
+        if chatOpen.deleted(id) { resetOpenChatPage() }
+    }
+
+    /// Settings → Chat → «Очистить историю».
+    func clearChatHistory() {
+        let wasSaved = chatHistoryStore.load().contains { $0.id == chatOpen.chatID }
+        chatHistoryStore.clear()
+        chatHistoryEntries = []
+        if wasSaved { startNewChat() }
+    }
+
+    /// Подпись контекста первого вопроса: только имена, не содержимое файла.
+    private static func historyContextLabel(_ context: PromptContext?) -> String? {
+        switch context {
+        case .window(let app, let title, _)?: return title.isEmpty ? app : "\(app) — \(title)"
+        case .file(let name, _)?: return name
+        case nil: return nil
+        }
     }
 
     /// Страница «Агенты» по проектам. UserDefaults `agentsGroupByProject`, по умолчанию выключено.
@@ -1306,16 +1430,7 @@ struct NotionPage: Identifiable {
 }
 
 // MARK: - Chat
-
-enum ChatRole { case user, assistant }
-
-struct ChatMessage: Identifiable, Equatable {
-    let id = UUID()
-    let role: ChatRole
-    var content: String   // var for streaming updates
-    /// Чем отвечено: «Claude Code · подписка · sonnet». nil — без подписи (сообщения пользователя, старый путь).
-    var source: String? = nil
-}
+// ChatRole и ChatMessage — в ChatHistory.swift (сохраняются в истории чатов, под тестами).
 
 /// Действие под заметкой: переключить источник чата и повторить вопрос.
 struct NoteAction: Equatable {

@@ -29182,6 +29182,310 @@
           }
         }
       }
+    },
+    "chat.cli.error.session-not-found": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The previous Claude Code session is not available."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прежняя сессия Claude Code недоступна."
+          }
+        }
+      }
+    },
+    "chat.history.session-lost": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The previous Claude Code session is not available — answering in a new session, without the earlier context."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прежняя сессия Claude Code недоступна — ответ в новой сессии, без прежнего контекста."
+          }
+        }
+      }
+    },
+    "chat.history.button.help": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat history"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "История чатов"
+          }
+        }
+      }
+    },
+    "chat.history.new.help": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New chat ⌘K"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новый чат ⌘K"
+          }
+        }
+      }
+    },
+    "chat.history.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chats"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Чаты"
+          }
+        }
+      }
+    },
+    "chat.history.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your chats with Luna will appear here."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Здесь появятся ваши чаты с Luna."
+          }
+        }
+      }
+    },
+    "chat.history.disabled": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History is off: new chats are not saved. Turn it on in Settings → Chat."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "История выключена: новые чаты не сохраняются. Включить — в Настройках → Чат."
+          }
+        }
+      }
+    },
+    "chat.history.delete.help": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete chat"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить чат"
+          }
+        }
+      }
+    },
+    "chat.history.notice.switch": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue with %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Продолжить через %@"
+          }
+        }
+      }
+    },
+    "chat.history.notice.source": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This chat went through %1$@. %2$@ is selected now."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Этот чат шёл через %1$@. Сейчас выбран %2$@."
+          }
+        }
+      }
+    },
+    "chat.history.notice.new-session": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code will start a new session, without the earlier context."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code начнёт новую сессию, без прежнего контекста."
+          }
+        }
+      }
+    },
+    "chat.history.notice.project": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project “%@” is not available — the next question starts a new Claude Code conversation without the earlier context."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проект «%@» недоступен — следующий вопрос начнёт новый разговор Claude Code без прежнего контекста."
+          }
+        }
+      }
+    },
+    "chat.history.settings.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat history"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "История чатов"
+          }
+        }
+      }
+    },
+    "chat.history.settings.enabled": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep chat history"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Хранить историю чатов"
+          }
+        }
+      }
+    },
+    "chat.history.settings.description": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luna keeps your last 100 chats on this Mac, unencrypted, in ~/Library/Application Support/Luna/ChatHistory. Attached files are not saved, only their names. Turning this off keeps what is already saved. Deleting a chat does not touch Claude Code's own transcripts in ~/.claude/projects."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luna хранит 100 последних чатов на этом Mac, без шифрования, в ~/Library/Application Support/Luna/ChatHistory. Прикреплённые файлы не сохраняются — только их имена. Выключение не стирает уже записанное. Удаление чата не трогает транскрипты самого Claude Code в ~/.claude/projects."
+          }
+        }
+      }
+    },
+    "chat.history.settings.clear": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear history…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Очистить историю…"
+          }
+        }
+      }
+    },
+    "chat.history.settings.clear.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear chat history?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Очистить историю чатов?"
+          }
+        }
+      }
+    },
+    "chat.history.settings.clear.confirm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Очистить"
+          }
+        }
+      }
+    },
+    "chat.history.settings.clear.message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All saved chats are deleted. This cannot be undone."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все сохранённые чаты будут удалены. Отменить это нельзя."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

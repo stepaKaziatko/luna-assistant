@@ -81,6 +81,23 @@ enum ClaudeCLIChatTests {
         check("итог — лимит со временем сброса из resetsAt",
               limitResult == .failure(.rateLimited(resetsAt: Date(timeIntervalSince1970: 1792357800))))
 
+        print("ClaudeStreamParser: --resume сессии, которой нет (LUNA-76)")
+        let (_, missing) = parse("session-not-found.jsonl", exit: 1)
+        check("вывод claude 2.1.x «No conversation found» → .sessionNotFound, не .api и не .failed",
+              missing == .failure(.sessionNotFound))
+        var stderrOnly = ClaudeStreamParser()
+        stderrOnly.finish()
+        check("только строка в stderr и код 1 → .sessionNotFound",
+              stderrOnly.outcome(exitStatus: 1, stderrTail: "No conversation found with session ID: x") == .failure(.sessionNotFound))
+        var otherError = ClaudeStreamParser()
+        otherError.feed(Data((#"{"type":"result","is_error":true,"errors":["Something else"]}"# + "\n").utf8))
+        check("другая ошибка итога — по-прежнему .api", otherError.outcome(exitStatus: 1) == .failure(.api("error")))
+        var answered = ClaudeStreamParser()
+        answered.feed(fixture("success-turn1.jsonl"))
+        answered.finish()
+        check("ответ, где модель сама цитирует эту фразу, — не сбой",
+              answered.outcome(exitStatus: 0, stderrTail: "No conversation found with session ID") == .success("Привет"))
+
         print("ClaudeStreamParser: мусор")
         var garbage = ClaudeStreamParser()
         garbage.feed(Data("not json\n{broken\n\n[]\n{\"type\":5}\n".utf8))
@@ -223,6 +240,10 @@ enum ClaudeCLIChatTests {
         let missing = ChatCLIMessages.text(for: .projectFolderMissing("/w/gone"), hasAPIKey: false)
         check("папка проекта пропала: путь в сообщении, без подсказки про ключ",
               missing.contains("Project folder not found") && missing.contains("/w/gone") && !missing.contains("API key"))
+        check("сессия не найдена: понятный текст без подсказки про ключ",
+              ChatCLIMessages.text(for: .sessionNotFound, hasAPIKey: true).contains("session is not available")
+                && !ChatCLIMessages.text(for: .sessionNotFound, hasAPIKey: true).contains("API key"))
+        check("пометка в чате о новой сессии", ChatCLIMessages.sessionLostNotice.contains("new session"))
         check("нет доступа к папке проекта",
               ChatCLIMessages.text(for: .projectFolderNoAccess("/w/x"), hasAPIKey: true).contains("No access to the project folder"))
     }
@@ -337,6 +358,47 @@ enum ClaudeCLIChatTests {
         check("ошибка «папка проекта не найдена»", pr3 == .failure(.projectFolderMissing("\(work)/нет-такого-проекта")))
         check("claude не запускался: файла аргументов нет", !FileManager.default.fileExists(atPath: "\(work)/project-gone/args"))
         check("папку проекта Luna не создала", !FileManager.default.fileExists(atPath: "\(work)/нет-такого-проекта"))
+
+        print("ClaudeCLITurn: --resume сессии, которой нет → один повтор в новой сессии (LUNA-76)")
+        var attempts: [(id: String, resume: Bool, name: String)] = []
+        var retriedWith: String?
+        let lost = "cccccccc-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+        let outcome = await ClaudeCLITurn.run(sessionID: lost, resume: true, launch: { sid, resume in
+            let name = "retry-\(attempts.count + 1)"
+            attempts.append((sid, resume, name))
+            var r = request(mode: "resume-missing", id: sid, resume: resume, name: name)
+            r.environment["FAKE_CLAUDE_MISSING_FIXTURE"] = "\(fixtures)/session-not-found.jsonl"
+            return await ClaudeCLIProcess().run(r) { _ in }
+        }, beforeRetry: { retriedWith = $0 })
+        let rargs1 = read("\(work)/retry-1/args").split(separator: "\n").map(String.init)
+        let rargs2 = read("\(work)/retry-2/args").split(separator: "\n").map(String.init)
+        check("два запуска: первый — --resume прежнего id", attempts.count == 2
+                && zip(rargs1, rargs1.dropFirst()).contains { $0 == "--resume" && $1 == lost } && !rargs1.contains("--session-id"))
+        check("второй — --session-id нового id, без --resume",
+              retriedWith != nil && retriedWith != lost
+                && zip(rargs2, rargs2.dropFirst()).contains { $0 == "--session-id" && $1 == retriedWith! } && !rargs2.contains("--resume"))
+        check("ответ получен в новой сессии, повтор отмечен",
+              outcome.result == .success("Привет") && outcome.retried && outcome.sessionID == retriedWith)
+        check("тот же вопрос в stdin обоих запусков",
+              read("\(work)/retry-1/stdin") == read("\(work)/retry-2/stdin") && !read("\(work)/retry-2/stdin").isEmpty)
+        var once = 0
+        let noRetry = await ClaudeCLITurn.run(sessionID: lost, resume: false, launch: { _, _ in
+            once += 1
+            return .failure(.sessionNotFound)
+        }, beforeRetry: { _ in once += 100 })
+        check("без --resume не повторяется", once == 1 && !noRetry.retried)
+        var twice = 0
+        let stillMissing = await ClaudeCLITurn.run(sessionID: lost, resume: true, launch: { _, _ in
+            twice += 1
+            return .failure(.sessionNotFound)
+        }, beforeRetry: { _ in })
+        check("повтор только один", twice == 2 && stillMissing.result == .failure(.sessionNotFound))
+        var other = 0
+        _ = await ClaudeCLITurn.run(sessionID: lost, resume: true, launch: { _, _ in
+            other += 1
+            return .failure(.rateLimited(resetsAt: nil))
+        }, beforeRetry: { _ in })
+        check("другие сбои --resume не повторяются", other == 1)
 
         print("ClaudeCLIProcess: вход не выполнен и лимит")
         let r3 = request(mode: "stream", fixture: "not-logged-in.jsonl", name: "nologin")

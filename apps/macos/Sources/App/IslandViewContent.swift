@@ -1399,6 +1399,7 @@ struct PromptView: View {
     @FocusState private var focused: Bool
     @State private var showModelPicker = false
     @State private var showProjectPicker = false
+    @State private var showChatHistory = false
 
     #if !APPSTORE
     @State private var dictation = MacDictation()
@@ -1449,7 +1450,15 @@ struct PromptView: View {
                     Spacer()
                 }
 
+                // Пометки чата из истории: источник другой, проект недоступен (LUNA-76).
+                if !state.chatNotices.isEmpty {
+                    ChatHistoryNoticeBanner(state: state)
+                }
+
                 HStack(spacing: 6) {
+                    // История чатов и «+» — новый чат, как ⌘K (LUNA-76).
+                    ChatHistoryButton(state: state, isPresented: $showChatHistory)
+                    NewChatButton(state: state)
                     Spacer()
                     #if !APPSTORE
                     // Проект — только у Claude Code по подписке (LUNA-75).
@@ -1559,8 +1568,8 @@ struct PromptView: View {
         .onReceive(NotificationCenter.default.publisher(for: .islandNewConversation)) { _ in
             guard state.view == .prompt else { return }
             text = ""
-            state.chatHistory = []
-            ClaudeService.shared.clearConversation()
+            // Новый чат: открытый остаётся в истории, ответ его идущего хода сюда не попадёт.
+            state.startNewChat()
             focused = true
         }
     }
@@ -1773,7 +1782,18 @@ struct ChatBubble: View {
     let message: ChatMessage
 
     var body: some View {
-        if !message.content.isEmpty {
+        if message.isNotice, !message.content.isEmpty {
+            // Пометка Luna в чате (LUNA-76): не реплика модели.
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 9.5))
+                Text(message.content)
+                    .font(.system(size: 10.5))
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+            }
+            .foregroundColor(Color(hex: "#8A8F98"))
+        } else if !message.content.isEmpty {
             HStack(alignment: .top) {
                 if message.role == .user {
                     Spacer(minLength: 32)

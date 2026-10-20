@@ -196,6 +196,30 @@ final class ClaudeService {
         #endif
     }
 
+    /// Чат из истории (LUNA-76): модель помнит его разговор. Для ключа API — сообщения текстом
+    /// (решение В3: провайдер получает прежнюю переписку); для Claude Code — сессия чата, следующий
+    /// ход в той же папке — `--resume`. Идущий ответ прежнего чата прекращается, как при «+».
+    func restoreConversation(turns: [(role: String, text: String)], cliSession restored: ChatHistoryCLISession?) {
+        clearConversation()
+        conversationMessages = turns.map { ["role": $0.role, "content": $0.text] }
+        #if !APPSTORE
+        if let restored {
+            cliSession = ChatCLISession(restoring: restored.id, projectPath: restored.projectPath,
+                                        started: restored.started)
+        }
+        #endif
+    }
+
+    /// Сессия Claude Code открытого чата для записи в историю: только начатая.
+    private var historyCLISession: ChatHistoryCLISession? {
+        #if APPSTORE
+        return nil
+        #else
+        guard cliSession.started else { return nil }
+        return ChatHistoryCLISession(id: cliSession.id, projectPath: cliSession.projectPath, started: true)
+        #endif
+    }
+
     #if !APPSTORE
     // Claude Code: своя сессия чата (не чужая идущая сессия агента), её папка и идущий запуск.
     private var cliSession = ChatCLISession()
@@ -235,12 +259,15 @@ final class ClaudeService {
             state.stateOverride = nil
             return
         }
+        // Билет хода: ответ, пришедший после «+» или открытия другого чата, в открытый чат не попадает.
+        let ticket = state.chatOpen.ticket()
+        state.chatNotices = []
         if state.chatProvider == .claudeCode {
-            await chatClaudeCode(query: query, context: context, state: state)
+            await chatClaudeCode(query: query, context: context, state: state, ticket: ticket)
             return
         }
         guard state.chatProvider == .anthropic else {
-            await chatOpenAICompatible(query: query, context: context, state: state)
+            await chatOpenAICompatible(query: query, context: context, state: state, ticket: ticket)
             return
         }
         guard let key = apiKey, !key.isEmpty else {
@@ -288,8 +315,10 @@ final class ClaudeService {
 
         do {
             let data = try await callAPI(body: body, key: key, beta: "web-search-2025-03-05")
+            guard state.chatOpen.accepts(ticket) else { return }
             await handleChatResult(data, state: state)
         } catch {
+            guard state.chatOpen.accepts(ticket) else { return }
             conversationMessages.removeLast()
             await showError(error.localizedDescription, state: state)
         }
@@ -297,7 +326,8 @@ final class ClaudeService {
 
     // MARK: - OpenAI-compatible chat (Google Gemini / OpenAI / Ollama / LM Studio)
 
-    func chatOpenAICompatible(query: String, context: PromptContext?, state: AppState) async {
+    func chatOpenAICompatible(query: String, context: PromptContext?, state: AppState,
+                              ticket: ChatOpenState.Ticket) async {
         let provider = state.chatProvider
         guard provider != .anthropic, provider != .claudeCode else { return }
 
@@ -415,14 +445,17 @@ final class ClaudeService {
                         state.chatHistory[idx].content = visible
                     }
                 }
+                guard state.chatOpen.accepts(ticket) else { return }
                 conversationMessages.append(["role": "assistant", "content": final])
                 if let idx = state.chatHistory.firstIndex(where: { $0.id == msgId }) {
                     state.chatHistory[idx].content = final
                 }
                 state.stateOverride = nil
                 state.view = .prompt
+                state.recordOpenChat(provider: provider, cliSession: historyCLISession)
                 NotificationCenter.default.post(name: .triggerEmote, object: BotEmote.happy)
             } catch let e as LocalChatError {
+                guard state.chatOpen.accepts(ticket) else { return }
                 conversationMessages.removeLast()
                 state.chatHistory.removeAll { $0.id == msgId }
                 state.stateOverride = nil
@@ -439,6 +472,7 @@ final class ClaudeService {
                 }
                 await showError(msg, state: state)
             } catch {
+                guard state.chatOpen.accepts(ticket) else { return }
                 conversationMessages.removeLast()
                 state.chatHistory.removeAll { $0.id == msgId }
                 state.stateOverride = nil
@@ -462,13 +496,16 @@ final class ClaudeService {
                     throw NSError(domain: "ChatAPI", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unexpected response format"])
                 }
                 let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard state.chatOpen.accepts(ticket) else { return }
                 conversationMessages.append(["role": "assistant", "content": trimmed])
                 state.chatHistory.append(ChatMessage(role: .assistant, content: trimmed,
                                                      source: sourceLabel(for: provider, model: state.activeChatModel)))
                 state.stateOverride = nil
                 state.view = .prompt
+                state.recordOpenChat(provider: provider, cliSession: historyCLISession)
                 NotificationCenter.default.post(name: .triggerEmote, object: BotEmote.happy)
             } catch {
+                guard state.chatOpen.accepts(ticket) else { return }
                 conversationMessages.removeLast()
                 await showError(error.localizedDescription, state: state)
             }
@@ -479,12 +516,16 @@ final class ClaudeService {
     // MARK: - Claude Code (подписка)
 
     #if APPSTORE
-    private func chatClaudeCode(query: String, context: PromptContext?, state: AppState) async {
+    private func chatClaudeCode(query: String, context: PromptContext?, state: AppState,
+                                ticket: ChatOpenState.Ticket) async {
         await showError(ChatCLIMessages.text(for: .unavailable, hasAPIKey: false), state: state)
     }
     #else
     /// Вопрос чата → `claude -p` по подписке, ответ стримится в пузырь. Сбои — заметка с подсказкой.
-    private func chatClaudeCode(query: String, context: PromptContext?, state: AppState) async {
+    /// Сессии чата у Claude Code нет (`--resume` не удался) — тот же вопрос один раз в новой сессии,
+    /// с пометкой в чате (LUNA-76, решение В4).
+    private func chatClaudeCode(query: String, context: PromptContext?, state: AppState,
+                                ticket: ChatOpenState.Ticket) async {
         let hasKey = !(apiKey ?? "").isEmpty
         func fail(_ error: ClaudeCLIError) async {
             // Сессия не состоялась — следующий ход начнёт новую, а не «возобновит» несуществующую.
@@ -496,6 +537,8 @@ final class ClaudeService {
 
         // Один запуск за раз: два хода одной сессии одновременно ломают друг друга.
         while cliRun != nil { try? await Task.sleep(for: .milliseconds(100)) }
+        // Пока ждали, открыли другой чат или начали новый: вопрос прежнего чата не уходит.
+        guard state.chatOpen.accepts(ticket) else { return }
 
         guard let executable = CLIResolver.executable(.claude) else {
             state.claudeCodeStatus = .missing
@@ -511,20 +554,22 @@ final class ClaudeService {
         let turn = cliSession.turn(projectPath: project?.path)
 
         // Контекст окна или файла — только в первом ходе сессии, как у API.
-        var window: (app: String, title: String, url: String?)?
-        var file: ChatCLIPrompt.FileContext?
-        if !turn.resume, let context {
-            switch context {
-            case .window(let app, let title, let url):
-                window = (app, title, url)
-            case .file(let name, let fileURL):
-                file = ChatCLIPrompt.fileContext(
-                    name: name,
-                    fileExtension: fileURL?.pathExtension ?? "",
-                    data: fileURL.flatMap { try? Data(contentsOf: $0) })
+        func prompt(resume: Bool) -> String {
+            var window: (app: String, title: String, url: String?)?
+            var file: ChatCLIPrompt.FileContext?
+            if !resume, let context {
+                switch context {
+                case .window(let app, let title, let url):
+                    window = (app, title, url)
+                case .file(let name, let fileURL):
+                    file = ChatCLIPrompt.fileContext(
+                        name: name,
+                        fileExtension: fileURL?.pathExtension ?? "",
+                        data: fileURL.flatMap { try? Data(contentsOf: $0) })
+                }
             }
+            return ChatCLIPrompt.build(query: query, window: window, file: file)
         }
-        let prompt = ChatCLIPrompt.build(query: query, window: window, file: file)
 
         let source = ChatSourceLabel.claudeCode(
             model: state.claudeCodeChatModel, status: state.claudeCodeStatus,
@@ -534,33 +579,58 @@ final class ClaudeService {
         state.chatHistory.append(placeholder)
         state.stateOverride = .thinking
 
-        let process = ClaudeCLIProcess()
-        cliRun = process
-        LunaChatSessions.register(turn.id)
-        var request = ClaudeCLIRequest(
-            executable: executable,
-            prompt: prompt,
-            systemPrompt: systemPrompt,
-            model: ClaudeCodeModels.cliModel(for: state.claudeCodeChatModel),
-            sessionID: turn.id,
-            resume: turn.resume,
-            workingDirectory: project.map { URL(fileURLWithPath: $0.path, isDirectory: true) } ?? ClaudeCLIChatFolder.url,
-            environment: CLIResolver.environment(base: ProcessInfo.processInfo.environment, executable: executable))
-        request.inProject = project != nil
-        let result = await process.run(request) { [state] visible in
-            // Очередь main — FIFO: куски ответа приходят в порядке вывода.
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated {
-                    if !visible.isEmpty, state.stateOverride == .thinking { state.stateOverride = nil }
-                    if let idx = state.chatHistory.firstIndex(where: { $0.id == msgId }) {
-                        state.chatHistory[idx].content = visible
+        let workingDirectory = project.map { URL(fileURLWithPath: $0.path, isDirectory: true) } ?? ClaudeCLIChatFolder.url
+        let environment = CLIResolver.environment(base: ProcessInfo.processInfo.environment, executable: executable)
+        let model = ClaudeCodeModels.cliModel(for: state.claudeCodeChatModel)
+        let outcome = await ClaudeCLITurn.run(sessionID: turn.id, resume: turn.resume, launch: { sessionID, resume in
+            let process = ClaudeCLIProcess()
+            self.cliRun = process
+            LunaChatSessions.register(sessionID)
+            var request = ClaudeCLIRequest(
+                executable: executable,
+                prompt: prompt(resume: resume),
+                systemPrompt: self.systemPrompt,
+                model: model,
+                sessionID: sessionID,
+                resume: resume,
+                workingDirectory: workingDirectory,
+                environment: environment)
+            request.inProject = project != nil
+            let result = await process.run(request) { [state] visible in
+                // Очередь main — FIFO: куски ответа приходят в порядке вывода.
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        if !visible.isEmpty, state.stateOverride == .thinking { state.stateOverride = nil }
+                        if let idx = state.chatHistory.firstIndex(where: { $0.id == msgId }) {
+                            state.chatHistory[idx].content = visible
+                        }
                     }
                 }
             }
-        }
-        if cliRun === process { cliRun = nil }
+            if self.cliRun === process { self.cliRun = nil }
+            return result
+        }, beforeRetry: { fresh in
+            // Прежней сессии нет: новая в той же папке, пометка в чате перед ответом.
+            guard state.chatOpen.accepts(ticket) else { return }
+            self.cliSession = ChatCLISession(id: fresh)
+            _ = self.cliSession.turn(projectPath: project?.path)
+            var notice = ChatMessage(role: .assistant, content: ChatCLIMessages.sessionLostNotice)
+            notice.isNotice = true
+            if let idx = state.chatHistory.firstIndex(where: { $0.id == msgId }) {
+                state.chatHistory[idx].content = ""
+                state.chatHistory.insert(notice, at: idx)
+            } else {
+                state.chatHistory.append(notice)
+            }
+        })
 
-        switch result {
+        // Ответ пришёл после «+» или открытия другого чата: в открытый чат он не попадает.
+        guard state.chatOpen.accepts(ticket) else {
+            if case .success = outcome.result { appendAppLog("luna.log", "[Chat] answer of a closed chat dropped") }
+            return
+        }
+
+        switch outcome.result {
         case .success(let text):
             cliSession.markStarted()
             if let idx = state.chatHistory.firstIndex(where: { $0.id == msgId }) {
@@ -568,6 +638,7 @@ final class ClaudeService {
             }
             state.stateOverride = nil
             state.view = .prompt
+            state.recordOpenChat(provider: .claudeCode, cliSession: historyCLISession)
             NotificationCenter.default.post(name: .triggerEmote, object: BotEmote.happy)
         case .failure(.cancelled):
             // «Новый разговор» или выход: история уже очищена, состояние принадлежит новому вопросу.
@@ -781,6 +852,7 @@ final class ClaudeService {
 
         state.stateOverride = nil
         state.view = .prompt
+        state.recordOpenChat(provider: .anthropic, cliSession: historyCLISession)
         NotificationCenter.default.post(name: .triggerEmote, object: BotEmote.happy)
     }
 

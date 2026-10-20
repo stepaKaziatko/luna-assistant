@@ -227,6 +227,14 @@ struct ChatCLISession: Equatable, Sendable {
 
     init(id: String = ChatCLISession.newID()) { self.id = id }
 
+    /// Сессия чата из истории (LUNA-76): тот же id, та же папка, «начата» — следующий ход в той же
+    /// папке продолжит её `--resume`, в другой — начнёт новую.
+    init(restoring id: String, projectPath: String?, started: Bool) {
+        self.id = id
+        self.projectPath = projectPath
+        self.started = started
+    }
+
     static func newID() -> String { UUID().uuidString.lowercased() }
 
     /// Ход в папке `projectPath`: id сессии и `resume`. Другая папка после начала — новая сессия.

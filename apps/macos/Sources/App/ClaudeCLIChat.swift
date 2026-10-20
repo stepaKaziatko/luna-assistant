@@ -250,6 +250,37 @@ final class ClaudeCLIProcess: @unchecked Sendable {
     }
 }
 
+// MARK: - Ход с повтором в новой сессии (LUNA-76)
+
+/// Ход чата по подписке. `--resume` сессии, которой у Claude Code нет (транскрипт удалён, другой
+/// аккаунт), — тот же вопрос один раз в новой сессии (`--session-id`), решение человека В4.
+/// Прежняя переписка в промпт новой сессии не подставляется.
+enum ClaudeCLITurn {
+    struct Outcome {
+        var result: Result<String, ClaudeCLIError>
+        /// Сессия, в которой прошёл последний запуск.
+        var sessionID: String
+        var retried: Bool
+    }
+
+    /// `launch(id, resume)` — один запуск `claude`; `beforeRetry(newID)` — перед повтором (пометка в
+    /// чате, новая сессия). Повтор — только после `--resume` и только один.
+    @MainActor
+    static func run(sessionID: String, resume: Bool,
+                    newSessionID: () -> String = ChatCLISession.newID,
+                    launch: (_ sessionID: String, _ resume: Bool) async -> Result<String, ClaudeCLIError>,
+                    beforeRetry: (_ newSessionID: String) -> Void) async -> Outcome {
+        let first = await launch(sessionID, resume)
+        guard resume, case .failure(.sessionNotFound) = first else {
+            return Outcome(result: first, sessionID: sessionID, retried: false)
+        }
+        let fresh = newSessionID()
+        beforeRetry(fresh)
+        let second = await launch(fresh, false)
+        return Outcome(result: second, sessionID: fresh, retried: true)
+    }
+}
+
 // MARK: - Вход: `claude auth status`
 
 enum ClaudeAuthProbe {

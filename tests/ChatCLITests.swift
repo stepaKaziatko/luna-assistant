@@ -158,6 +158,21 @@ enum ChatCLITests {
         free.markStarted()
         check("без проекта — как сегодня: --resume дальше", free.turn(projectPath: nil) == ("n1", true))
 
+        print("ChatCLISession: из истории чатов (LUNA-76)")
+        let saved = ChatHistoryCLISession(id: "h1", projectPath: "/w/luna", started: true)
+        let json = (try? JSONEncoder().encode(saved)) ?? Data()
+        let decoded = try? JSONDecoder().decode(ChatHistoryCLISession.self, from: json)
+        check("сессия чата переживает запись в файл", decoded == saved)
+        var restored = ChatCLISession(restoring: decoded?.id ?? "", projectPath: decoded?.projectPath,
+                                      started: decoded?.started ?? false)
+        check("восстановленная: ход в той же папке — --resume того же id", restored.turn(projectPath: "/w/luna") == ("h1", true))
+        let elsewhere = restored.turn(projectPath: "/w/other")
+        check("восстановленная: ход в другой папке — новая сессия", elsewhere.id != "h1" && !elsewhere.resume)
+        var restoredFree = ChatCLISession(restoring: "h2", projectPath: nil, started: true)
+        check("восстановленная без проекта: --resume в служебной папке", restoredFree.turn(projectPath: nil) == ("h2", true))
+        var notStarted = ChatCLISession(restoring: "h3", projectPath: nil, started: false)
+        check("не начатая — первый ход --session-id того же id", notStarted.turn(projectPath: nil) == ("h3", false))
+
         print("LunaChatSessions: хуки чата — не сессия агента")
         let chatID = "AAAAAAAA-0000-4000-8000-000000000075"
         check("до регистрации — сессия агента", !LunaChatSessions.isChatEvent(["session_id": chatID]))
