@@ -16,3 +16,6 @@ apps/macos/Sources/App/Voice/GitHash.generated.swift
 .worktrees/
 .claude/settings.local.json
 relay/node_modules/
+# Локальный мусор основной копии: зависимости и сборка прежнего ядра не коммитятся
+node_modules/
+/core/

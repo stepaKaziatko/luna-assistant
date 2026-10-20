@@ -1,32 +1,35 @@
 #!/bin/sh
-# Выкладывает собранные бандлы релизом в публичный репозиторий: исходники Luna закрыты,
-# а скачивают её оттуда. Повторный запуск для того же тега заменяет файлы.
+# Выкладывает собранный архив черновиком релиза в этот репозиторий. Черновик снаружи не виден
+# и тега не ставит: тег появляется, когда Release публикует черновик после проверки установки.
+# Повторный запуск для того же тега заменяет файлы, заметки и коммит черновика.
 #
-#   GH_TOKEN=… scripts/publish-release.sh v0.2.0 <каталог с бандлами>
+#   GH_TOKEN=… GITHUB_SHA=<коммит> scripts/publish-release.sh v1.1.0 <каталог с архивом>
 #
-# GH_TOKEN — токен с правом Contents на публичный репозиторий (в CI — секрет LUNA_RELEASES_TOKEN).
-# RELEASES_REPO — куда выкладывать; по умолчанию stepaKaziatko/luna-releases.
-# LUNA_RELEASE_DRAFT=1 — завести черновик: снаружи его не видно, пока не опубликован.
+# GH_TOKEN — токен с правом Contents на этот репозиторий (в CI — github.token).
+# GITHUB_SHA — коммит, на который встанет тег при публикации.
+# checksums.txt в каталоге — суммы, с которыми архив прошёл проверку установки; его нет —
+# скрипт посчитает сам. Перед выкладкой суммы сверяются.
 set -eu
 
 tag="$1"
 dist="$(cd "$2" && pwd)"
-repo="${RELEASES_REPO:-stepaKaziatko/luna-releases}"
+repo="stepaKaziatko/luna-assistant"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 
 fail() { printf '✗ %s\n' "$*" >&2; exit 1; }
 
-[ -n "${GH_TOKEN:-}" ] || fail "нет GH_TOKEN: заведите секрет LUNA_RELEASES_TOKEN с правом Contents на $repo"
+[ -n "${GH_TOKEN:-}" ] || fail "нет GH_TOKEN с правом Contents на $repo"
+target="${GITHUB_SHA:-}"
+[ -n "$target" ] || fail "нет GITHUB_SHA: на какой коммит ставить тег"
 
 cd "$dist"
-rm -f checksums.txt
-if command -v sha256sum >/dev/null 2>&1; then
-  sha256sum -- * > checksums.txt
-else
-  shasum -a 256 -- * > checksums.txt
+ls ./*.zip >/dev/null 2>&1 || fail "в $dist нет архива *.zip"
+if [ ! -f checksums.txt ]; then
+  shasum -a 256 -- *.zip > checksums.txt
 fi
+shasum -a 256 -c checksums.txt >/dev/null || fail "checksums.txt не сходится с архивом в $dist"
 
-# Заметки — раздел этой версии из CHANGELOG.md: список коммитов закрытого репозитория наружу не идёт.
+# Заметки — раздел этой версии из CHANGELOG.md, словами пользователя, а не список коммитов.
 notes="$(mktemp)"
 trap 'rm -f "$notes"' EXIT
 awk -v heading="## ${tag#v}" '
@@ -44,10 +47,10 @@ curl -fsSL https://raw.githubusercontent.com/$repo/main/install.sh | sh
 NOTES
 
 if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
-  gh release upload "$tag" ./* --repo "$repo" --clobber
-  gh release edit "$tag" --repo "$repo" --notes-file "$notes"
+  gh release upload "$tag" ./*.zip checksums.txt --repo "$repo" --clobber
+  gh release edit "$tag" --repo "$repo" --target "$target" --notes-file "$notes"
 else
-  gh release create "$tag" ./* --repo "$repo" --title "Luna $tag" --notes-file "$notes" \
-    ${LUNA_RELEASE_DRAFT:+--draft}
+  gh release create "$tag" ./*.zip checksums.txt --repo "$repo" --draft --target "$target" \
+    --title "Luna $tag" --notes-file "$notes"
 fi
-echo "✓ $tag → https://github.com/$repo/releases"
+echo "✓ $tag: черновик → https://github.com/$repo/releases"

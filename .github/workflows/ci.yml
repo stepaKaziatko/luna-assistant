@@ -41,7 +41,7 @@ jobs:
           app=true
           # Диапазон не разобрать (первый push ветки, переписанная история) — проверяем всё.
           if [ -n "$range" ] && files=$(git diff --name-only "$range" 2>/dev/null) &&
-             ! printf '%s\n' "$files" | grep -qE '^(apps/macos/|tests/|scripts/|\.github/workflows/)'; then
+             ! printf '%s\n' "$files" | grep -qE '^(apps/macos/|tests/|scripts/|\.github/workflows/|install\.sh$)'; then
             app=false
           fi
           # Коммит в main с ещё не выпущенной версией собирает и тестирует workflow Release —

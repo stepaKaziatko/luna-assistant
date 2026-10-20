@@ -21,11 +21,15 @@ Luna живёт в вырезе MacBook (на мониторе без вырез
 
 ## Установка готовой сборки
 
-Сборки выкладываются в публичный репозиторий [luna-releases](https://github.com/stepaKaziatko/luna-releases):
+Сборки выкладываются в [релизы](https://github.com/stepaKaziatko/luna-assistant/releases) этого репозитория. Установка и обновление — одной командой:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/stepaKaziatko/luna-releases/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/stepaKaziatko/luna-assistant/main/install.sh | sh
 ```
+
+Прежний адрес установки из репозитория [luna-releases](https://github.com/stepaKaziatko/luna-releases) продолжает работать и ставит ту же последнюю версию; там же остаётся архив сборок v0.2–v1.0 (их ставит `LUNA_VERSION=v0.7.0` с любого из двух адресов).
+
+Первый запуск, подключение агентов, хоткеи, удаление и данные — в [руководстве пользователя](docs/USER-GUIDE.md).
 
 Luna подписана ad-hoc, без нотаризации. Скрипт установки снимает карантин сам; скачанную браузером копию macOS с первого раза не откроет — попробуйте запустить Luna, затем откройте Системные настройки → Конфиденциальность и безопасность и нажмите «Всё равно открыть» рядом с сообщением о Luna. Это нужно один раз.
 
@@ -76,9 +80,22 @@ Luna просит их по мере надобности и работает б
 | `apps/macos/scripts/` | Сборка бандла, проверка запуска, генерация иконок и звуков |
 | `tests/`, `scripts/test-*.sh` | Тесты и скрипты их запуска |
 | `relay/` | Cloudflare Worker для пушей Live Activity на iPhone |
-| `docs/` | Спецификация острова, интеграции, агенты, голос, iPhone (по-английски и по-французски, из coucou) |
+| `docs/` | Руководство пользователя (`USER-GUIDE.md`); спецификация острова, интеграции, агенты, голос, iPhone (по-английски и по-французски, из coucou) |
+| `install.sh` | Установщик готовой сборки |
 | `scripts/` | Версия, выпуск, публикация релиза |
 
 ## Выпуск
 
-Версия хранится в `apps/macos/project.yml` и в `apps/macos/Resources/Info.plist`; поднимает её `scripts/bump-version.sh`, забирая заметки из раздела «Дальше» в `CHANGELOG.md`. Коммит в `main` с ещё не выпущенной версией собирает `Luna.app` (arm64 + x86_64) и выкладывает релиз в `luna-releases`.
+Версия хранится в `apps/macos/project.yml` и в `apps/macos/Resources/Info.plist`; поднимает её `scripts/bump-version.sh`, забирая заметки из раздела «Дальше» в `CHANGELOG.md`. Коммит в `main` с ещё не выпущенной версией собирает `Luna.app` (arm64 + x86_64), проверяет установку из собранного архива на macOS 15 и 26 и только после этого публикует релиз в этом репозитории; установщик — [`install.sh`](install.sh) в корне.
+
+## Безопасность и вклад
+
+Об уязвимости сообщайте приватно, не в публичном issue: [Report a vulnerability](https://github.com/stepaKaziatko/luna-assistant/security/advisories/new), подробности — в [SECURITY.md](SECURITY.md).
+
+Ошибки и предложения — в [issues](https://github.com/stepaKaziatko/luna-assistant/issues), исправления — pull request'ом в `main`. Проверки CI на PR из форка запускаются после одобрения владельца. Перед PR прогоните тесты (`for t in scripts/test-*.sh; do bash "$t"; done`) и держитесь инвариантов из [CLAUDE.md](CLAUDE.md): без сторонних зависимостей, секреты только в Keychain, никакой телеметрии, ни одно разрешение агента не уходит без клика.
+
+## Лицензия
+
+- Код Luna — [MIT](LICENSE).
+- Luna выросла из [coucou](https://github.com/Louis-CFM/coucou) (MIT, © Louis Raillé): его уведомление об авторских правах и что именно перенесено — в [LICENSE-COUCOU](LICENSE-COUCOU). Имя «Coucou», персонаж «Mochi», иконка, звуки и медиа coucou лицензированы отдельно и в Luna не входят.
+- Персонаж Luna (нарисован кодом в `apps/macos/Sources/LunaKit`), иконки (`apps/macos/scripts/render-icons.swift`) и звуки (`apps/macos/scripts/render-sounds.py`) — тоже код этого репозитория, под той же лицензией MIT; отдельной лицензии на ассеты у Luna нет.

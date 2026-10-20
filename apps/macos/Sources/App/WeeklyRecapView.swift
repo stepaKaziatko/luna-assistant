@@ -302,7 +302,7 @@ struct RecapShareImageView: View {
 
                 Spacer()
 
-                Text("Luna · github.com/stepaKaziatko/luna-releases")
+                Text("Luna · github.com/stepaKaziatko/luna-assistant")
                     .font(.system(size: 20, weight: .medium, design: .monospaced))
                     .foregroundColor(Color(hex: "#8E939C").opacity(0.6))
                     .padding(.bottom, 60)
