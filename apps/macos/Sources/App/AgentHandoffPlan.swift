@@ -15,7 +15,7 @@ import Foundation
 // `scripts/test-agent-handoff.sh`. Исполняет план `AgentHandoff` (папка и ссылки через
 // `NSWorkspace`, команда — в буфер обмена). Переиспользуются проверки `AgentJumpPlan` и
 // `AgentLaunchPlan`: id — только UUID, папка — абсолютная, без управляющих символов и `..`.
-// App Store-сборке перенос не нужен (песочница не читает `~/.vscode/extensions`): весь код — под `#if !APPSTORE`.
+// App Store-сборке перенос не нужен (песочница не читает папку расширений VS Code): весь код — под `#if !APPSTORE`.
 
 /// Куда перенести сессию.
 enum AgentHandoffTarget: String, CaseIterable, Equatable, Sendable {
