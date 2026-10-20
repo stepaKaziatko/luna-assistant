@@ -123,6 +123,23 @@ enum ClaudeCLIChatTests {
 
     // MARK: Аргументы
 
+    /// Разрешённый список чата в проекте (П3, решение человека 20.10.2026): ровно один `--tools`,
+    /// набор — чтение, поиск по файлам и поиск в сети, за значением идёт флаг.
+    static func projectAllowlistChecks(_ args: [String], label: String) {
+        let indices = args.indices.filter { args[$0] == "--tools" }
+        check("\(label): в проекте ровно один --tools", indices.count == 1)
+        guard let i = indices.first, args.indices.contains(i + 1) else {
+            check("\(label): разрешённый список — Read, Glob, Grep, WebSearch, WebFetch", false)
+            return
+        }
+        let allowed = Set(args[i + 1].split(separator: ",").map(String.init))
+        check("\(label): разрешённый список — Read, Glob, Grep, WebSearch, WebFetch",
+              allowed == ["Read", "Glob", "Grep", "WebSearch", "WebFetch"]
+                && args[i + 1].split(separator: ",").count == allowed.count)
+        check("\(label): за разрешённым списком идёт флаг: вариадический --tools не съест следующее",
+              args.indices.contains(i + 2) && args[i + 2].hasPrefix("--"))
+    }
+
     static func argumentTests() {
         print("ClaudeCLIArguments")
         let id = "11111111-2222-4333-8444-555555555555"
@@ -153,9 +170,9 @@ enum ClaudeCLIChatTests {
         let proj = ClaudeCLIArguments.build(systemPrompt: "SYS", model: "sonnet", sessionID: id, resume: false, inProject: true)
         check("без --safe-mode и --strict-mcp-config: CLAUDE.md, хуки и MCP проекта работают",
               !proj.contains("--safe-mode") && !proj.contains("--strict-mcp-config"))
-        check("без ограничения --tools, веб разрешён заранее",
-              !proj.contains("--tools")
-                && zip(proj, proj.dropFirst()).contains { $0 == "--allowedTools" && $1 == "WebSearch,WebFetch" })
+        projectAllowlistChecks(proj, label: "первый ход")
+        check("веб разрешён заранее: --allowedTools WebSearch,WebFetch",
+              zip(proj, proj.dropFirst()).contains { $0 == "--allowedTools" && $1 == "WebSearch,WebFetch" })
         check("промпт Luna дописан к промпту Claude Code, не заменяет его",
               zip(proj, proj.dropFirst()).contains { $0 == "--append-system-prompt" && $1 == "SYS" } && !proj.contains("--system-prompt"))
         check("в проекте только чтение: --disallowedTools Bash,Edit,Write,NotebookEdit,mcp__* одним значением",
@@ -173,6 +190,7 @@ enum ClaudeCLIChatTests {
         let projResume = ClaudeCLIArguments.build(systemPrompt: "SYS", model: nil, sessionID: id, resume: true, inProject: true)
         check("продолжение разговора в проекте — с теми же запретами",
               zip(projResume, projResume.dropFirst()).contains { $0 == "--disallowedTools" && $1 == "Bash,Edit,Write,NotebookEdit,mcp__*" })
+        projectAllowlistChecks(projResume, label: "--resume")
         check("без проекта --disallowedTools нет (там --safe-mode и --tools веб)",
               !first.contains("--disallowedTools") && !second.contains("--disallowedTools"))
         check("запрещённого нет и в проекте: --dangerously-skip-permissions, --bare, --permission-mode",
@@ -294,6 +312,9 @@ enum ClaudeCLIChatTests {
               !pargs1.contains("--safe-mode") && pargs1.contains("--append-system-prompt") && pargs1.contains("--session-id") && pargs1.contains(projectSession))
         check("процессу в проекте ушёл --disallowedTools Bash,Edit,Write,NotebookEdit,mcp__*",
               zip(pargs1, pargs1.dropFirst()).contains { $0 == "--disallowedTools" && $1 == "Bash,Edit,Write,NotebookEdit,mcp__*" })
+        check("процессу в проекте ушёл --tools Read,Glob,Grep,WebSearch,WebFetch",
+              zip(pargs1, pargs1.dropFirst()).contains { $0 == "--tools" && $1 == "Read,Glob,Grep,WebSearch,WebFetch" }
+                && pargs1.filter { $0 == "--tools" }.count == 1)
         check("в окружении метка чата LUNA_CHAT_SESSION=<id> и нет ключа API",
               penv1.contains("LUNA_CHAT_SESSION=\(projectSession)") && !penv1.contains("ANTHROPIC_API_KEY") && !penv1.contains("CLAUDECODE="))
         check("запрос в stdin без изменений", read("\(work)/project1/stdin") == "Секретный вопрос пользователя")
@@ -302,6 +323,8 @@ enum ClaudeCLIChatTests {
         p2.inProject = true
         let pr2 = await ClaudeCLIProcess().run(p2) { _ in }
         let pargs2 = read("\(work)/project2/args").split(separator: "\n").map(String.init)
+        check("второй ход в проекте: процессу ушёл тот же --tools Read,Glob,Grep,WebSearch,WebFetch",
+              zip(pargs2, pargs2.dropFirst()).contains { $0 == "--tools" && $1 == "Read,Glob,Grep,WebSearch,WebFetch" })
         check("второй ход: --resume тот же id из той же папки",
               pr2 == .success("Hi") && pargs2.contains("--resume") && pargs2.contains(projectSession) && !pargs2.contains("--session-id")
                 && read("\(work)/project2/cwd-seen").trimmingCharacters(in: .whitespacesAndNewlines) == realProject)

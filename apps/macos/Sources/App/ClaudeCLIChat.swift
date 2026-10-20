@@ -13,11 +13,14 @@ import Foundation
 //   пользователя, инструменты только веб. Подпроцесс не шлёт события хуков.
 // - Вопрос в проекте (LUNA-75, решение человека): папка проекта и без `--safe-mode` — CLAUDE.md,
 //   `.claude/settings.json` и хуки проекта работают как в обычном Claude Code. Но чат в проекте
-//   только читает и отвечает: `--disallowedTools` убирает команды (`Bash`), правки (`Edit`,
-//   `Write`, `NotebookEdit`) и все инструменты MCP-серверов (`mcp__*`) — какие бы разрешения
-//   (`defaultMode`, `permissions.allow`) ни стояли у пользователя или в проекте: запрет Claude Code
-//   сильнее разрешения. Luna запросов разрешений не показывает и не разрешает. События хуков такого
-//   чата помечены `LUNA_CHAT_SESSION` и в острове сессией агента не становятся (`LunaChatSessions`).
+//   только читает и отвечает: разрешённый список `--tools Read,Glob,Grep,WebSearch,WebFetch`
+//   оставляет модели чтение файлов проекта, поиск по ним и поиск в сети — больше ничего, включая
+//   инструменты будущих версий `claude`. Второй барьер — `--disallowedTools`: он убирает команды
+//   (`Bash`), правки (`Edit`, `Write`, `NotebookEdit`) и все инструменты MCP-серверов (`mcp__*`) —
+//   какие бы разрешения (`defaultMode`, `permissions.allow`) ни стояли у пользователя или в проекте:
+//   запрет Claude Code сильнее разрешения. Luna запросов разрешений не показывает и не разрешает.
+//   События хуков такого чата помечены `LUNA_CHAT_SESSION` и в острове сессией агента не становятся
+//   (`LunaChatSessions`).
 // - Без `--bare` (он отключает вход по подписке) и без флагов, отключающих запросы разрешений.
 // - Из окружения убираются ключ API и метки родительской сессии (`CLIResolver.environment`).
 
@@ -26,14 +29,21 @@ enum ClaudeCLIArguments {
     /// Файлы пользователя CLI не читает (`Read` не включён), оболочки у него нет.
     static let tools = "WebSearch,WebFetch"
 
-    /// Что запрещено чату в проекте: команды, правки файлов и все инструменты MCP-серверов
+    /// Разрешённый список чата в проекте (решение человека 20.10.2026): чтение файлов проекта,
+    /// поиск по ним и поиск в сети. Инструменты, которых здесь нет — субагенты, скилы, расписания,
+    /// worktree и всё, что появится в будущих версиях `claude`, — модели недоступны.
+    /// Значение одним аргументом через запятую: флаг вариадический, за ним идёт другой флаг.
+    static let projectTools = "Read,Glob,Grep,WebSearch,WebFetch"
+
+    /// Второй барьер чата в проекте: команды, правки файлов и все инструменты MCP-серверов
     /// (шаблон `mcp__*` — любой сервер: проекта, пользователя, коннекторы claude.ai).
     /// Значение одним аргументом через запятую: флаг вариадический, за ним идёт другой флаг.
     static let projectDisallowedTools = "Bash,Edit,Write,NotebookEdit,mcp__*"
 
-    /// `inProject`: Claude Code в папке проекта — без `--safe-mode`, `--strict-mcp-config` и
-    /// ограничения `--tools` (CLAUDE.md, настройки и хуки проекта действуют), но только чтение:
-    /// `--disallowedTools projectDisallowedTools`. Промпт Luna дописывается к промпту Claude Code.
+    /// `inProject`: Claude Code в папке проекта — без `--safe-mode` и `--strict-mcp-config`
+    /// (CLAUDE.md, настройки и хуки проекта действуют), но только чтение: `--tools projectTools`
+    /// и вторым барьером `--disallowedTools projectDisallowedTools`. Промпт Luna дописывается
+    /// к промпту Claude Code.
     static func build(systemPrompt: String, model: String?, sessionID: String, resume: Bool,
                       inProject: Bool = false) -> [String] {
         var args = [
@@ -44,6 +54,7 @@ enum ClaudeCLIArguments {
         ]
         if inProject {
             args += [
+                "--tools", projectTools,
                 "--allowedTools", tools,
                 "--disallowedTools", projectDisallowedTools,
                 "--append-system-prompt", systemPrompt,
