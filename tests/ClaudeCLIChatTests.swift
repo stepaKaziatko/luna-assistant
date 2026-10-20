@@ -143,6 +143,11 @@ enum ClaudeCLIChatTests {
         check("второй ход: --resume тот же uuid, без --session-id",
               zip(second, second.dropFirst()).contains { $0 == "--resume" && $1 == id } && !second.contains("--session-id"))
         check("модель default — без --model", !second.contains("--model"))
+        check("без проекта argv байт в байт как в 1.1.0",
+              first == ["-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
+                        "--safe-mode", "--strict-mcp-config", "--tools", "WebSearch,WebFetch",
+                        "--allowedTools", "WebSearch,WebFetch", "--system-prompt", "SYS",
+                        "--model", "sonnet", "--session-id", id])
 
         print("ClaudeCLIArguments: вопрос в проекте (решение В1 = B)")
         let proj = ClaudeCLIArguments.build(systemPrompt: "SYS", model: "sonnet", sessionID: id, resume: false, inProject: true)
@@ -153,6 +158,23 @@ enum ClaudeCLIChatTests {
                 && zip(proj, proj.dropFirst()).contains { $0 == "--allowedTools" && $1 == "WebSearch,WebFetch" })
         check("промпт Luna дописан к промпту Claude Code, не заменяет его",
               zip(proj, proj.dropFirst()).contains { $0 == "--append-system-prompt" && $1 == "SYS" } && !proj.contains("--system-prompt"))
+        check("в проекте только чтение: --disallowedTools Bash,Edit,Write,NotebookEdit,mcp__* одним значением",
+              zip(proj, proj.dropFirst()).contains { $0 == "--disallowedTools" && $1 == "Bash,Edit,Write,NotebookEdit,mcp__*" }
+                && proj.filter { $0 == "--disallowedTools" }.count == 1)
+        if let i = proj.firstIndex(of: "--disallowedTools") {
+            let denied = Set(proj[i + 1].split(separator: ",").map(String.init))
+            check("запрещены команды, правки и все MCP-инструменты",
+                  denied == ["Bash", "Edit", "Write", "NotebookEdit", "mcp__*"])
+            check("за списком запретов идёт флаг: вариадический --disallowedTools не съест промпт",
+                  proj.indices.contains(i + 2) && proj[i + 2].hasPrefix("--"))
+        } else {
+            check("запрещены команды, правки и все MCP-инструменты", false)
+        }
+        let projResume = ClaudeCLIArguments.build(systemPrompt: "SYS", model: nil, sessionID: id, resume: true, inProject: true)
+        check("продолжение разговора в проекте — с теми же запретами",
+              zip(projResume, projResume.dropFirst()).contains { $0 == "--disallowedTools" && $1 == "Bash,Edit,Write,NotebookEdit,mcp__*" })
+        check("без проекта --disallowedTools нет (там --safe-mode и --tools веб)",
+              !first.contains("--disallowedTools") && !second.contains("--disallowedTools"))
         check("запрещённого нет и в проекте: --dangerously-skip-permissions, --bare, --permission-mode",
               !proj.contains("--dangerously-skip-permissions") && !proj.contains("--bare") && !proj.contains("--permission-mode"))
         check("stream-json, --session-id, модель — как без проекта",
@@ -270,6 +292,8 @@ enum ClaudeCLIChatTests {
         check("рабочая папка — папка проекта", read("\(work)/project1/cwd-seen").trimmingCharacters(in: .whitespacesAndNewlines) == realProject)
         check("аргументы проекта: без --safe-mode, с --append-system-prompt, --session-id",
               !pargs1.contains("--safe-mode") && pargs1.contains("--append-system-prompt") && pargs1.contains("--session-id") && pargs1.contains(projectSession))
+        check("процессу в проекте ушёл --disallowedTools Bash,Edit,Write,NotebookEdit,mcp__*",
+              zip(pargs1, pargs1.dropFirst()).contains { $0 == "--disallowedTools" && $1 == "Bash,Edit,Write,NotebookEdit,mcp__*" })
         check("в окружении метка чата LUNA_CHAT_SESSION=<id> и нет ключа API",
               penv1.contains("LUNA_CHAT_SESSION=\(projectSession)") && !penv1.contains("ANTHROPIC_API_KEY") && !penv1.contains("CLAUDECODE="))
         check("запрос в stdin без изменений", read("\(work)/project1/stdin") == "Секретный вопрос пользователя")

@@ -306,9 +306,10 @@ final class AppState: ObservableObject {
         didSet { UserDefaults.standard.set(agentsGroupByProject, forKey: AgentProjectGrouping.defaultsKey) }
     }
 
-    /// Порядок плиток на странице «Агенты» — по нему ходят стрелки острова.
-    var agentTileOrder: [String] {
-        AgentProjectGrouping.displayOrder(agentSessions, projects: chatProjects.projects, grouped: agentsGroupByProject)
+    /// Плитки страницы «Агенты» в порядке на экране, по группам: по ним ходят стрелки острова
+    /// (←/→ по порядку, ↑/↓ по рядам групп).
+    var agentTileSections: [[String]] {
+        AgentProjectGrouping.displaySections(agentSessions, projects: chatProjects.projects, grouped: agentsGroupByProject)
     }
 
     @Published var googleChatModel: String = ChatProvider.google.defaultModel {

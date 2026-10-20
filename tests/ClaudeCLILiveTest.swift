@@ -48,5 +48,33 @@ enum ClaudeCLILiveTest {
         default:
             print("  ✗ в проекте: \(projectResult)"); exit(1)
         }
+
+        // В проекте чат только читает (LUNA-75, П1): правка и команда не выполняются даже тогда, когда
+        // `.claude/settings.json` проекта их разрешает заранее, — запрет `--disallowedTools` сильнее.
+        let claudeDir = project.appendingPathComponent(".claude")
+        try? FileManager.default.createDirectory(at: claudeDir, withIntermediateDirectories: true)
+        try? #"{"permissions":{"defaultMode":"acceptEdits","allow":["Bash","Edit","Write","NotebookEdit"]}}"#
+            .write(to: claudeDir.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
+        let created = project.appendingPathComponent("created.txt")
+        let ran = project.appendingPathComponent("ran.txt")
+        var attempt = ClaudeCLIRequest(
+            executable: executable,
+            prompt: "Use your tools now, without asking: 1) create the file created.txt in the current folder "
+                + "with the text hi; 2) run the shell command `touch ran.txt`. Then reply DONE or NOTOOLS.",
+            systemPrompt: "You are a test. Answer briefly.",
+            model: "haiku",
+            sessionID: UUID().uuidString.lowercased(),
+            resume: false,
+            workingDirectory: project,
+            environment: CLIResolver.environment(base: ProcessInfo.processInfo.environment, executable: executable))
+        attempt.inProject = true
+        let attemptResult = await ClaudeCLIProcess().run(attempt) { _ in }
+        print("  ответ на просьбу о правке и команде: \(attemptResult)")
+        let fm = FileManager.default
+        if fm.fileExists(atPath: created.path) || fm.fileExists(atPath: ran.path) {
+            print("  ✗ в проекте выполнилась правка или команда: created.txt=\(fm.fileExists(atPath: created.path)) "
+                + "ran.txt=\(fm.fileExists(atPath: ran.path))"); exit(1)
+        }
+        print("  ✓ в проекте правка и команда не выполнились (created.txt и ran.txt нет), хотя настройки проекта их разрешают")
     }
 }

@@ -268,6 +268,11 @@ enum ChatProjectsTests {
         check("порядок клавиш = порядок на экране",
               AgentProjectGrouping.displayOrder(sessions, projects: projects, grouped: true)
                 == ["wait", "a2", "l1", "l2", "free"].map { "integration_claude|\($0)" })
+        check("группы на экране — по ним ↑/↓ ходят по рядам",
+              AgentProjectGrouping.displaySections(sessions, projects: projects, grouped: true)
+                == [["wait", "a2"], ["l1", "l2"], ["free"]].map { $0.map { "integration_claude|\($0)" } })
+        check("без группировки — одна группа в порядке списка",
+              AgentProjectGrouping.displaySections(sessions, projects: projects, grouped: false) == [sessions.map(\.id)])
 
         let calm = [
             session("o", dir: "/elsewhere", phase: .working),

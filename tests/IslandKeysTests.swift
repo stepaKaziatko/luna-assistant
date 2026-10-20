@@ -36,6 +36,7 @@ enum IslandKeysTests {
         resolution()
         grid()
         selection()
+        groupedSelection()
         github()
         approvalKeys()
         questionKeys()
@@ -273,6 +274,47 @@ enum IslandKeysTests {
         check("a step with a closed session starts over", AgentsSelection.move(id: "z", step: .right, ids: ids) == "a")
         check("no sessions: no pick", AgentsSelection.move(id: nil, step: .down, ids: []) == nil)
         check("↓ moves a row by id", AgentsSelection.move(id: "a", step: .down, ids: ids) == "e")
+    }
+
+    // «По проектам» (LUNA-75): группы на экране начинаются с нового ряда, ↑/↓ — по рядам групп.
+    static func groupedSelection() {
+        print("\nPick by session, grouped by project")
+        typealias S = AgentsSelection
+        // Группа A — 2 плитки, B — 3: на экране ряд [A0 A1], под ним ряд [B0 B1 B2].
+        let ab = [["A0", "A1"], ["B0", "B1", "B2"]]
+        check("↓ с A0 — на B0 под ним, а не на B2", S.move(id: "A0", step: .down, sections: ab) == "B0")
+        check("↓ с A1 — на B1", S.move(id: "A1", step: .down, sections: ab) == "B1")
+        check("↑ с B0 — на A0", S.move(id: "B0", step: .up, sections: ab) == "A0")
+        check("↑ с B1 — на A1", S.move(id: "B1", step: .up, sections: ab) == "A1")
+        check("↑ с B2 над коротким рядом — на его последнюю плитку A1", S.move(id: "B2", step: .up, sections: ab) == "A1")
+        check("↑ с первого ряда стоит", S.move(id: "A1", step: .up, sections: ab) == "A1")
+        check("↓ с последнего ряда стоит", S.move(id: "B1", step: .down, sections: ab) == "B1")
+        check("→ с конца группы — на начало следующей", S.move(id: "A1", step: .right, sections: ab) == "B0")
+        check("← с начала группы — на конец предыдущей", S.move(id: "B0", step: .left, sections: ab) == "A1")
+        // Группа длиннее ряда: A — 6 плиток (ряды [A0..A3] и [A4 A5]), B — 3, C — 5 (ряды [C0..C3] и [C4]).
+        let long = [["A0", "A1", "A2", "A3", "A4", "A5"], ["B0", "B1", "B2"], ["C0", "C1", "C2", "C3", "C4"]]
+        check("↓ внутри группы — на ряд ниже той же группы", S.move(id: "A1", step: .down, sections: long) == "A5")
+        check("↓ в короткий ряд группы — на его последнюю плитку", S.move(id: "A3", step: .down, sections: long) == "A5")
+        check("↓ из второго ряда группы — в первый ряд следующей", S.move(id: "A4", step: .down, sections: long) == "B0")
+        check("↑ в ряд короче — на его последнюю плитку", S.move(id: "C3", step: .up, sections: long) == "B2")
+        check("↑ из группы — в последний ряд предыдущей", S.move(id: "B1", step: .up, sections: long) == "A5")
+        check("↑ из второго ряда группы — в её первый ряд", S.move(id: "C4", step: .up, sections: long) == "C0")
+        check("↓ с B2 — на C2", S.move(id: "B2", step: .down, sections: long) == "C2")
+        check("ничего не выбрано: ↓ — первая плитка, ↑ — последняя",
+              S.move(id: nil, step: .down, sections: long) == "A0" && S.move(id: nil, step: .up, sections: long) == "C4")
+        check("выбор закрытой сессии — заново с начала", S.move(id: "zz", step: .down, sections: long) == "A0")
+        check("пустые группы пропускаются", S.move(id: "A0", step: .down, sections: [["A0"], [], ["B0"]]) == "B0")
+        check("нет плиток — нет выбора", S.move(id: nil, step: .down, sections: [[], []]) == nil)
+        // Без группировки (одна группа) — шаг как у сплошной сетки, байт в байт.
+        let flat = ["a", "b", "c", "d", "e", "f", "g"]
+        var same = true
+        for id in [nil] + flat.map(Optional.some) + ["zz"] {
+            for step in [IslandGridStep.left, .right, .up, .down]
+            where S.move(id: id, step: step, sections: [flat]) != S.move(id: id, step: step, ids: flat) {
+                same = false
+            }
+        }
+        check("одна группа — то же, что без группировки, для каждой плитки и стрелки", same)
     }
 
     static func github() {

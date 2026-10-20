@@ -901,9 +901,9 @@ final class IslandWindowController: NSWindowController {
         case .toggleHelp:            state.keyHelpVisible.toggle()
 
         case .moveTile(let step):
-            // По порядку на экране: с «По проектам» — по группам (LUNA-75).
+            // По порядку на экране: с «По проектам» — по группам, ↑/↓ по рядам групп (LUNA-75).
             state.agentsSelectionId = AgentsSelection.move(id: state.agentsSelectionId, step: step,
-                                                           ids: state.agentTileOrder)
+                                                           sections: state.agentTileSections)
         case .openSelectedAgent:
             guard let id = AgentsSelection.reconcile(state.agentsSelectionId, ids: state.agentSessions.map(\.id))
             else { return }

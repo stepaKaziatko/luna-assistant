@@ -50,7 +50,13 @@ enum AgentProjectGrouping {
 
     /// Порядок плиток на экране — по нему же ходят стрелки острова.
     static func displayOrder(_ sessions: [AgentSessionInfo], projects: [ChatProject], grouped: Bool) -> [String] {
-        guard grouped else { return sessions.map(\.id) }
-        return groups(sessions, projects: projects).flatMap { $0.sessions.map(\.id) }
+        displaySections(sessions, projects: projects, grouped: grouped).flatMap { $0 }
+    }
+
+    /// Плитки на экране по группам: каждая группа начинается с нового ряда. Без группировки — одна
+    /// группа. По ним ↑/↓ острова ходят по рядам (`AgentsSelection.move(id:step:sections:)`).
+    static func displaySections(_ sessions: [AgentSessionInfo], projects: [ChatProject], grouped: Bool) -> [[String]] {
+        guard grouped else { return [sessions.map(\.id)] }
+        return groups(sessions, projects: projects).map { $0.sessions.map(\.id) }
     }
 }

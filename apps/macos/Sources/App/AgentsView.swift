@@ -59,7 +59,7 @@ struct AgentsView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVGrid(columns: Self.columns, spacing: 8) {
                     if state.agentsGroupByProject {
-                        // «По проектам» (LUNA-75): тот же порядок, что у стрелок (`AppState.agentTileOrder`).
+                        // «По проектам» (LUNA-75): те же группы и ряды, что у стрелок (`AppState.agentTileSections`).
                         ForEach(AgentProjectGrouping.groups(state.agentSessions, projects: state.chatProjects.projects)) { group in
                             Section {
                                 ForEach(group.sessions) { session in tile(session, lively: livelyIds) }

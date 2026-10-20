@@ -12,9 +12,11 @@ import Foundation
 // - «Без проекта»: служебная папка и `--safe-mode` — без хуков, плагинов, CLAUDE.md и MCP
 //   пользователя, инструменты только веб. Подпроцесс не шлёт события хуков.
 // - Вопрос в проекте (LUNA-75, решение человека): папка проекта и без `--safe-mode` — CLAUDE.md,
-//   `.claude/settings.json`, хуки и MCP проекта работают как в обычном Claude Code. Запросы
-//   разрешений решает сам Claude Code по своим правилам: в режиме `-p` спросить некого, и не
-//   разрешённое настройками отклоняется. Luna их не показывает и не разрешает. События хуков такого
+//   `.claude/settings.json` и хуки проекта работают как в обычном Claude Code. Но чат в проекте
+//   только читает и отвечает: `--disallowedTools` убирает команды (`Bash`), правки (`Edit`,
+//   `Write`, `NotebookEdit`) и все инструменты MCP-серверов (`mcp__*`) — какие бы разрешения
+//   (`defaultMode`, `permissions.allow`) ни стояли у пользователя или в проекте: запрет Claude Code
+//   сильнее разрешения. Luna запросов разрешений не показывает и не разрешает. События хуков такого
 //   чата помечены `LUNA_CHAT_SESSION` и в острове сессией агента не становятся (`LunaChatSessions`).
 // - Без `--bare` (он отключает вход по подписке) и без флагов, отключающих запросы разрешений.
 // - Из окружения убираются ключ API и метки родительской сессии (`CLIResolver.environment`).
@@ -24,8 +26,14 @@ enum ClaudeCLIArguments {
     /// Файлы пользователя CLI не читает (`Read` не включён), оболочки у него нет.
     static let tools = "WebSearch,WebFetch"
 
-    /// `inProject`: полный Claude Code в папке проекта — без `--safe-mode`, `--strict-mcp-config`
-    /// и ограничения `--tools`; промпт Luna дописывается к промпту Claude Code, а не заменяет его.
+    /// Что запрещено чату в проекте: команды, правки файлов и все инструменты MCP-серверов
+    /// (шаблон `mcp__*` — любой сервер: проекта, пользователя, коннекторы claude.ai).
+    /// Значение одним аргументом через запятую: флаг вариадический, за ним идёт другой флаг.
+    static let projectDisallowedTools = "Bash,Edit,Write,NotebookEdit,mcp__*"
+
+    /// `inProject`: Claude Code в папке проекта — без `--safe-mode`, `--strict-mcp-config` и
+    /// ограничения `--tools` (CLAUDE.md, настройки и хуки проекта действуют), но только чтение:
+    /// `--disallowedTools projectDisallowedTools`. Промпт Luna дописывается к промпту Claude Code.
     static func build(systemPrompt: String, model: String?, sessionID: String, resume: Bool,
                       inProject: Bool = false) -> [String] {
         var args = [
@@ -37,6 +45,7 @@ enum ClaudeCLIArguments {
         if inProject {
             args += [
                 "--allowedTools", tools,
+                "--disallowedTools", projectDisallowedTools,
                 "--append-system-prompt", systemPrompt,
             ]
         } else {
