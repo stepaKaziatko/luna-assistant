@@ -269,6 +269,12 @@ enum ChatHistoryTests {
         check("подписка без проекта → resume в служебной папке, «Без проекта»",
               freePlan.cliSession?.id == "s-3" && freePlan.project == .none && freePlan.notices.isEmpty)
 
+        // Сессия не начата (первый ход не состоялся) — продолжать нечего: --resume такой сессии
+        // упал бы «No conversation found».
+        let unstarted = record(4, session: ChatHistoryCLISession(id: "s-4", projectPath: nil, started: false))
+        let unstartedPlan = ChatContinuation.plan(for: unstarted, currentProvider: "claude_code", chatSourceName: "Claude Code", projectID: nil)
+        check("сессия не начата → новая сессия, не --resume", unstartedPlan.cliSession == nil)
+
         let both = ChatContinuation.plan(for: cli, currentProvider: "anthropic", chatSourceName: "Claude Code", projectID: nil)
         check("источник другой и проекта нет — обе пометки, источник первым",
               both.notices.count == 2 && both.notices.last == .projectUnavailable(name: "luna"))
