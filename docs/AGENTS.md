@@ -235,6 +235,42 @@ for the session; until then "Go to the agent" only activates Terminal or iTerm2.
 `/dev/ttysN` ever reaches an AppleScript; the folder, the project name and the session id never do.
 The App Store build has no AppleScript: it activates the app or opens the folder.
 
+### Launch an agent
+
+"Launch agent" on the prompt page (next to the project chip, Claude Code by subscription, GitHub build
+only) hands a task to the app where the person works with Claude Code. Luna does not start the agent
+itself: the task is typed into a new chat in the project folder, the person sends it with Enter in that
+app, and from then on the session reaches Luna through the hooks like any other. The plan is a pure
+function (`AgentLaunchPlan`, `scripts/test-agent-launch.sh`); `AgentLaunch` only opens a folder and links
+through `NSWorkspace` — no process, no script, no new macOS permission, nothing written to the settings of
+other apps. The task goes into the link and nowhere else; nothing reaches a model before the person's Enter.
+
+| Target | What Luna opens | Needs |
+|---|---|---|
+| VS Code | The project folder in VS Code, then `vscode://anthropic.claude-code/open?prompt=<task>` once the window with the folder is in front — the same "folder → link" step as "Go to the agent" (`AgentJump.openFolderThenLink`), waiting up to 10 s when VS Code was not running. VS Code decodes the query of a link once itself (`URI.parse`) and the extension parses the rest with `URLSearchParams`, so the task is percent-encoded twice. | VS Code and the Claude Code extension (a folder `anthropic.claude-code-<version>` in the extensions folder of VS Code; only the folder names are read) |
+| Terminal | `claude-cli://open?cwd=<folder>&q=<task>`: Claude Code opens a window of the terminal where `claude` was last run, with `claude` in the folder and the task typed in ("Prompt from an external link"). | The handler `claude-cli://` (`~/Applications/Claude Code URL Handler.app`), registered by Claude Code after the first prompt in an interactive `claude` |
+| Claude Desktop | `claude://code/new?folder=<folder>&q=<task>` — a new Code session in the folder. | Claude Desktop, signed in |
+
+Refused, with the reason on the button: no project, an empty task, a task over 5000 UTF-16 units (the limit
+of `q` in `claude-cli://`; never cut silently), a folder that is not absolute, has control characters or a
+`..` segment, a folder that is gone or not readable. Every value is percent-encoded with only the RFC 3986
+unreserved characters left as they are, so `&`, `=`, `+`, `#`, newlines and non-ASCII text survive.
+
+**Ways to launch an agent — research (LUNA-77).** Marks: *verified* — checked on a Mac (claude 2.1.296,
+the VS Code extension 2.1.304, VS Code 1.141.1, Claude.app 1.49585) or read in the code of the handler;
+*documented* — official documentation only; *assumption* — not checked.
+
+| Way | How | Luna sees it (hooks) | Open the chat later | Status |
+|---|---|---|---|---|
+| VS Code tab with the task typed in | Folder, then `vscode://anthropic.claude-code/open?prompt=` (not sent; the link goes to the focused window) | Yes, host `com.microsoft.VSCode` | There; "Go to the agent" | Shipped. Link format verified in the extension (`handleUri`); double decoding verified in VS Code (`URI.parse`) |
+| Terminal via `claude-cli://` | `claude-cli://open?cwd=&q=` (not sent; `q` ≤ 5000) | Yes, with a tty | There | Shipped. Handler verified on a Mac; format documented |
+| Claude Desktop | `claude://code/new?folder=&q=` | Hooks of `~/.claude/settings.json` apply in Desktop (documented) | There | Shipped. `folder` read in the code of Claude.app; `q` together with `folder` is an assumption |
+| Codex app | `codex://new?path=&prompt=`, `codex://threads/<id>` | Assumption | `codex://threads/<id>` | Not done: Codex not installed, nothing verified |
+| Background `claude --bg` | A session kept by the supervisor of Claude Code; `claude agents --json` for the state | Assumption | `claude attach <id>` in a terminal only | Not done: needs a trusted folder (verified: refused "Workspace not trusted"), a new `claude` process outside `ClaudeCLIChat.swift` |
+| Background `claude -p` as a child of Luna | `--session-id <uuid>` in the project folder | Yes, but the host would be Luna (assumption) | After the turn: VS Code `?session=`, `claude --desktop --resume <id>`, `claude --resume <id>` | Not done: skips the trust dialog, dies with Luna, changes the invariant on the `claude` process |
+| Interactive `claude` in Terminal/iTerm2 via AppleScript | `do script "cd … && claude …"` | Yes, with a tty | There | Not done: types commands into a terminal; `claude-cli://` gives the same without it |
+| Claude Agent SDK | Node or Python | — | — | Rejected: a third-party dependency |
+
 ## The notch and the block under the cursor
 
 The resting island (the "notch") speaks for the agents. Its right wing shows one little Luna per

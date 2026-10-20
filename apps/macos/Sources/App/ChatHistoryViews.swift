@@ -44,7 +44,7 @@ struct NewChatButton: View {
 }
 
 /// Иконка в стиле чипов модели и проекта.
-private struct ChatChipIcon: View {
+struct ChatChipIcon: View {
     let systemName: String
 
     var body: some View {

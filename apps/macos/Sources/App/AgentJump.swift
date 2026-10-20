@@ -79,25 +79,34 @@ enum AgentJump {
 
         switch (steps.first, steps.dropFirst().first) {
         case (.openFolder(let path), let next):
-            // Верхнее окно редактора до открытия папки: ссылка ждёт, пока его сменит окно с папкой.
-            let topBefore = topWindow(of: bundleId)
             let linkAfter: URL?
             if case .openSessionLink(let url)? = next { linkAfter = url } else { linkAfter = nil }
-            workspace.open([URL(fileURLWithPath: path, isDirectory: true)], withApplicationAt: appURL,
-                           configuration: activating()) { _, error in
-                if let error { jumpLog("Go to agent: the editor did not open the folder: \(error.localizedDescription)") }
-                guard let linkAfter else { return }
-                DispatchQueue.main.async {
-                    sendWhenEditorIsUp(linkAfter, appURL: appURL, bundleId: bundleId, topBefore: topBefore,
-                                       deadline: Date().addingTimeInterval(AgentJumpPlan.linkWaitLimit))
-                }
-            }
+            openFolderThenLink(path, link: linkAfter, appURL: appURL, bundleId: bundleId,
+                               waitLimit: AgentJumpPlan.linkWaitLimit)
         case (.openSessionLink(let url), _):
             openLink(url, appURL: appURL)
         case (.activateApp, _), (nil, _):
             workspace.openApplication(at: appURL, configuration: activating(), completionHandler: nil)
         }
         completion(hint)
+    }
+
+    /// Шаг «папка → ссылка»: открыть папку в редакторе (он поднимает окно с ней), затем ссылку
+    /// расширения — когда окно с папкой впереди (`AgentJumpPlan.linkReady`), но не позже
+    /// `waitLimit`. Общий для «Перейти к агенту» и запуска агента в VS Code (`AgentLaunch`, LUNA-77).
+    static func openFolderThenLink(_ path: String, link: URL?, appURL: URL, bundleId: String,
+                                   waitLimit: TimeInterval) {
+        // Верхнее окно редактора до открытия папки: ссылка ждёт, пока его сменит окно с папкой.
+        let topBefore = topWindow(of: bundleId)
+        NSWorkspace.shared.open([URL(fileURLWithPath: path, isDirectory: true)], withApplicationAt: appURL,
+                                configuration: activating()) { _, error in
+            if let error { jumpLog("Go to agent: the editor did not open the folder: \(error.localizedDescription)") }
+            guard let link else { return }
+            DispatchQueue.main.async {
+                sendWhenEditorIsUp(link, appURL: appURL, bundleId: bundleId, topBefore: topBefore,
+                                   deadline: Date().addingTimeInterval(waitLimit))
+            }
+        }
     }
 
     private static func activating() -> NSWorkspace.OpenConfiguration {

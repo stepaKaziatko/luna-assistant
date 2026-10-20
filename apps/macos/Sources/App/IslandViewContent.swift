@@ -1400,6 +1400,7 @@ struct PromptView: View {
     @State private var showModelPicker = false
     @State private var showProjectPicker = false
     @State private var showChatHistory = false
+    @State private var showAgentLaunch = false
 
     #if !APPSTORE
     @State private var dictation = MacDictation()
@@ -1461,9 +1462,11 @@ struct PromptView: View {
                     NewChatButton(state: state)
                     Spacer()
                     #if !APPSTORE
-                    // Проект — только у Claude Code по подписке (LUNA-75).
+                    // Проект — только у Claude Code по подписке (LUNA-75); рядом — «Запустить
+                    // агента» в этом проекте (LUNA-77).
                     if state.chatProvider == .claudeCode {
                         ProjectChip(state: state, isPresented: $showProjectPicker)
+                        AgentLaunchButton(state: state, text: $text, isPresented: $showAgentLaunch)
                     }
                     #endif
                     Button {

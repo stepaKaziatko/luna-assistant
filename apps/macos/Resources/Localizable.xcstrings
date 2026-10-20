@@ -29486,6 +29486,230 @@
           }
         }
       }
+    },
+    "agent.launch.button.help": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch an agent in the project"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запустить агента в проекте"
+          }
+        }
+      }
+    },
+    "agent.launch.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch agent"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запустить агента"
+          }
+        }
+      }
+    },
+    "agent.launch.hint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The task is typed into a new Claude Code chat in the project folder. The agent starts when you press Enter there."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Задача будет вписана в новый чат Claude Code в папке проекта. Агент начнёт работу, когда вы нажмёте там Enter."
+          }
+        }
+      }
+    },
+    "agent.launch.none": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No apps to launch in: VS Code with the Claude Code extension, Claude Desktop or Claude Code in a terminal."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет приложений для запуска: VS Code с расширением Claude Code, Claude Desktop или Claude Code в терминале."
+          }
+        }
+      }
+    },
+    "agent.launch.app-missing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app is not found — it may have been removed."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Приложение не найдено — возможно, его удалили."
+          }
+        }
+      }
+    },
+    "agent.launch.target.terminal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Терминал"
+          }
+        }
+      }
+    },
+    "agent.launch.blocked.no-extension": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Claude Code extension"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет расширения Claude Code"
+          }
+        }
+      }
+    },
+    "agent.launch.blocked.no-handler": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run claude in a terminal once"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запустите claude в терминале один раз"
+          }
+        }
+      }
+    },
+    "agent.launch.refusal.no-project": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a project first"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сначала выберите проект"
+          }
+        }
+      }
+    },
+    "agent.launch.refusal.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type the task first"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сначала напишите задачу"
+          }
+        }
+      }
+    },
+    "agent.launch.refusal.too-long": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The task is longer than 5000 characters — shorten it"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Задача длиннее 5000 символов — сократите"
+          }
+        }
+      }
+    },
+    "agent.launch.refusal.invalid-folder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The project folder path cannot be used"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Путь к папке проекта не подходит"
+          }
+        }
+      }
+    },
+    "agent.launch.refusal.missing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project folder not found"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Папка проекта не найдена"
+          }
+        }
+      }
+    },
+    "agent.launch.refusal.no-access": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No access to the project folder"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет доступа к папке проекта"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

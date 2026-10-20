@@ -298,6 +298,36 @@ final class AppState: ObservableObject {
         if resolved?.id != chatProjectID { selectChatProject(resolved?.id) }
     }
 
+    // MARK: Запуск агента (LUNA-77)
+
+    #if !APPSTORE
+    /// Последняя выбранная цель запуска — первая в меню. UserDefaults `agentLaunchTarget`.
+    @Published private(set) var agentLaunchTarget: String? =
+        UserDefaults.standard.string(forKey: AgentLaunchMenu.defaultsKey) {
+        didSet { UserDefaults.standard.set(agentLaunchTarget, forKey: AgentLaunchMenu.defaultsKey) }
+    }
+
+    /// «Запустить агента» → цель: задача уходит вписанной в новый чат целевого приложения в папке
+    /// выбранного проекта, отправляет её человек. Ушёл запуск — поле очищает страница, остров
+    /// сворачивается. В историю чатов запуск не пишется (решение В6): разговор идёт в целевом
+    /// приложении, Luna видит его хуками, как любого агента.
+    func launchAgent(_ target: AgentLaunchTarget, text: String) -> AgentLaunchOutcome {
+        let project = activeChatProject
+        let folderState = project.map { ChatProjectFolder.inspect($0.path) }
+        switch AgentLaunchPlan.make(target: target, folder: project?.path, folderState: folderState, text: text) {
+        case .failure(let refusal):
+            // Папка пропала: список проектов проверит папки заново.
+            if refusal == .folderMissing || refusal == .folderNoAccess { chatProjectsChanged() }
+            return .refused(refusal)
+        case .success(let plan):
+            guard AgentLaunch.run(plan) else { return .appMissing }
+            agentLaunchTarget = target.rawValue
+            NotificationCenter.default.post(name: .islandCollapseAfterJump, object: nil)
+            return .launched
+        }
+    }
+    #endif
+
     // MARK: История чатов (LUNA-76)
 
     /// Settings → Chat → «Хранить историю чатов». UserDefaults `chatHistoryEnabled`, по умолчанию
