@@ -120,6 +120,54 @@ enum ChatCLITests {
         let noFile = ChatCLIPrompt.build(query: "Кратко", file: .notPassed(name: "a.pdf"))
         check("не переданный файл — честная строка, а не пустота", noFile.contains("a.pdf") && noFile.hasSuffix("Кратко"))
 
+        print("ChatSourceLabel: проект")
+        check("в проекте — имя проекта в конце подписи",
+              ChatSourceLabel.claudeCode(model: "sonnet", status: ready, subscriptionWord: "подписка", project: "luna-assistant")
+                == "Claude Code · подписка · sonnet · luna-assistant")
+        check("без проекта (nil или пусто) — как сегодня",
+              ChatSourceLabel.claudeCode(model: "sonnet", status: ready, subscriptionWord: "подписка", project: nil)
+                == "Claude Code · подписка · sonnet"
+                && ChatSourceLabel.claudeCode(model: "sonnet", status: ready, subscriptionWord: "подписка", project: "")
+                == "Claude Code · подписка · sonnet")
+
+        print("ChatCLISession: сессия и папка")
+        var session = ChatCLISession(id: "s1")
+        let t1 = session.turn(projectPath: "/w/luna")
+        check("первый ход — новая сессия (--session-id)", t1.id == "s1" && !t1.resume && session.projectPath == "/w/luna")
+        session.markStarted()
+        let t2 = session.turn(projectPath: "/w/luna")
+        check("тот же проект — --resume той же сессии", t2.id == "s1" && t2.resume)
+        let t3 = session.turn(projectPath: "/w/api")
+        check("смена проекта после первого хода — новая сессия, не --resume",
+              t3.id != "s1" && !t3.resume && session.projectPath == "/w/api")
+        session.markStarted()
+        let t4 = session.turn(projectPath: nil)
+        check("проект → «Без проекта» — тоже новая сессия", t4.id != t3.id && !t4.resume && session.projectPath == nil)
+        var failed = ChatCLISession(id: "f1")
+        _ = failed.turn(projectPath: nil)
+        failed.turnFailed()
+        let retry = failed.turn(projectPath: nil)
+        check("ход не состоялся — следующий начинает новую сессию", retry.id != "f1" && !retry.resume)
+        var started = ChatCLISession(id: "k1")
+        _ = started.turn(projectPath: "/w/luna"); started.markStarted(); started.turnFailed()
+        check("сбой хода начатой сессии её не сбрасывает", started.turn(projectPath: "/w/luna") == ("k1", true))
+        started.reset()
+        check("«Новый разговор» — новая сессия", started.id != "k1" && !started.started && started.projectPath == nil)
+        var free = ChatCLISession(id: "n1")
+        _ = free.turn(projectPath: nil)
+        free.markStarted()
+        check("без проекта — как сегодня: --resume дальше", free.turn(projectPath: nil) == ("n1", true))
+
+        print("LunaChatSessions: хуки чата — не сессия агента")
+        let chatID = "AAAAAAAA-0000-4000-8000-000000000075"
+        check("до регистрации — сессия агента", !LunaChatSessions.isChatEvent(["session_id": chatID]))
+        LunaChatSessions.register(chatID)
+        check("зарегистрированная сессия чата узнаётся (регистр не важен)",
+              LunaChatSessions.isChatEvent(["session_id": chatID.lowercased(), "hook_event_name": "PermissionRequest"]))
+        check("чужая сессия и событие без session_id — агент",
+              !LunaChatSessions.isChatEvent(["session_id": "other"]) && !LunaChatSessions.isChatEvent(["cwd": "/x"]))
+        check("метка окружения — LUNA_CHAT_SESSION", LunaChatSessions.environmentKey == "LUNA_CHAT_SESSION")
+
         if failures > 0 { print("\n\(failures) test(s) failed."); exit(1) }
         print("\nAll tests passed.")
     }

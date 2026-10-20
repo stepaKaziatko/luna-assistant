@@ -9,28 +9,45 @@ import Foundation
 // - Запрос идёт в stdin, не в argv: его не видно в `ps`, длина не ограничена.
 // - Свои сессии: `--session-id <uuid>` на первом ходе, `--resume <uuid>` дальше. Чужие
 //   идущие сессии агентов не затрагиваются.
-// - `--safe-mode`: без хуков, плагинов, CLAUDE.md и MCP пользователя. Подпроцесс не шлёт
-//   события хуков, поэтому ответ чата не появляется в острове как сессия агента.
+// - «Без проекта»: служебная папка и `--safe-mode` — без хуков, плагинов, CLAUDE.md и MCP
+//   пользователя, инструменты только веб. Подпроцесс не шлёт события хуков.
+// - Вопрос в проекте (LUNA-75, решение человека): папка проекта и без `--safe-mode` — CLAUDE.md,
+//   `.claude/settings.json`, хуки и MCP проекта работают как в обычном Claude Code. Запросы
+//   разрешений решает сам Claude Code по своим правилам: в режиме `-p` спросить некого, и не
+//   разрешённое настройками отклоняется. Luna их не показывает и не разрешает. События хуков такого
+//   чата помечены `LUNA_CHAT_SESSION` и в острове сессией агента не становятся (`LunaChatSessions`).
 // - Без `--bare` (он отключает вход по подписке) и без флагов, отключающих запросы разрешений.
 // - Из окружения убираются ключ API и метки родительской сессии (`CLIResolver.environment`).
 
 enum ClaudeCLIArguments {
-    /// Инструменты чата: поиск и чтение страниц в сети, как web_search у API-пути. Файлы
-    /// пользователя CLI не читает (`Read` не включён), оболочки у него нет.
+    /// Инструменты чата без проекта: поиск и чтение страниц в сети, как web_search у API-пути.
+    /// Файлы пользователя CLI не читает (`Read` не включён), оболочки у него нет.
     static let tools = "WebSearch,WebFetch"
 
-    static func build(systemPrompt: String, model: String?, sessionID: String, resume: Bool) -> [String] {
+    /// `inProject`: полный Claude Code в папке проекта — без `--safe-mode`, `--strict-mcp-config`
+    /// и ограничения `--tools`; промпт Luna дописывается к промпту Claude Code, а не заменяет его.
+    static func build(systemPrompt: String, model: String?, sessionID: String, resume: Bool,
+                      inProject: Bool = false) -> [String] {
         var args = [
             "-p",
             "--output-format", "stream-json",
             "--verbose",
             "--include-partial-messages",
-            "--safe-mode",
-            "--strict-mcp-config",
-            "--tools", tools,
-            "--allowedTools", tools,
-            "--system-prompt", systemPrompt,
         ]
+        if inProject {
+            args += [
+                "--allowedTools", tools,
+                "--append-system-prompt", systemPrompt,
+            ]
+        } else {
+            args += [
+                "--safe-mode",
+                "--strict-mcp-config",
+                "--tools", tools,
+                "--allowedTools", tools,
+                "--system-prompt", systemPrompt,
+            ]
+        }
         if let model { args += ["--model", model] }
         args += resume ? ["--resume", sessionID] : ["--session-id", sessionID]
         return args
@@ -44,8 +61,11 @@ struct ClaudeCLIRequest: Sendable {
     var model: String?
     var sessionID: String
     var resume: Bool
+    /// Служебная папка чата или папка проекта (`inProject`).
     var workingDirectory: URL
     var environment: [String: String]
+    /// Вопрос в проекте: папка не создаётся, а проверяется; аргументы — `ClaudeCLIArguments.build(inProject:)`.
+    var inProject: Bool = false
     /// Сколько ждать нового вывода. Куски ответа и события сбрасывают отсчёт.
     var idleTimeout: TimeInterval = 120
 }
@@ -100,15 +120,27 @@ final class ClaudeCLIProcess: @unchecked Sendable {
 
     private func runBlocking(_ request: ClaudeCLIRequest, onText: @escaping @Sendable (String) -> Void) -> Result<String, ClaudeCLIError> {
         guard FileManager.default.isExecutableFile(atPath: request.executable) else { return .failure(.notFound) }
-        try? FileManager.default.createDirectory(at: request.workingDirectory, withIntermediateDirectories: true)
+        var environment = request.environment
+        if request.inProject {
+            // Папку проекта Luna не создаёт: пропала или нет доступа — `claude` не запускается.
+            let path = request.workingDirectory.path
+            switch ChatProjectFolder.inspect(path) {
+            case .missing: return .failure(.projectFolderMissing(path))
+            case .noAccess: return .failure(.projectFolderNoAccess(path))
+            case .ready: break
+            }
+            environment[LunaChatSessions.environmentKey] = request.sessionID
+        } else {
+            try? FileManager.default.createDirectory(at: request.workingDirectory, withIntermediateDirectories: true)
+        }
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: request.executable)
         process.arguments = ClaudeCLIArguments.build(
             systemPrompt: request.systemPrompt, model: request.model,
-            sessionID: request.sessionID, resume: request.resume)
+            sessionID: request.sessionID, resume: request.resume, inProject: request.inProject)
         process.currentDirectoryURL = request.workingDirectory
-        process.environment = request.environment
+        process.environment = environment
         let stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
         process.standardInput = stdin
         process.standardOutput = stdout

@@ -143,6 +143,24 @@ enum ClaudeCLIChatTests {
         check("второй ход: --resume тот же uuid, без --session-id",
               zip(second, second.dropFirst()).contains { $0 == "--resume" && $1 == id } && !second.contains("--session-id"))
         check("модель default — без --model", !second.contains("--model"))
+
+        print("ClaudeCLIArguments: вопрос в проекте (решение В1 = B)")
+        let proj = ClaudeCLIArguments.build(systemPrompt: "SYS", model: "sonnet", sessionID: id, resume: false, inProject: true)
+        check("без --safe-mode и --strict-mcp-config: CLAUDE.md, хуки и MCP проекта работают",
+              !proj.contains("--safe-mode") && !proj.contains("--strict-mcp-config"))
+        check("без ограничения --tools, веб разрешён заранее",
+              !proj.contains("--tools")
+                && zip(proj, proj.dropFirst()).contains { $0 == "--allowedTools" && $1 == "WebSearch,WebFetch" })
+        check("промпт Luna дописан к промпту Claude Code, не заменяет его",
+              zip(proj, proj.dropFirst()).contains { $0 == "--append-system-prompt" && $1 == "SYS" } && !proj.contains("--system-prompt"))
+        check("запрещённого нет и в проекте: --dangerously-skip-permissions, --bare, --permission-mode",
+              !proj.contains("--dangerously-skip-permissions") && !proj.contains("--bare") && !proj.contains("--permission-mode"))
+        check("stream-json, --session-id, модель — как без проекта",
+              zip(proj, proj.dropFirst()).contains { $0 == "--output-format" && $1 == "stream-json" }
+                && zip(proj, proj.dropFirst()).contains { $0 == "--session-id" && $1 == id }
+                && zip(proj, proj.dropFirst()).contains { $0 == "--model" && $1 == "sonnet" })
+        check("без проекта аргументы те же, что раньше (по умолчанию inProject = false)",
+              first == ClaudeCLIArguments.build(systemPrompt: "SYS", model: "sonnet", sessionID: id, resume: false, inProject: false))
     }
 
     // MARK: Сообщения
@@ -162,6 +180,11 @@ enum ClaudeCLIChatTests {
         check("таймаут", ChatCLIMessages.text(for: .timeout, hasAPIKey: false).contains("did not answer"))
         check("ошибка API не получает подсказку про ключ", !ChatCLIMessages.text(for: .api("boom"), hasAPIKey: false).contains("API key"))
         check("длинное сообщение CLI обрезается", ChatCLIMessages.clip(String(repeating: "я", count: 500)).count == 401)
+        let missing = ChatCLIMessages.text(for: .projectFolderMissing("/w/gone"), hasAPIKey: false)
+        check("папка проекта пропала: путь в сообщении, без подсказки про ключ",
+              missing.contains("Project folder not found") && missing.contains("/w/gone") && !missing.contains("API key"))
+        check("нет доступа к папке проекта",
+              ChatCLIMessages.text(for: .projectFolderNoAccess("/w/x"), hasAPIKey: true).contains("No access to the project folder"))
     }
 
     // MARK: Запуск против поддельного claude
@@ -178,6 +201,7 @@ enum ClaudeCLIChatTests {
         env["FAKE_CLAUDE_STDIN_FILE"] = "\(dir)/stdin"
         env["FAKE_CLAUDE_ENV_FILE"] = "\(dir)/env"
         env["FAKE_CLAUDE_PID_FILE"] = "\(dir)/pid"
+        env["FAKE_CLAUDE_CWD_FILE"] = "\(dir)/cwd-seen"
         var r = ClaudeCLIRequest(executable: executable ?? fake, prompt: "Секретный вопрос пользователя", systemPrompt: "SYS",
                                  model: "haiku", sessionID: id, resume: resume,
                                  workingDirectory: URL(fileURLWithPath: "\(dir)/cwd"), environment: env)
@@ -219,6 +243,10 @@ enum ClaudeCLIChatTests {
               !env.contains("ANTHROPIC_API_KEY") && !env.contains("ANTHROPIC_AUTH_TOKEN") && !env.contains("CLAUDECODE="))
         check("PATH содержит папку бинаря", env.contains("PATH=") && env.components(separatedBy: "\n").first { $0.hasPrefix("PATH=") }!.contains(URL(fileURLWithPath: fake).deletingLastPathComponent().path))
         check("рабочая папка создана", FileManager.default.fileExists(atPath: "\(work)/stream/cwd"))
+        check("без проекта: запуск в служебной папке, метки чата в окружении нет",
+              read("\(work)/stream/cwd-seen").trimmingCharacters(in: .whitespacesAndNewlines)
+                == (ChatProjectPath.normalize("\(work)/stream/cwd") ?? "")
+                && !env.contains("LUNA_CHAT_SESSION"))
         check("после ответа живых запусков нет", ClaudeCLIProcess.liveCount == 0)
 
         print("ClaudeCLIProcess: второй ход")
@@ -226,6 +254,42 @@ enum ClaudeCLIChatTests {
         let result2 = await ClaudeCLIProcess().run(r2) { _ in }
         let args2 = read("\(work)/resume/args").split(separator: "\n").map(String.init)
         check("--resume с тем же uuid", result2 == .success("Hi") && args2.contains("--resume") && args2.contains(id) && !args2.contains("--session-id"))
+
+        print("ClaudeCLIProcess: вопрос в проекте")
+        let projectDir = "\(work)/project-луна"
+        try? FileManager.default.createDirectory(atPath: projectDir, withIntermediateDirectories: true)
+        let projectSession = "bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+        var p1 = request(mode: "stream", id: projectSession, name: "project1", env: ["ANTHROPIC_API_KEY": "sk-test-secret"])
+        p1.workingDirectory = URL(fileURLWithPath: projectDir, isDirectory: true)
+        p1.inProject = true
+        let pr1 = await ClaudeCLIProcess().run(p1) { _ in }
+        let pargs1 = read("\(work)/project1/args").split(separator: "\n").map(String.init)
+        let penv1 = read("\(work)/project1/env")
+        let realProject = ChatProjectPath.normalize(projectDir) ?? projectDir
+        check("ответ получен", pr1 == .success("Привет"))
+        check("рабочая папка — папка проекта", read("\(work)/project1/cwd-seen").trimmingCharacters(in: .whitespacesAndNewlines) == realProject)
+        check("аргументы проекта: без --safe-mode, с --append-system-prompt, --session-id",
+              !pargs1.contains("--safe-mode") && pargs1.contains("--append-system-prompt") && pargs1.contains("--session-id") && pargs1.contains(projectSession))
+        check("в окружении метка чата LUNA_CHAT_SESSION=<id> и нет ключа API",
+              penv1.contains("LUNA_CHAT_SESSION=\(projectSession)") && !penv1.contains("ANTHROPIC_API_KEY") && !penv1.contains("CLAUDECODE="))
+        check("запрос в stdin без изменений", read("\(work)/project1/stdin") == "Секретный вопрос пользователя")
+        var p2 = request(mode: "stream", fixture: "success-turn2-resume.jsonl", id: projectSession, resume: true, name: "project2")
+        p2.workingDirectory = URL(fileURLWithPath: projectDir, isDirectory: true)
+        p2.inProject = true
+        let pr2 = await ClaudeCLIProcess().run(p2) { _ in }
+        let pargs2 = read("\(work)/project2/args").split(separator: "\n").map(String.init)
+        check("второй ход: --resume тот же id из той же папки",
+              pr2 == .success("Hi") && pargs2.contains("--resume") && pargs2.contains(projectSession) && !pargs2.contains("--session-id")
+                && read("\(work)/project2/cwd-seen").trimmingCharacters(in: .whitespacesAndNewlines) == realProject)
+
+        print("ClaudeCLIProcess: папка проекта пропала")
+        var p3 = request(mode: "stream", name: "project-gone")
+        p3.workingDirectory = URL(fileURLWithPath: "\(work)/нет-такого-проекта", isDirectory: true)
+        p3.inProject = true
+        let pr3 = await ClaudeCLIProcess().run(p3) { _ in }
+        check("ошибка «папка проекта не найдена»", pr3 == .failure(.projectFolderMissing("\(work)/нет-такого-проекта")))
+        check("claude не запускался: файла аргументов нет", !FileManager.default.fileExists(atPath: "\(work)/project-gone/args"))
+        check("папку проекта Luna не создала", !FileManager.default.fileExists(atPath: "\(work)/нет-такого-проекта"))
 
         print("ClaudeCLIProcess: вход не выполнен и лимит")
         let r3 = request(mode: "stream", fixture: "not-logged-in.jsonl", name: "nologin")

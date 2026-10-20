@@ -192,18 +192,14 @@ final class ClaudeService {
         #if !APPSTORE
         // «Новый разговор»: идущий ответ Claude Code прекращается, следующий вопрос — новая сессия.
         cliRun?.cancel()
-        cliSessionID = Self.newCLISessionID()
-        cliSessionStarted = false
+        cliSession.reset()
         #endif
     }
 
     #if !APPSTORE
-    // Claude Code: своя сессия чата (не чужая идущая сессия агента) и идущий запуск.
-    private var cliSessionID = ClaudeService.newCLISessionID()
-    private var cliSessionStarted = false
+    // Claude Code: своя сессия чата (не чужая идущая сессия агента), её папка и идущий запуск.
+    private var cliSession = ChatCLISession()
     private var cliRun: ClaudeCLIProcess?
-
-    private static func newCLISessionID() -> String { UUID().uuidString.lowercased() }
     #endif
 
     /// Resolved once: NSFullUserName() is a system call, and the name cannot change under us
@@ -492,7 +488,7 @@ final class ClaudeService {
         let hasKey = !(apiKey ?? "").isEmpty
         func fail(_ error: ClaudeCLIError) async {
             // Сессия не состоялась — следующий ход начнёт новую, а не «возобновит» несуществующую.
-            if !cliSessionStarted { cliSessionID = Self.newCLISessionID() }
+            cliSession.turnFailed()
             let action = ChatCLIMessages.suggestsAPIKey(error) && hasKey
                 ? NoteAction(title: ChatCLIMessages.useAPIKeyButton, provider: .anthropic, query: query) : nil
             await showError(ChatCLIMessages.text(for: error, hasAPIKey: hasKey), state: state, action: action)
@@ -510,10 +506,14 @@ final class ClaudeService {
             state.claudeCodeStatus = await ClaudeAuthProbe.check()   // для подписи; запуск не блокирует
         }
 
+        // Проект: папка запуска. Сессия привязана к папке — другая папка начинает новую сессию.
+        let project = state.activeChatProject
+        let turn = cliSession.turn(projectPath: project?.path)
+
         // Контекст окна или файла — только в первом ходе сессии, как у API.
         var window: (app: String, title: String, url: String?)?
         var file: ChatCLIPrompt.FileContext?
-        if !cliSessionStarted, let context {
+        if !turn.resume, let context {
             switch context {
             case .window(let app, let title, let url):
                 window = (app, title, url)
@@ -528,7 +528,7 @@ final class ClaudeService {
 
         let source = ChatSourceLabel.claudeCode(
             model: state.claudeCodeChatModel, status: state.claudeCodeStatus,
-            subscriptionWord: ChatCLIMessages.subscriptionWord)
+            subscriptionWord: ChatCLIMessages.subscriptionWord, project: project?.name)
         let placeholder = ChatMessage(role: .assistant, content: "", source: source)
         let msgId = placeholder.id
         state.chatHistory.append(placeholder)
@@ -536,16 +536,17 @@ final class ClaudeService {
 
         let process = ClaudeCLIProcess()
         cliRun = process
-        let resume = cliSessionStarted
-        let request = ClaudeCLIRequest(
+        LunaChatSessions.register(turn.id)
+        var request = ClaudeCLIRequest(
             executable: executable,
             prompt: prompt,
             systemPrompt: systemPrompt,
             model: ClaudeCodeModels.cliModel(for: state.claudeCodeChatModel),
-            sessionID: cliSessionID,
-            resume: resume,
-            workingDirectory: ClaudeCLIChatFolder.url,
+            sessionID: turn.id,
+            resume: turn.resume,
+            workingDirectory: project.map { URL(fileURLWithPath: $0.path, isDirectory: true) } ?? ClaudeCLIChatFolder.url,
             environment: CLIResolver.environment(base: ProcessInfo.processInfo.environment, executable: executable))
+        request.inProject = project != nil
         let result = await process.run(request) { [state] visible in
             // Очередь main — FIFO: куски ответа приходят в порядке вывода.
             DispatchQueue.main.async {
@@ -561,7 +562,7 @@ final class ClaudeService {
 
         switch result {
         case .success(let text):
-            cliSessionStarted = true
+            cliSession.markStarted()
             if let idx = state.chatHistory.firstIndex(where: { $0.id == msgId }) {
                 state.chatHistory[idx].content = text
             }
@@ -577,6 +578,8 @@ final class ClaudeService {
             state.stateOverride = nil
             if error == .notFound { state.claudeCodeStatus = .missing }
             if error == .notLoggedIn { state.claudeCodeStatus = .notLoggedIn }
+            if case .projectFolderMissing = error { state.chatProjectsChanged() }
+            if case .projectFolderNoAccess = error { state.chatProjectsChanged() }
             await fail(error)
         }
     }

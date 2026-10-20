@@ -154,7 +154,19 @@ struct AgentPreviewView: View {
                     }
                 }
             }
-            if let folder {
+            if let project = ChatProjectMatch.project(projectDir: session.who.projectDir, cwd: session.who.cwd,
+                                                      in: state.chatProjects.projects) {
+                // Папка агента — в привязанном проекте (LUNA-75).
+                HStack(spacing: 4) {
+                    Image(systemName: "folder.fill")
+                        .font(.system(size: 9))
+                    Text(String(localized: "agentPreview.project", defaultValue: "Project: \(project.name)"))
+                        .lineLimit(1).truncationMode(.middle)
+                }
+                .font(.system(size: 10))
+                .foregroundColor(Color(hex: "#8E939C"))
+                .help(session.who.cwd.isEmpty ? project.path : session.who.cwd)
+            } else if let folder {
                 HStack(spacing: 4) {
                     Image(systemName: "folder")
                         .font(.system(size: 9))

@@ -397,6 +397,16 @@ final class HookServer: @unchecked Sendable {
 
         let lunaKind = payload["luna_kind"] as? String ?? ""
 
+        // Чат Luna в проекте (LUNA-75): хуки пользователя срабатывают и для него, но это не сессия
+        // агента — в остров не попадает. Решения по разрешению нет: решает сам Claude Code.
+        if lunaKind != "statusline", LunaChatSessions.isChatEvent(payload) {
+            let holdsDecision = lunaKind == "ask_user_question"
+                || (payload["hook_event_name"] as? String) == "PermissionRequest"
+            sendLine(fd: fd, text: holdsDecision ? #"{"permissionDecision":"ask"}"# : #"{"ok":true}"#)
+            close(fd)
+            return
+        }
+
         // The terminal of the process that sent the hook, for "go to the agent". A key a hook
         // brings along is dropped: only what Luna found out itself is believed.
         payload[Self.peerTTYKey] = nil
@@ -3409,6 +3419,11 @@ def main():
     except Exception:
         if '--statusline' not in sys.argv[1:]:
             return
+
+    # Luna's own chat in a project: not an agent session. Nothing goes to Luna and no decision
+    # is given (Claude Code applies its own permission rules).
+    if os.environ.get('LUNA_CHAT_SESSION') and '--statusline' not in sys.argv[1:]:
+        return
 
     socket_path = os.path.expanduser(
         '~/Library/Application Support/Luna/luna.sock'

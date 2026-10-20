@@ -2,7 +2,7 @@
 # Поддельный `claude` для scripts/test-claude-cli.sh: записывает, что получил, и отвечает по сценарию.
 #   FAKE_CLAUDE_MODE    stream (по умолчанию) | hang | silent | fail
 #   FAKE_CLAUDE_FIXTURE построчно отдаётся в stdout в режимах stream и hang
-#   FAKE_CLAUDE_*_FILE  куда писать аргументы, stdin, окружение и pid
+#   FAKE_CLAUDE_*_FILE  куда писать аргументы, stdin, окружение, pid и рабочую папку (CWD)
 #   `claude auth status`: печатает FAKE_CLAUDE_AUTH_JSON, код выхода FAKE_CLAUDE_AUTH_EXIT
 if [ "$1" = "auth" ]; then
   [ -n "$FAKE_CLAUDE_AUTH_JSON" ] && cat "$FAKE_CLAUDE_AUTH_JSON"
@@ -12,6 +12,7 @@ fi
 echo $$ > "$FAKE_CLAUDE_PID_FILE"
 printf '%s\n' "$@" > "$FAKE_CLAUDE_ARGS_FILE"
 env > "$FAKE_CLAUDE_ENV_FILE"
+[ -n "$FAKE_CLAUDE_CWD_FILE" ] && pwd -P > "$FAKE_CLAUDE_CWD_FILE"
 cat > "$FAKE_CLAUDE_STDIN_FILE"
 case "${FAKE_CLAUDE_MODE:-stream}" in
   stream)

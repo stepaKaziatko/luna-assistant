@@ -14,5 +14,6 @@ swiftc \
     apps/macos/Sources/App/ClaudeStreamParser.swift \
     apps/macos/Sources/App/ChatCLIMessages.swift \
     apps/macos/Sources/App/ClaudeCLIChat.swift \
+    apps/macos/Sources/App/ChatProjects.swift \
     tests/ClaudeCLILiveTest.swift -o "$TEST_DIR/claude-cli-live"
 "$TEST_DIR/claude-cli-live" "$TEST_DIR"

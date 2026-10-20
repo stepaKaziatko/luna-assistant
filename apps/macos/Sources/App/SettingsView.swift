@@ -181,6 +181,9 @@ struct SettingsView: View {
                         SettingsSidebarRow(title: "Active pills", icon: "square.grid.2x2.fill",              color: "#F5A524").tag("activepills")
                         SettingsSidebarRow(title: "Agents",       icon: "terminal.fill",                     color: "#3B9EFF").tag("agents")
                         SettingsSidebarRow(title: "Chat",         icon: "bubble.left.and.bubble.right.fill", color: "#E07950").tag("chat")
+                        #if !APPSTORE
+                        SettingsSidebarRow(title: "Projects",     icon: "folder.fill",                       color: "#10B981").tag("projects")
+                        #endif
                         SettingsSidebarRow(title: "Integrations", icon: "puzzlepiece.extension.fill",        color: "#7C5CFF").tag("integrations")
                         #if !APPSTORE
                         SettingsSidebarRow(title: "Voice",        icon: "mic.fill",                          color: "#F97316").tag("voice")
@@ -252,6 +255,7 @@ struct SettingsView: View {
         case "activepills":  return String(localized: "Active pills")
         case "agents":       return String(localized: "Agents")
         case "chat":         return String(localized: "Chat")
+        case "projects":     return String(localized: "Projects")
         case "integrations": return String(localized: "Integrations")
         case "voice":        return String(localized: "Voice")
         case "shortcuts":    return String(localized: "Shortcuts")
@@ -264,6 +268,9 @@ struct SettingsView: View {
         case "activepills":  activePillsSection
         case "agents":       agentsSection
         case "chat":         chatSection
+        #if !APPSTORE
+        case "projects":     ProjectsSettingsView(state: state)
+        #endif
         case "integrations": integrationsSection
         #if !APPSTORE
         case "voice":        voiceSection

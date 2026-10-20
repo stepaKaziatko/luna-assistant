@@ -1,0 +1,16 @@
+model = "gpt-5"
+
+[projects."HOME/code/alpha"]
+trust_level = "trusted"
+
+[projects.'HOME/code/gamma']
+trust_level = "trusted"
+
+[projects."HOME/code/with \"quote\""]
+trust_level = "trusted"
+
+[mcp_servers.secret]
+command = "do-not-read"
+
+[[profiles]]
+name = "x"

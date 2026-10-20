@@ -1398,6 +1398,7 @@ struct PromptView: View {
     @State private var text: String = ""
     @FocusState private var focused: Bool
     @State private var showModelPicker = false
+    @State private var showProjectPicker = false
 
     #if !APPSTORE
     @State private var dictation = MacDictation()
@@ -1448,8 +1449,14 @@ struct PromptView: View {
                     Spacer()
                 }
 
-                HStack(spacing: 0) {
+                HStack(spacing: 6) {
                     Spacer()
+                    #if !APPSTORE
+                    // Проект — только у Claude Code по подписке (LUNA-75).
+                    if state.chatProvider == .claudeCode {
+                        ProjectChip(state: state, isPresented: $showProjectPicker)
+                    }
+                    #endif
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                             showModelPicker.toggle()

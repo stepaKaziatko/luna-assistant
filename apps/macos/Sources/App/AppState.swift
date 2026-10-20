@@ -252,6 +252,65 @@ final class AppState: ObservableObject {
         return claudeCodeStatus
     }
 
+    // MARK: Проекты (LUNA-75)
+
+    /// Привязанные папки: Settings → «Проекты». UserDefaults `chatProjects`.
+    @Published var chatProjects = ChatProjectList() {
+        didSet {
+            if let data = chatProjects.encoded() { UserDefaults.standard.set(data, forKey: ChatProjectList.defaultsKey) }
+            // Убранный проект не остаётся выбранным: вопрос уходит «Без проекта».
+            if chatProjectID != nil, chatProjects.project(id: chatProjectID) == nil { selectChatProject(nil) }
+            chatProjectsChanged()
+        }
+    }
+
+    /// Проект, выбранный на странице запроса; nil — «Без проекта». UserDefaults `chatProjectID`.
+    @Published private(set) var chatProjectID: UUID? = nil {
+        didSet { UserDefaults.standard.set(chatProjectID?.uuidString, forKey: ChatProjectList.selectionKey) }
+    }
+
+    /// Растёт, когда папки проектов стоит проверить заново (сбой отправки, правка списка).
+    @Published private(set) var chatProjectsRevision = 0
+
+    func chatProjectsChanged() { chatProjectsRevision &+= 1 }
+
+    /// Проект, в котором уйдёт вопрос: только у источника Claude Code (подписка). Папка здесь не
+    /// проверяется — пропавшую проверит запуск и скажет об этом заметкой.
+    var activeChatProject: ChatProject? {
+        #if APPSTORE
+        return nil
+        #else
+        guard chatProvider == .claudeCode else { return nil }
+        return chatProjects.project(id: chatProjectID)
+        #endif
+    }
+
+    /// Смена проекта при непустой истории — новый разговор, как «Новый разговор».
+    func selectChatProject(_ id: UUID?) {
+        guard id != chatProjectID else { return }
+        if !chatHistory.isEmpty {
+            chatHistory = []
+            ClaudeService.shared.clearConversation()
+        }
+        chatProjectID = id
+    }
+
+    /// Выбранный проект, если он ещё годится; иначе — сброс на «Без проекта».
+    func reconcileChatProjectSelection() {
+        let resolved = ChatProjectSelection.resolve(savedID: chatProjectID?.uuidString, in: chatProjects)
+        if resolved?.id != chatProjectID { selectChatProject(resolved?.id) }
+    }
+
+    /// Страница «Агенты» по проектам. UserDefaults `agentsGroupByProject`, по умолчанию выключено.
+    @Published var agentsGroupByProject = false {
+        didSet { UserDefaults.standard.set(agentsGroupByProject, forKey: AgentProjectGrouping.defaultsKey) }
+    }
+
+    /// Порядок плиток на странице «Агенты» — по нему ходят стрелки острова.
+    var agentTileOrder: [String] {
+        AgentProjectGrouping.displayOrder(agentSessions, projects: chatProjects.projects, grouped: agentsGroupByProject)
+    }
+
     @Published var googleChatModel: String = ChatProvider.google.defaultModel {
         didSet { UserDefaults.standard.set(googleChatModel, forKey: "googleChatModel") }
     }
@@ -832,6 +891,11 @@ final class AppState: ObservableObject {
            !v.trimmingCharacters(in: .whitespaces).isEmpty { claudeModel = v }
         if let v = ud.string(forKey: "chatProvider"), let p = ChatProvider(rawValue: v) { chatProvider = p }
         if let v = ud.string(forKey: "claudeCodeChatModel"), !v.isEmpty { claudeCodeChatModel = v }
+        chatProjects = ChatProjectList.decode(ud.data(forKey: ChatProjectList.defaultsKey))
+        // Проект убран или папка пропала — «Без проекта».
+        chatProjectID = ChatProjectSelection.resolve(savedID: ud.string(forKey: ChatProjectList.selectionKey),
+                                                     in: chatProjects)?.id
+        agentsGroupByProject = ud.bool(forKey: AgentProjectGrouping.defaultsKey)
         if let v = ud.string(forKey: "googleChatModel"), !v.isEmpty { googleChatModel = v }
         if let v = ud.string(forKey: "openAIChatModel"), !v.isEmpty { openAIChatModel = v }
         if let v = ud.string(forKey: "ollamaChatModel"), !v.isEmpty { ollamaChatModel = v }

@@ -55,6 +55,12 @@ enum ChatCLIMessages {
         case .unavailable:
             base = String(localized: "chat.cli.error.unavailable",
                           defaultValue: "Claude Code chat is not available in this build.")
+        case .projectFolderMissing(let path):
+            base = String(localized: "chat.cli.error.project-missing",
+                          defaultValue: "Project folder not found: \(path)")
+        case .projectFolderNoAccess(let path):
+            base = String(localized: "chat.cli.error.project-no-access",
+                          defaultValue: "No access to the project folder: \(path)")
         }
         guard suggestsAPIKey(error) else { return base }
         let hint = hasAPIKey

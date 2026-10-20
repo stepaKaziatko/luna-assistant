@@ -19,6 +19,8 @@ enum ClaudeCLIError: Error, Equatable {
     case empty                          // завершился без текста
     case cancelled                      // «Новый разговор» или выход из Luna
     case unavailable                    // сборка без запуска процессов
+    case projectFolderMissing(String)   // папки проекта нет: `claude` не запускался
+    case projectFolderNoAccess(String)  // macOS не дала доступ к папке проекта
 }
 
 struct ClaudeStreamParser {

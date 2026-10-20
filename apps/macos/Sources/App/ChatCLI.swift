@@ -138,7 +138,8 @@ enum ChatSourceSelection {
 
 enum ChatSourceLabel {
     /// «Claude Code · подписка · sonnet»; при входе не по подписке — «Claude Code · <способ> · sonnet».
-    static func claudeCode(model: String, status: CLIStatus, subscriptionWord: String) -> String {
+    /// Вопрос в проекте — имя проекта в конце: «Claude Code · подписка · sonnet · luna-assistant».
+    static func claudeCode(model: String, status: CLIStatus, subscriptionWord: String, project: String? = nil) -> String {
         var parts = ["Claude Code"]
         if status.isSubscription {
             parts.append(subscriptionWord)
@@ -146,6 +147,7 @@ enum ChatSourceLabel {
             parts.append(method)
         }
         parts.append(model)
+        if let project, !project.isEmpty { parts.append(project) }
         return parts.joined(separator: " · ")
     }
 
@@ -209,5 +211,63 @@ enum ChatCLIPrompt {
               !binaryExtensions.contains(fileExtension.lowercased()),
               let text = String(data: data, encoding: .utf8) else { return .notPassed(name: name) }
         return .text(name: name, contents: text)
+    }
+}
+
+// MARK: Сессия чата
+
+/// Своя сессия чата по подписке: `--session-id` на первом ходе, `--resume` дальше. Сессия
+/// привязана к папке, в которой начата (Claude Code хранит сессии по папке): ход в другой
+/// папке — новая сессия, не `--resume`.
+struct ChatCLISession: Equatable, Sendable {
+    private(set) var id: String
+    private(set) var started = false
+    /// Папка проекта, в которой идёт сессия; nil — служебная папка чата («Без проекта»).
+    private(set) var projectPath: String?
+
+    init(id: String = ChatCLISession.newID()) { self.id = id }
+
+    static func newID() -> String { UUID().uuidString.lowercased() }
+
+    /// Ход в папке `projectPath`: id сессии и `resume`. Другая папка после начала — новая сессия.
+    mutating func turn(projectPath: String?) -> (id: String, resume: Bool) {
+        if started, projectPath != self.projectPath { self = ChatCLISession() }
+        if !started { self.projectPath = projectPath }
+        return (id, started)
+    }
+
+    mutating func markStarted() { started = true }
+
+    /// Ход не состоялся: если сессия ещё не начата, следующий начнёт новую, а не «возобновит» несуществующую.
+    mutating func turnFailed() {
+        if !started { id = Self.newID() }
+    }
+
+    /// «Новый разговор».
+    mutating func reset() { self = ChatCLISession() }
+}
+
+/// Сессии чата Luna. Чат в проекте запускает `claude` без `--safe-mode`, и хуки пользователя
+/// (в том числе хуки самой Luna) срабатывают и для него: такие события — не сессия агента.
+/// Метка окружения `LUNA_CHAT_SESSION` гасит их в релее `luna-hook`, а этот список — на
+/// стороне Luna, если релей ещё прежний.
+enum LunaChatSessions {
+    static let environmentKey = "LUNA_CHAT_SESSION"
+
+    nonisolated(unsafe) private static var ids: Set<String> = []
+    private static let lock = NSLock()
+
+    static func register(_ id: String) {
+        lock.withLock { _ = ids.insert(id.lowercased()) }
+    }
+
+    static func contains(_ id: String) -> Bool {
+        lock.withLock { ids.contains(id.lowercased()) }
+    }
+
+    /// Событие хука от чата Luna: `session_id` — одна из сессий чата.
+    static func isChatEvent(_ payload: [String: Any]) -> Bool {
+        guard let id = payload["session_id"] as? String, !id.isEmpty else { return false }
+        return contains(id)
     }
 }
