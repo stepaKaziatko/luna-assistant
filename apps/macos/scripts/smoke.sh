@@ -43,6 +43,9 @@ forget_defaults() {
 cleanup() {
   [ -n "$pid" ] && kill -KILL "$pid" 2>/dev/null || true
   rm -rf "$tmp"
+  # Кэш Metal копии система кладёт мимо дома — в каталог кэшей пользователя по Bundle ID.
+  cache="$(getconf DARWIN_USER_CACHE_DIR 2>/dev/null || true)"
+  if [ -n "$cache" ]; then rm -rf "$cache$smoke_id"; fi
   forget_defaults
 }
 trap 'rc=$?; cleanup; exit "$rc"' EXIT
