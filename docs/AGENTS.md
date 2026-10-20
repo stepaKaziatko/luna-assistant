@@ -235,6 +235,37 @@ for the session; until then "Go to the agent" only activates Terminal or iTerm2.
 `/dev/ttysN` ever reaches an AppleScript; the folder, the project name and the session id never do.
 The App Store build has no AppleScript: it activates the app or opens the folder.
 
+### Open the session in another app
+
+"Open in…" — the icon next to "Go to the agent" (GitHub build only) — continues a Claude Code session
+(`integration_claude`, a UUID session id) in another app than the one it runs in. The plan is a pure
+function (`AgentHandoffPlan`, `scripts/test-agent-handoff.sh`); `AgentHandoff` only opens a folder and a
+link through `NSWorkspace` and puts a command on the pasteboard — no process, no script, no new macOS
+permission. Nothing but the session id and the project folder leaves Luna.
+
+| Target | What Luna opens | Status |
+|---|---|---|
+| VS Code | The project root (`AgentJumpPlan.folder(of:)`), then `vscode://anthropic.claude-code/open?session=<uuid>` — the same "folder → link" step as "Go to the agent" (`AgentJump.openFolderThenLink`), up to 10 s when VS Code was not running. Needs the Claude Code extension (folder names in `~/.vscode/extensions`). The session must belong to the workspace of the focused window, otherwise VS Code starts a new conversation | Link *documented*; the `session` check of the extension *verified* in its code |
+| Claude Desktop | `claude://resume?session=<uuid>` — the link `claude --desktop --resume` opens ("importing CLI session"); Desktop continues the same conversation | *Verified* in the code of the CLI 2.1.296 and Claude.app 1.49585; not documented, the format may change |
+| Terminal | Nothing is opened: `cd '<folder>' && claude --resume <uuid>` goes to the pasteboard (the folder in single quotes, `'` as `'\''`) | `claude --resume` *documented* |
+
+**Why it waits for `SessionEnd`.** Every session on the agent page is open in its own process: the tile
+lives until `SessionEnd`. VS Code answers an open conversation with "This conversation is still open
+somewhere else… Open here anyway" (*documented*), and the Desktop link does not check it at all — it would
+make a second copy writing to the same conversation (*verified* in Claude.app: only its own `/resume`
+checks ownership). So a click only sets a pending handoff (`AgentHandoffBook`, memory only): the page says
+"Close the session in <host> — Luna will open it in <target>" with "Cancel", and the target opens on the
+`SessionEnd` hook event of that session (`HookServer.recordAgentEvent` → `AppState.agentHandoffEvent`).
+A new turn of the session (`UserPromptSubmit`, `PreToolUse`…) cancels it, so does "Cancel", 5 minutes
+without `SessionEnd` (one delayed task, no polling) and quitting Luna; a second click replaces the first. A
+session that drops off the list for silence (no `SessionEnd`) never opens. That the VS Code extension sends
+`SessionEnd` when its tab is closed is an *assumption*, checked by hand.
+
+Not offered: while the agent works or waits for an answer; the app the session already runs in (that is
+"Go to the agent"); apps that are not installed; sessions of Claude Desktop itself (whether VS Code finds
+them is not verified); other agents, anonymous sessions (no UUID). VS Code without a valid, existing
+project folder is disabled; Claude Desktop does not need the folder.
+
 ### Launch an agent
 
 "Launch agent" on the prompt page (next to the project chip, Claude Code by subscription, GitHub build

@@ -121,6 +121,12 @@ struct AgentPreviewView: View {
             Text(String(localized: "agentPreview.closed.title", defaultValue: "Session closed"))
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(Color(hex: "#F5F6F8"))
+            #if !APPSTORE
+            // Сессия закрылась ради переноса — что с ним (LUNA-79).
+            if let id = state.previewAgentId {
+                AgentHandoffStatusLine(state: state, sessionKey: id)
+            }
+            #endif
             SecondaryButton(verbatim: String(localized: "agentPreview.back", defaultValue: "Back")) {
                 state.closeAgentPreview()
             }
@@ -219,11 +225,23 @@ struct AgentPreviewView: View {
                     .lineLimit(4)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            PrimaryButton(verbatim: String(localized: "agentPreview.jump", defaultValue: "Go to the agent")) {
-                goToAgent(session)
+            #if !APPSTORE
+            // «Открыть в…» (LUNA-79): строка переноса и иконка-меню в одном ряду с кнопкой.
+            AgentHandoffStatusLine(state: state, sessionKey: session.id)
+            #endif
+            HStack(spacing: 6) {
+                PrimaryButton(verbatim: String(localized: "agentPreview.jump", defaultValue: "Go to the agent")) {
+                    goToAgent(session)
+                }
+                .disabled(!plan.isAvailable)
+                .opacity(plan.isAvailable ? 1 : 0.4)
+                #if !APPSTORE
+                if AgentHandoffPlan.isEligible(pill: session.pill, sessionId: session.key.session,
+                                               hostBundleId: session.who.hostBundleId) {
+                    AgentHandoffButton(state: state, session: session)
+                }
+                #endif
             }
-            .disabled(!plan.isAvailable)
-            .opacity(plan.isAvailable ? 1 : 0.4)
         }
     }
 

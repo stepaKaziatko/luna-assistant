@@ -328,6 +328,100 @@ final class AppState: ObservableObject {
     }
     #endif
 
+    // MARK: Перенос сессии (LUNA-79)
+
+    #if !APPSTORE
+    /// Строка переноса на странице агента: ждём закрытия сессии, открываем, отменён… Только в памяти.
+    @Published private(set) var agentHandoffStatus: AgentHandoffStatus? = nil
+    private var agentHandoffBook = AgentHandoffBook()
+    /// Срок ожидания: одна отложенная задача на перенос, без опроса.
+    private var agentHandoffTimer: Task<Void, Never>? = nil
+    /// Итоговая строка (отменён, открываю, скопировано) гаснет сама.
+    private var agentHandoffNoteTimer: Task<Void, Never>? = nil
+    private static let agentHandoffNoteLifetime: Duration = .seconds(10)
+
+    /// Клик «Открыть в…» → цель: перенос ждёт `SessionEnd` этой сессии (решение В1 = A). Остров не
+    /// сворачивается и фокус не уходит — до закрытия сессии. false — сессия или цель не годятся.
+    @discardableResult
+    func requestAgentHandoff(_ target: AgentHandoffTarget, session: AgentSessionInfo) -> Bool {
+        guard session.phase != .working, session.wait == nil,
+              let plan = AgentHandoffPlan.make(target: target, pill: session.pill,
+                                               sessionId: session.key.session, who: session.who) else { return false }
+        let pending = agentHandoffBook.request(plan, sessionKey: session.id,
+                                               hostBundleId: session.who.hostBundleId, now: Date())
+        setAgentHandoffStatus(.waiting(pending))
+        agentHandoffTimer?.cancel()
+        agentHandoffTimer = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(AgentHandoffBook.waitLimit))
+            guard !Task.isCancelled, let self else { return }
+            self.applyAgentHandoff(self.agentHandoffBook.expire(now: Date()))
+        }
+        return true
+    }
+
+    /// «Отменить».
+    func cancelAgentHandoff() {
+        applyAgentHandoff(agentHandoffBook.cancel())
+    }
+
+    /// «Скопировать команду для терминала»: `cd '<папка>' && claude --resume <uuid>` в буфер обмена.
+    func copyAgentResumeCommand(_ session: AgentSessionInfo) {
+        guard AgentHandoffPlan.isEligible(pill: session.pill, sessionId: session.key.session,
+                                          hostBundleId: session.who.hostBundleId),
+              let command = AgentHandoffPlan.terminalCommand(who: session.who, sessionId: session.key.session)
+        else { return }
+        AgentHandoff.copy(command)
+        // Ждущий перенос другой сессии строку не уступает.
+        if agentHandoffStatus?.isWaiting != true { setAgentHandoffStatus(.copied(sessionKey: session.id)) }
+    }
+
+    /// Событие хука сессии (`HookServer.recordAgentEvent`): `SessionEnd` исполняет перенос, новый
+    /// ход его снимает. Ничего не ждёт — ничего не делает.
+    func agentHandoffEvent(_ name: String, sessionKey: String) {
+        guard agentHandoffBook.pending != nil else { return }
+        applyAgentHandoff(agentHandoffBook.event(name, sessionKey: sessionKey, now: Date()))
+    }
+
+    private func applyAgentHandoff(_ step: AgentHandoffStep) {
+        switch step {
+        case .none:
+            return
+        case .cancelled(let reason, let key):
+            agentHandoffTimer?.cancel()
+            agentHandoffTimer = nil
+            appendAppLog("luna.log", "Handoff: cancelled (\(reason))")
+            // «Отменить» — строка просто исчезает.
+            setAgentHandoffStatus(reason == .byUser ? nil : .cancelled(reason, sessionKey: key))
+        case .open(let plan, let key):
+            agentHandoffTimer?.cancel()
+            agentHandoffTimer = nil
+            switch AgentHandoff.run(plan) {
+            case .opened:
+                setAgentHandoffStatus(.opening(plan.target, sessionKey: key))
+                NotificationCenter.default.post(name: .islandCollapseAfterJump, object: nil)
+            case .appMissing:
+                setAgentHandoffStatus(.appMissing(plan.target, sessionKey: key))
+            case .folderMissing:
+                setAgentHandoffStatus(.folderMissing(sessionKey: key))
+            case .refused:
+                setAgentHandoffStatus(nil)
+            }
+        }
+    }
+
+    private func setAgentHandoffStatus(_ status: AgentHandoffStatus?) {
+        agentHandoffNoteTimer?.cancel()
+        agentHandoffNoteTimer = nil
+        if status != agentHandoffStatus { agentHandoffStatus = status }
+        guard let status, !status.isWaiting else { return }
+        agentHandoffNoteTimer = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.agentHandoffNoteLifetime)
+            guard !Task.isCancelled, let self, self.agentHandoffStatus == status else { return }
+            self.agentHandoffStatus = nil
+        }
+    }
+    #endif
+
     // MARK: История чатов (LUNA-76)
 
     /// Settings → Chat → «Хранить историю чатов». UserDefaults `chatHistoryEnabled`, по умолчанию

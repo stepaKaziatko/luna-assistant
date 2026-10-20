@@ -1131,10 +1131,15 @@ final class HookServer: @unchecked Sendable {
                                   tty: AgentJumpPlan.validTTY(payload[Self.peerTTYKey] as? String ?? "") ?? "",
                                   // Корень проекта (`CLAUDE_PROJECT_DIR`, его кладёт релей): папка «Перейти к агенту».
                                   projectDir: AgentJumpPlan.validFolder(payload["project_dir"] as? String ?? "") ?? "")
+        let key = AgentSessionKey.make(pill: pill, sessionId: sessionId, cwd: cwd)
         agentBook.apply(event: name,
-                        key: AgentSessionKey.make(pill: pill, sessionId: sessionId, cwd: cwd),
+                        key: key,
                         who: who, tool: tool, step: step, finalText: finalText,
                         message: payload["message"] as? String ?? "")
+        #if !APPSTORE
+        // «Открыть в…» (LUNA-79): перенос ждёт `SessionEnd` своей сессии, новый ход его снимает.
+        AppState.shared.agentHandoffEvent(name, sessionKey: key.id)
+        #endif
     }
 
     /// "Claude Code", "Cursor", "Codex", "Gemini CLI"… for a tile.

@@ -29710,6 +29710,262 @@
           }
         }
       }
+    },
+    "agentPreview.handoff.button.help": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in another app"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть в другом приложении"
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть в…"
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.hint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luna opens the session there once you close it where it runs now: the conversation is never open in two places."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luna откроет сессию там, когда вы закроете её там, где она идёт сейчас: разговор не будет открыт в двух местах."
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.copy": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy command for Terminal"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скопировать команду для терминала"
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.blocked.working": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The agent is working — wait for the turn to end"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Агент работает — дождитесь конца хода"
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.blocked.waiting": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The agent is waiting for your answer"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Агент ждёт ответа"
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.host.unknown": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "its app"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "её приложении"
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.waiting.terminal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close the session in %1$@ (/exit) — Luna will open it in %2$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Закройте сессию в %1$@ (/exit) — Luna откроет её в %2$@"
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.waiting": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close the session in %1$@ — Luna will open it in %2$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Закройте сессию в %1$@ — Luna откроет её в %2$@"
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.opening": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opening in %@…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открываю в %@…"
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.cancelled.resumed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The session went on working — handoff cancelled"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сессия продолжила работу — перенос отменён"
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.cancelled.timeout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The session did not close — handoff cancelled"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сессия не закрылась — перенос отменён"
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.cancelled": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Handoff cancelled"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перенос отменён"
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.app-missing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ not found"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ не найден"
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.copied": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Command copied — paste it into a terminal"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Команда скопирована — вставьте её в терминал"
+          }
+        }
+      }
+    },
+    "agentPreview.handoff.cancel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отменить"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
