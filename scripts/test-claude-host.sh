@@ -4,5 +4,7 @@ cd "$(dirname "$0")/.."
 TEST_DIR="$(mktemp -d "${TMPDIR:-/tmp}/luna-claude-host.XXXXXX")"
 trap 'rm -rf "$TEST_DIR"' EXIT
 swiftc apps/macos/Sources/App/ClaudeHost.swift \
+    apps/macos/Sources/App/AgentSessions.swift \
+    apps/macos/Sources/App/PillSessionRegistry.swift \
     tests/ClaudeHostTests.swift -o "$TEST_DIR/claude-host-tests"
 "$TEST_DIR/claude-host-tests"

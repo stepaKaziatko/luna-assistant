@@ -38,6 +38,7 @@ enum AgentLook {
         // Зелёная метка «готово» — пока ход не просмотрен; просмотренный аватар спокоен.
         case .finished: return s.finishedUnseen ? .finished : .idle
         case .error:    return .error
+        case .stopped:  return .idle
         }
     }
 
@@ -96,6 +97,8 @@ enum AgentLook {
             return String(localized: "agents.status.error", defaultValue: "Error · \(ago(s.since, now: now))")
         case .idle:
             return String(localized: "agents.status.idle", defaultValue: "Session open")
+        case .stopped:
+            return String(localized: "agents.status.stopped", defaultValue: "Stopped · \(ago(s.since, now: now))")
         }
     }
 }

@@ -15,7 +15,10 @@ enum ChatCLIMessages {
         }
     }
 
-    static func text(for error: ClaudeCLIError, hasAPIKey: Bool, locale: Locale = .current) -> String {
+    /// `keyHint: false` — без подсказки про ключ API: у агента в проекте ключа нет, он только по
+    /// подписке (LUNA-80).
+    static func text(for error: ClaudeCLIError, hasAPIKey: Bool, locale: Locale = .current,
+                     keyHint: Bool = true) -> String {
         let base: String
         switch error {
         case .notFound:
@@ -66,7 +69,7 @@ enum ChatCLIMessages {
             base = String(localized: "chat.cli.error.session-not-found",
                           defaultValue: "The previous Claude Code session is not available.")
         }
-        guard suggestsAPIKey(error) else { return base }
+        guard keyHint, suggestsAPIKey(error) else { return base }
         let hint = hasAPIKey
             ? String(localized: "chat.cli.hint.switch-to-key", defaultValue: "You can switch to your API key.")
             : String(localized: "chat.cli.hint.add-key", defaultValue: "Or add an API key in Settings → Chat.")

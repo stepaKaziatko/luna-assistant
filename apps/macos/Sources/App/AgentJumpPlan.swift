@@ -47,6 +47,8 @@ struct AgentJumpPlan: Equatable, Sendable {
     static func make(pill: String, sessionId: String, who: AgentSessionWho) -> AgentJumpPlan {
         let folder = folder(of: who)
         let host = who.hostBundleId
+        // Агент, которого Luna запустила в фоне (LUNA-80): окна у него нет, переходить некуда.
+        if host == AgentHost.lunaBackground { return AgentJumpPlan(action: .unavailable) }
 
         if let editor = AgentEditors.editor(bundleId: host) {
             return AgentJumpPlan(action: .editor(

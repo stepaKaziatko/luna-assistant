@@ -95,6 +95,12 @@ final class HookServer: @unchecked Sendable {
         }
     }
 
+    /// Запрос агента, запущенного Luna, не дождался клика: Claude Code в фоне отказывает (LUNA-80).
+    static var lunaAgentExpiredNote: String {
+        String(localized: "agent.run.approval.expired",
+               defaultValue: "The request expired — the agent was denied. Continue the conversation to let it try again.")
+    }
+
     /// Puts the oldest waiting request on the card. When the card already shows it, only
     /// its "n waiting" count is refreshed (no sound, no focus change).
     @MainActor
@@ -493,7 +499,13 @@ final class HookServer: @unchecked Sendable {
         let agentId: String
         let isExternalAgent: Bool
         var hostApp: String? = nil
-        if isCodexEvent {
+        // Агент, которого запустила Luna (LUNA-80): ни терминала, ни редактора — узнаётся по
+        // `session_id` и идёт первым, что бы ни унаследовало окружение.
+        if LunaHookOrigin.of(payload) == .agent {
+            agentId = "integration_claude"
+            isExternalAgent = false
+            hostApp = AgentHost.lunaBackground
+        } else if isCodexEvent {
             agentId = "agent_codex"
             isExternalAgent = false
         } else if let agent = validAgent {
@@ -811,8 +823,11 @@ final class HookServer: @unchecked Sendable {
         let rawAgent = payload["luna_agent"] as? String ?? ""
         let termProgram = payload["term_program"] as? String ?? ""
         let bundleId    = payload["bundle_id"]    as? String ?? ""
-        let isCursorEditor = bundleId.lowercased() == "com.todesktop.230313mzl4w4u92"
-        let isVSCodeEditor = !isCursorEditor && (
+        // Агент, которого запустила Luna (LUNA-80): его запрос — карточка в острове. Спросить в
+        // терминале ему некому: без ответа Claude Code в фоне сразу отказывает.
+        let isLunaAgent = LunaHookOrigin.of(payload) == .agent
+        let isCursorEditor = !isLunaAgent && bundleId.lowercased() == "com.todesktop.230313mzl4w4u92"
+        let isVSCodeEditor = !isLunaAgent && !isCursorEditor && (
             termProgram.lowercased().contains("vscode") ||
             bundleId.lowercased().contains("vscode"))
 
@@ -859,10 +874,11 @@ final class HookServer: @unchecked Sendable {
             pillId = "integration_claude"
         }
         // Terminal sessions: only when turned on in Settings, else the terminal asks itself.
-        let terminalHost = isCursorEditor || isVSCodeEditor ? nil
+        let terminalHost = isLunaAgent || isCursorEditor || isVSCodeEditor ? nil
             : ClaudeHost.terminal(termProgram: termProgram, bundleId: bundleId)
         let isTerminal = terminalHost != nil && ClaudeHost.terminalCardsEnabled
-        guard isCodexRequest || isCopilotRequest || isMuseRequest || isHermesRequest || isCursorEditor || isVSCodeEditor || isTerminal else {
+        let hostApp = isLunaAgent ? AgentHost.lunaBackground : terminalHost?.bundleId
+        guard isLunaAgent || isCodexRequest || isCopilotRequest || isMuseRequest || isHermesRequest || isCursorEditor || isVSCodeEditor || isTerminal else {
             Task.detached { [weak self] in
                 self?.sendLine(fd: fd, text: #"{"permissionDecision":"ask"}"#)
                 close(fd)
@@ -893,7 +909,7 @@ final class HookServer: @unchecked Sendable {
         let entry = QueuedApproval(id: UUID(), fd: fd, sessionId: sessionId, pillId: pillId,
                                    projectName: projectName, cwd: cwd, tool: tool,
                                    command: command, inputKey: inputKey,
-                                   hostApp: terminalHost?.bundleId, bundleId: bundleId)
+                                   hostApp: hostApp, bundleId: bundleId)
         guard approvals.enqueue(entry) == .accepted else {
             lunaLog("PermissionRequest \(tool): \(ApprovalQueue.maxPending) already waiting, asked in the terminal")
             Task.detached { [weak self] in
@@ -906,13 +922,13 @@ final class HookServer: @unchecked Sendable {
 
         upsertTask(pill: pillId,
                    display: PillSessionRegistry.Display(session: sessionId, projectName: projectName,
-                                                        cwd: cwd, hostApp: terminalHost?.bundleId,
+                                                        cwd: cwd, hostApp: hostApp,
                                                         bundleId: bundleId),
                    working: true, externalAgent: nil)
         recordAgentEvent(name: "PermissionRequest", payload: payload, pill: pillId, sessionId: sessionId,
                          cwd: cwd, project: projectName,
                          external: !isCodexRequest && Self.validateAgent(rawAgent) != nil,
-                         hostApp: terminalHost?.bundleId, bundleId: bundleId)
+                         hostApp: hostApp, bundleId: bundleId)
         state.updateTask(id: pillId, state: .approval)
         SoundEngine.shared.play("approval")
 
@@ -935,7 +951,9 @@ final class HookServer: @unchecked Sendable {
         let waitTimeout: Double = (isCopilotRequest || isMuseRequest) ? 110 : 115
         DispatchQueue.main.asyncAfter(deadline: .now() + waitTimeout) { [weak self] in
             guard let self, self.approvals.contains(id: entryId) else { return }
-            self.removeApproval(id: entryId, note: self.waitingNote(pill: capturedPillId))
+            // Агент Luna в фоне по истечении получает отказ: спросить снова ему негде.
+            self.removeApproval(id: entryId, note: isLunaAgent ? Self.lunaAgentExpiredNote
+                                                               : self.waitingNote(pill: capturedPillId))
         }
 
         showApprovalHead()
@@ -1105,6 +1123,7 @@ final class HookServer: @unchecked Sendable {
         let input = payload["tool_input"] as? [String: Any] ?? [:]
         var step: String? = nil
         var finalText: String? = nil
+        var fullText: String? = nil
         switch name {
         case "UserPromptSubmit":
             step = (payload["prompt"] as? String).map { String($0.prefix(60)) }
@@ -1120,6 +1139,7 @@ final class HookServer: @unchecked Sendable {
             let raw = (payload["last_assistant_message"] as? String)
                 ?? (payload["message"] as? String) ?? ""
             finalText = DiffEngine.toOneLine(raw)
+            fullText = raw
         default:
             break
         }
@@ -1134,7 +1154,7 @@ final class HookServer: @unchecked Sendable {
         let key = AgentSessionKey.make(pill: pill, sessionId: sessionId, cwd: cwd)
         agentBook.apply(event: name,
                         key: key,
-                        who: who, tool: tool, step: step, finalText: finalText,
+                        who: who, tool: tool, step: step, finalText: finalText, fullText: fullText,
                         message: payload["message"] as? String ?? "")
         #if !APPSTORE
         // «Открыть в…» (LUNA-79): перенос ждёт `SessionEnd` своей сессии, новый ход его снимает.
@@ -1197,6 +1217,31 @@ final class HookServer: @unchecked Sendable {
     @MainActor
     func markAgentsSeen(for key: AgentSessionKey) {
         if agentBook.markFinishedSeen(for: key) { publishAgentSessions() }
+    }
+
+    // MARK: Агент, запущенный Luna (LUNA-80)
+
+    /// Ключ плитки агента Luna: Claude Code, сессия `sessionId`.
+    static func lunaRunKey(sessionId: String) -> AgentSessionKey {
+        AgentSessionKey.make(pill: "integration_claude", sessionId: sessionId, cwd: "")
+    }
+
+    /// Luna запускает ход агента: плитка «Luna (в фоне)» появляется сразу, до первого хука.
+    @MainActor
+    func registerLunaRun(sessionId: String, cwd: String, project: String, prompt: String) {
+        let who = AgentSessionWho(project: project, agent: Self.agentLabel(pill: "integration_claude"),
+                                  hostBundleId: AgentHost.lunaBackground,
+                                  cwd: AgentJumpPlan.validFolder(cwd) ?? "", tty: "",
+                                  projectDir: AgentJumpPlan.validFolder(cwd) ?? "")
+        agentBook.registerLunaRun(key: Self.lunaRunKey(sessionId: sessionId), who: who, prompt: prompt)
+        publishAgentSessions()
+    }
+
+    /// Процесс хода агента Luna завершился: остановлен, ошибка или ход закончен.
+    @MainActor
+    func lunaRunEnded(sessionId: String, outcome: AgentSessionBook.LunaRunOutcome) {
+        agentBook.lunaRunEnded(key: Self.lunaRunKey(sessionId: sessionId), outcome: outcome)
+        publishAgentSessions()
     }
 
     /// "VS Code", "Warp"… — where the Claude Code pill's current session runs.

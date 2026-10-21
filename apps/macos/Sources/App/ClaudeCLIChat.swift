@@ -9,65 +9,29 @@ import Foundation
 // - Запрос идёт в stdin, не в argv: его не видно в `ps`, длина не ограничена.
 // - Свои сессии: `--session-id <uuid>` на первом ходе, `--resume <uuid>` дальше. Чужие
 //   идущие сессии агентов не затрагиваются.
-// - «Без проекта»: служебная папка и `--safe-mode` — без хуков, плагинов, CLAUDE.md и MCP
-//   пользователя, инструменты только веб. Подпроцесс не шлёт события хуков.
-// - Вопрос в проекте (LUNA-75, решение человека): папка проекта и без `--safe-mode` — CLAUDE.md,
-//   `.claude/settings.json` и хуки проекта работают как в обычном Claude Code. Но чат в проекте
-//   только читает и отвечает: разрешённый список `--tools Read,Glob,Grep,WebSearch,WebFetch`
-//   оставляет модели чтение файлов проекта, поиск по ним и поиск в сети — больше ничего, включая
-//   инструменты будущих версий `claude`. Второй барьер — `--disallowedTools`: он убирает команды
-//   (`Bash`), правки (`Edit`, `Write`, `NotebookEdit`) и все инструменты MCP-серверов (`mcp__*`) —
-//   какие бы разрешения (`defaultMode`, `permissions.allow`) ни стояли у пользователя или в проекте:
-//   запрет Claude Code сильнее разрешения. Luna запросов разрешений не показывает и не разрешает.
-//   События хуков такого чата помечены `LUNA_CHAT_SESSION` и в острове сессией агента не становятся
-//   (`LunaChatSessions`).
+// - Только «Без проекта»: служебная папка и `--safe-mode` — без хуков, плагинов, CLAUDE.md и MCP
+//   пользователя, инструменты только веб. Подпроцесс не шлёт события хуков. Запрос с выбранным
+//   проектом — не чат, а агент в проекте (`ClaudeAgentRun.swift`, LUNA-80).
 // - Без `--bare` (он отключает вход по подписке) и без флагов, отключающих запросы разрешений.
 // - Из окружения убираются ключ API и метки родительской сессии (`CLIResolver.environment`).
 
 enum ClaudeCLIArguments {
-    /// Инструменты чата без проекта: поиск и чтение страниц в сети, как web_search у API-пути.
+    /// Инструменты чата: поиск и чтение страниц в сети, как web_search у API-пути.
     /// Файлы пользователя CLI не читает (`Read` не включён), оболочки у него нет.
     static let tools = "WebSearch,WebFetch"
 
-    /// Разрешённый список чата в проекте (решение человека 20.10.2026): чтение файлов проекта,
-    /// поиск по ним и поиск в сети. Инструменты, которых здесь нет — субагенты, скилы, расписания,
-    /// worktree и всё, что появится в будущих версиях `claude`, — модели недоступны.
-    /// Значение одним аргументом через запятую: флаг вариадический, за ним идёт другой флаг.
-    static let projectTools = "Read,Glob,Grep,WebSearch,WebFetch"
-
-    /// Второй барьер чата в проекте: команды, правки файлов и все инструменты MCP-серверов
-    /// (шаблон `mcp__*` — любой сервер: проекта, пользователя, коннекторы claude.ai).
-    /// Значение одним аргументом через запятую: флаг вариадический, за ним идёт другой флаг.
-    static let projectDisallowedTools = "Bash,Edit,Write,NotebookEdit,mcp__*"
-
-    /// `inProject`: Claude Code в папке проекта — без `--safe-mode` и `--strict-mcp-config`
-    /// (CLAUDE.md, настройки и хуки проекта действуют), но только чтение: `--tools projectTools`
-    /// и вторым барьером `--disallowedTools projectDisallowedTools`. Промпт Luna дописывается
-    /// к промпту Claude Code.
-    static func build(systemPrompt: String, model: String?, sessionID: String, resume: Bool,
-                      inProject: Bool = false) -> [String] {
+    static func build(systemPrompt: String, model: String?, sessionID: String, resume: Bool) -> [String] {
         var args = [
             "-p",
             "--output-format", "stream-json",
             "--verbose",
             "--include-partial-messages",
+            "--safe-mode",
+            "--strict-mcp-config",
+            "--tools", tools,
+            "--allowedTools", tools,
+            "--system-prompt", systemPrompt,
         ]
-        if inProject {
-            args += [
-                "--tools", projectTools,
-                "--allowedTools", tools,
-                "--disallowedTools", projectDisallowedTools,
-                "--append-system-prompt", systemPrompt,
-            ]
-        } else {
-            args += [
-                "--safe-mode",
-                "--strict-mcp-config",
-                "--tools", tools,
-                "--allowedTools", tools,
-                "--system-prompt", systemPrompt,
-            ]
-        }
         if let model { args += ["--model", model] }
         args += resume ? ["--resume", sessionID] : ["--session-id", sessionID]
         return args
@@ -81,11 +45,9 @@ struct ClaudeCLIRequest: Sendable {
     var model: String?
     var sessionID: String
     var resume: Bool
-    /// Служебная папка чата или папка проекта (`inProject`).
+    /// Служебная папка чата.
     var workingDirectory: URL
     var environment: [String: String]
-    /// Вопрос в проекте: папка не создаётся, а проверяется; аргументы — `ClaudeCLIArguments.build(inProject:)`.
-    var inProject: Bool = false
     /// Сколько ждать нового вывода. Куски ответа и события сбрасывают отсчёт.
     var idleTimeout: TimeInterval = 120
 }
@@ -140,27 +102,15 @@ final class ClaudeCLIProcess: @unchecked Sendable {
 
     private func runBlocking(_ request: ClaudeCLIRequest, onText: @escaping @Sendable (String) -> Void) -> Result<String, ClaudeCLIError> {
         guard FileManager.default.isExecutableFile(atPath: request.executable) else { return .failure(.notFound) }
-        var environment = request.environment
-        if request.inProject {
-            // Папку проекта Luna не создаёт: пропала или нет доступа — `claude` не запускается.
-            let path = request.workingDirectory.path
-            switch ChatProjectFolder.inspect(path) {
-            case .missing: return .failure(.projectFolderMissing(path))
-            case .noAccess: return .failure(.projectFolderNoAccess(path))
-            case .ready: break
-            }
-            environment[LunaChatSessions.environmentKey] = request.sessionID
-        } else {
-            try? FileManager.default.createDirectory(at: request.workingDirectory, withIntermediateDirectories: true)
-        }
+        try? FileManager.default.createDirectory(at: request.workingDirectory, withIntermediateDirectories: true)
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: request.executable)
         process.arguments = ClaudeCLIArguments.build(
             systemPrompt: request.systemPrompt, model: request.model,
-            sessionID: request.sessionID, resume: request.resume, inProject: request.inProject)
+            sessionID: request.sessionID, resume: request.resume)
         process.currentDirectoryURL = request.workingDirectory
-        process.environment = environment
+        process.environment = request.environment
         let stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
         process.standardInput = stdin
         process.standardOutput = stdout

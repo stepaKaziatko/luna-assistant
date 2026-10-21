@@ -216,7 +216,9 @@ struct AgentPreviewView: View {
 
     private func jumpButton(_ session: AgentSessionInfo) -> some View {
         let plan = AgentJumpPlan.make(pill: session.pill, sessionId: session.key.session, who: session.who)
-        let hint = jumpHintText(for: session, available: plan.isAvailable)
+        // Агент в фоне (LUNA-80): окна нет — «Перейти к агенту» не показывается, только «Открыть в…».
+        let background = session.who.hostBundleId == AgentHost.lunaBackground
+        let hint = background ? nil : jumpHintText(for: session, available: plan.isAvailable)
         return VStack(alignment: .leading, spacing: 3) {
             if let hint {
                 Text(hint)
@@ -230,11 +232,13 @@ struct AgentPreviewView: View {
             AgentHandoffStatusLine(state: state, sessionKey: session.id)
             #endif
             HStack(spacing: 6) {
-                PrimaryButton(verbatim: String(localized: "agentPreview.jump", defaultValue: "Go to the agent")) {
-                    goToAgent(session)
+                if !background {
+                    PrimaryButton(verbatim: String(localized: "agentPreview.jump", defaultValue: "Go to the agent")) {
+                        goToAgent(session)
+                    }
+                    .disabled(!plan.isAvailable)
+                    .opacity(plan.isAvailable ? 1 : 0.4)
                 }
-                .disabled(!plan.isAvailable)
-                .opacity(plan.isAvailable ? 1 : 0.4)
                 #if !APPSTORE
                 if AgentHandoffPlan.isEligible(pill: session.pill, sessionId: session.key.session,
                                                hostBundleId: session.who.hostBundleId) {
@@ -286,6 +290,8 @@ struct AgentPreviewView: View {
             approvalCard(req)
         case .queued(let req):
             queuedCard(req)
+        case .none where session.isLunaRun:
+            lunaRunColumn(session)
         case .none:
             VStack(alignment: .leading, spacing: 4) {
                 if let notice { noticeLine(notice) }
@@ -299,6 +305,43 @@ struct AgentPreviewView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .background(RoundedRectangle(cornerRadius: 12).fill(Color(hex: "#141518")))
             }
+        }
+    }
+
+    // MARK: Агент, запущенный Luna (LUNA-80)
+
+    /// Ответ целиком (пока ход идёт — шаги), ошибка хода и поле «Продолжить» / «Остановить».
+    private func lunaRunColumn(_ session: AgentSessionInfo) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let notice { noticeLine(notice) }
+            Group {
+                if session.phase != .working, let answer = session.answer, !answer.isEmpty {
+                    ScrollView(.vertical, showsIndicators: false) {
+                        Text(answer)
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(hex: "#E3E5E8"))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                } else {
+                    stepList(session)
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color(hex: "#141518")))
+            if let error = session.errorText {
+                Text(error)
+                    .font(.system(size: 10))
+                    .foregroundColor(Color(hex: AgentLook.error))
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            #if !APPSTORE
+            if ClaudeAgentController.shared.knows(sessionId: session.key.session) {
+                LunaAgentContinueBar(state: state, session: session)
+            }
+            #endif
         }
     }
 
@@ -457,3 +500,68 @@ struct AgentStepRow: View {
         }
     }
 }
+
+#if !APPSTORE
+// MARK: - «Продолжить» и «Остановить» (LUNA-80)
+
+/// Поле следующего хода агента, запущенного Luna: тот же `--resume` в той же папке. Пока ход
+/// идёт, поле неактивно, а вместо отправки — «Остановить». Фокус поле не берёт само.
+struct LunaAgentContinueBar: View {
+    @ObservedObject var state: AppState
+    let session: AgentSessionInfo
+    @State private var text = ""
+    @State private var sending = false
+    @State private var refusal: String? = nil
+
+    private var working: Bool { session.phase == .working }
+    private var query: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            if let refusal {
+                Text(refusal)
+                    .font(.system(size: 10))
+                    .foregroundColor(Color(hex: AgentLook.waiting))
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: 8) {
+                TextField(String(localized: "agent.run.continue.placeholder", defaultValue: "Continue…"), text: $text)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                    .disabled(working || sending)
+                    .onSubmit(send)
+                if working {
+                    SecondaryButton(verbatim: String(localized: "agent.run.stop", defaultValue: "Stop")) {
+                        ClaudeAgentController.shared.stop(sessionId: session.key.session)
+                    }
+                } else {
+                    Button(action: send) {
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Color(hex: "#0B0C0E"))
+                    }
+                    .buttonStyle(SendButtonStyle())
+                    .disabled(query.isEmpty || sending)
+                }
+            }
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(Color.white.opacity(0.07))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private func send() {
+        let query = self.query
+        guard !query.isEmpty, !working, !sending else { return }
+        sending = true
+        refusal = nil
+        Task {
+            let reason = await ClaudeAgentController.shared.continueRun(
+                sessionId: session.key.session, query: query, state: state)
+            sending = false
+            if let reason { refusal = reason } else { text = "" }
+        }
+    }
+}
+#endif

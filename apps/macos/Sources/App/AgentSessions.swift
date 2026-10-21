@@ -39,6 +39,9 @@ enum AgentPhase: String, Equatable, Sendable {
     /// A turn ended on its own.
     case finished
     case error
+    /// Агента, запущенного Luna, остановили кнопкой «Остановить» (LUNA-80): ход прерван, сессию
+    /// можно продолжить.
+    case stopped
 }
 
 /// What a step is about, for its icon on the tile.
@@ -169,6 +172,13 @@ struct AgentSessionInfo: Equatable, Identifiable, Sendable {
     let finishedUnseen: Bool
     let rateLimited: Bool
 
+    /// Последний ответ целиком — для страницы агента, запущенного Luna (LUNA-80); у чужих сессий nil.
+    var answer: String? = nil
+    /// Почему ход агента Luna кончился ошибкой (лимит, нет сети, сессия недоступна); nil — не было.
+    var errorText: String? = nil
+    /// Сессию запустила Luna (`claude -p` в папке проекта): продолжение и остановка — со страницы агента.
+    var isLunaRun = false
+
     var id: String { key.id }
     var pill: String { key.pill }
 
@@ -179,7 +189,7 @@ struct AgentSessionInfo: Equatable, Identifiable, Sendable {
         case .error:    return .error
         case .finished: return finishedUnseen ? .finishedUnseen : .quiet
         case .working:  return .working
-        case .idle:     return .quiet
+        case .idle, .stopped: return .quiet
         }
     }
 }
@@ -205,7 +215,7 @@ struct AgentsSummary: Equatable, Sendable {
             // «Готово» — только непросмотренные: просмотренный ход новостью не считается.
             case .finished: if s.finishedUnseen { finished += 1 }
             case .error:    errors += 1
-            case .idle:     break
+            case .idle, .stopped: break
             }
         }
     }
@@ -218,6 +228,14 @@ struct AgentsSummary: Equatable, Sendable {
 enum AgentHost {
     static let vsCode = "com.microsoft.VSCode"
     static let cursor = "com.todesktop.230313mzl4w4u92"
+    /// Хост агента, которого Luna запустила в фоне (LUNA-80): окна у него нет, «Перейти к агенту»
+    /// не показывается. Bundle ID самой Luna.
+    static let lunaBackground = "dev.luna.Luna"
+
+    /// «Luna (в фоне)» — так плитка и страница называют хост такого агента.
+    static var lunaBackgroundName: String {
+        String(localized: "agents.host.luna-background", defaultValue: "Luna (background)")
+    }
 
     /// The bundle id of the app a session lives in. A client that did not name its app
     /// (VS Code sends only `term_program`) is told by its pill.
@@ -262,6 +280,10 @@ struct AgentSessionBook: Sendable {
         var finishedUnseen = false
         var rateLimited = false
         var order: Int
+        /// Запуск Luna (LUNA-80): запись переживает `SessionEnd` между ходами.
+        var lunaRun = false
+        var answer: String? = nil
+        var errorText: String? = nil
     }
 
     private var records: [AgentSessionKey: Record] = [:]
@@ -276,13 +298,21 @@ struct AgentSessionBook: Sendable {
     /// text of a `Notification`. A `Stop`, `StopFailure` or `Interrupt` of a session never heard
     /// of creates nothing: Luna may start in the middle of a session, and a session it only
     /// ever saw end owns no tile.
+    /// `fullText` — ответ `Stop` целиком: его хранит только запись агента, запущенного Luna.
     mutating func apply(event name: String, key: AgentSessionKey, who: AgentSessionWho,
                         tool: String = "", step: String? = nil, finalText: String? = nil,
+                        fullText: String? = nil,
                         message: String = "", now: Date = Date()) {
         prune(now: now)
         let transition = AgentTransition.of(event: name)
 
         if transition == .end {
+            // Агент Luna: каждый ход `-p` — отдельный процесс, и `SessionEnd` приходит после
+            // каждого хода. Плитка остаётся: со страницы агента разговор продолжается.
+            if records[key]?.lunaRun == true {
+                records[key]?.lastEvent = now
+                return
+            }
             records.removeValue(forKey: key)
             return
         }
@@ -328,6 +358,8 @@ struct AgentSessionBook: Sendable {
                 rec.finalLine = nil
                 rec.finishedUnseen = false
                 rec.rateLimited = false
+                rec.answer = nil
+                rec.errorText = nil
             }
             if before != .working { rec.finishedUnseen = false }
             if name == "PostToolUseFailure" {
@@ -342,10 +374,16 @@ struct AgentSessionBook: Sendable {
             rec.rateLimited = false
             let text = Self.oneLine(finalText ?? "")
             rec.finalLine = text.isEmpty ? nil : text
+            if rec.lunaRun {
+                let full = (fullText ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                rec.answer = full.isEmpty ? nil : full
+            }
         case .error:
             rec.phase = .error
             rec.finishedUnseen = false
         case .idle:
+            // Ход агента Luna начинается с `SessionStart`: запуск уже поставил «работает».
+            if rec.lunaRun, before == .working { break }
             rec.phase = .idle
             rec.finishedUnseen = false
         case .none:
@@ -403,6 +441,77 @@ struct AgentSessionBook: Sendable {
         return true
     }
 
+    // MARK: Агент, запущенный Luna (LUNA-80)
+
+    /// Чем кончился процесс хода агента Luna.
+    enum LunaRunOutcome: Equatable, Sendable {
+        /// Ход дошёл до конца; `text` — ответ из вывода `claude` (на случай, если `Stop` не пришёл).
+        case finished(text: String?)
+        /// «Остановить» или выход из Luna.
+        case stopped
+        /// Лимит, нет сети, падение `claude`, сессия недоступна — текст для страницы агента.
+        case failed(String)
+    }
+
+    /// Luna запускает ход агента: плитка есть сразу, ещё до первого хука. Новая сессия заводит
+    /// запись, продолжение — та же запись, снова «работает». `prompt` — первая строка запроса.
+    mutating func registerLunaRun(key: AgentSessionKey, who: AgentSessionWho, prompt: String,
+                                  now: Date = Date()) {
+        prune(now: now)
+        var rec = records[key] ?? Record(who: who, phase: .idle, firstSeen: now, lastEvent: now,
+                                         since: now, order: nextOrder)
+        if records[key] == nil { nextOrder += 1 }
+        rec.lunaRun = true
+        rec.who = AgentSessionWho(
+            project: who.project, agent: who.agent, hostBundleId: who.hostBundleId,
+            cwd: who.cwd.isEmpty ? rec.who.cwd : who.cwd, tty: "",
+            projectDir: Self.projectDir(known: rec.who.projectDir, event: who))
+        if rec.phase != .working { rec.since = now }
+        rec.phase = .working
+        rec.lastEvent = now
+        rec.finalLine = nil
+        rec.answer = nil
+        rec.errorText = nil
+        rec.finishedUnseen = false
+        rec.rateLimited = false
+        let line = Self.oneLine(prompt)
+        if !line.isEmpty { rec.steps.append(AgentStep(kind: .prompt, text: line)) }
+        if rec.steps.count > Self.maxSteps { rec.steps.removeFirst(rec.steps.count - Self.maxSteps) }
+        records[key] = rec
+    }
+
+    /// Процесс хода агента Luna завершился. Хуки `Stop` и `SessionEnd` к этому времени уже пришли:
+    /// итог процесса уточняет фазу — остановлен, ошибка или (если хуков не было) ход закончен.
+    mutating func lunaRunEnded(key: AgentSessionKey, outcome: LunaRunOutcome, now: Date = Date()) {
+        guard var rec = records[key], rec.lunaRun else { return }
+        let before = rec.phase
+        switch outcome {
+        case .finished(let text):
+            if rec.phase == .working {
+                rec.phase = .finished
+                rec.finishedUnseen = true
+            }
+            let full = (text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if rec.answer == nil, !full.isEmpty {
+                rec.answer = full
+                rec.finalLine = Self.oneLine(full)
+            }
+        case .stopped:
+            rec.phase = .stopped
+            rec.finishedUnseen = false
+        case .failed(let message):
+            rec.phase = .error
+            rec.finishedUnseen = false
+            rec.errorText = message
+        }
+        rec.lastEvent = now
+        if rec.phase != before { rec.since = now }
+        records[key] = rec
+    }
+
+    /// Сессию запустила Luna и её запись ещё есть.
+    func isLunaRun(_ key: AgentSessionKey) -> Bool { records[key]?.lunaRun == true }
+
     // MARK: Reading
 
     /// The tiles, in display order. `waits` is what the hook server holds right now.
@@ -412,7 +521,8 @@ struct AgentSessionBook: Sendable {
             let wait = waits[key]
             let silence = now.timeIntervalSince(rec.lastEvent)
             var phase = rec.phase
-            if phase == .working, silence > Self.maxTurnSilence { phase = .idle }
+            // Ход агента Luna идёт, пока жив его процесс: долгая команда без хуков — не тишина.
+            if phase == .working, silence > Self.maxTurnSilence, !rec.lunaRun { phase = .idle }
             if wait == nil {
                 if silence > Self.maxSilence { continue }
                 if phase != .working, silence > Self.maxIdleSilence { continue }
@@ -424,7 +534,8 @@ struct AgentSessionBook: Sendable {
                 steps: rec.steps, finalLine: rec.finalLine, since: since,
                 firstSeen: rec.firstSeen,
                 finishedUnseen: rec.finishedUnseen && phase == .finished,
-                rateLimited: rec.rateLimited)
+                rateLimited: rec.rateLimited,
+                answer: rec.answer, errorText: rec.errorText, isLunaRun: rec.lunaRun)
             list.append((info, rec.order))
         }
         list.sort { a, b in
@@ -441,7 +552,7 @@ struct AgentSessionBook: Sendable {
     private mutating func prune(now: Date) {
         for (key, rec) in records {
             let silence = now.timeIntervalSince(rec.lastEvent)
-            let working = rec.phase == .working && silence <= Self.maxTurnSilence
+            let working = rec.phase == .working && (rec.lunaRun || silence <= Self.maxTurnSilence)
             if silence > Self.maxSilence || (!working && silence > Self.maxIdleSilence) {
                 records.removeValue(forKey: key)
             }

@@ -1461,7 +1461,8 @@ struct PromptView: View {
     @State private var showModelPicker = false
     @State private var showProjectPicker = false
     @State private var showChatHistory = false
-    @State private var showAgentLaunch = false
+    /// Агент в проекте запускается (проверка входа, папки и хуков): вторая отправка не уходит.
+    @State private var launchingAgent = false
 
     #if !APPSTORE
     @State private var dictation = MacDictation()
@@ -1523,11 +1524,10 @@ struct PromptView: View {
                     NewChatButton(state: state)
                     Spacer()
                     #if !APPSTORE
-                    // Проект — только у Claude Code по подписке (LUNA-75); рядом — «Запустить
-                    // агента» в этом проекте (LUNA-77).
+                    // Проект — только у Claude Code по подписке (LUNA-75). С проектом отправка
+                    // запускает агента в его папке (LUNA-80).
                     if state.chatProvider == .claudeCode {
                         ProjectChip(state: state, isPresented: $showProjectPicker)
-                        AgentLaunchButton(state: state, text: $text, isPresented: $showAgentLaunch)
                     }
                     #endif
                     Button {
@@ -1594,7 +1594,7 @@ struct PromptView: View {
                             .foregroundColor(Color(hex: "#0B0C0E"))
                     }
                     .buttonStyle(SendButtonStyle())
-                    .disabled(text.isEmpty)
+                    .disabled(text.isEmpty || launchingAgent)
                 }
                 .padding(.horizontal, 10).padding(.vertical, 6)
                 .background(Color.white.opacity(0.07))
@@ -1651,6 +1651,14 @@ struct PromptView: View {
         #endif
         let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return }
+        #if !APPSTORE
+        // С проектом — не чат, а агент в папке проекта (LUNA-80, решение В6): каждая отправка —
+        // новый агент, страница вопроса очищается и ведёт на страницу агента.
+        if let project = state.activeChatProject {
+            sendToAgent(query, project: project)
+            return
+        }
+        #endif
         text = ""
         focused = false
         state.chatHistory.append(ChatMessage(role: .user, content: query))
@@ -1660,6 +1668,21 @@ struct PromptView: View {
             await MainActor.run { focused = true }
         }
     }
+
+    #if !APPSTORE
+    private func sendToAgent(_ query: String, project: ChatProject) {
+        guard !launchingAgent else { return }
+        launchingAgent = true
+        Task {
+            // Агент не запустился — текст остаётся в поле, заметка говорит почему.
+            if await ClaudeAgentController.shared.send(query: query, project: project, state: state) {
+                text = ""
+                focused = false
+            }
+            launchingAgent = false
+        }
+    }
+    #endif
 }
 
 
@@ -2004,13 +2027,25 @@ struct NoteView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(state.noteMessage ?? "")
                     .font(.system(size: 15, weight: .semibold))
-                if let action = state.noteAction {
+                if let action = state.noteAction, let section = action.settingsSection {
+                    SecondaryButton(verbatim: action.title) {
+                        state.noteAction = nil
+                        NotificationCenter.default.post(name: .openFullSettings, object: section)
+                    }
+                } else if let action = state.noteAction {
                     SecondaryButton(verbatim: action.title) {
                         // Источник меняет сам пользователь этим кликом; вопрос уходит заново.
                         state.noteAction = nil
                         state.chatProvider = action.provider
                         state.stateOverride = .thinking
                         state.view = .prompt
+                        #if !APPSTORE
+                        // С выбранным проектом Claude Code — не чат, а агент в проекте (LUNA-80).
+                        if let project = state.activeChatProject {
+                            Task { _ = await ClaudeAgentController.shared.send(query: action.query, project: project, state: state) }
+                            return
+                        }
+                        #endif
                         Task {
                             await ClaudeService.shared.chat(query: action.query, context: state.promptContext, state: state)
                         }
@@ -2432,7 +2467,10 @@ struct IntegrationCardView: View {
                 .padding(.top, 2)
 
                 HStack(spacing: 8) {
-                    if task.id == "integration_claude", task.hostApp != nil {
+                    if task.id == "integration_claude", task.hostApp == AgentHost.lunaBackground {
+                        // Агент в фоне (LUNA-80): окна нет, открывать нечего.
+                        EmptyView()
+                    } else if task.id == "integration_claude", task.hostApp != nil {
                         Button("Open \(ClaudeHost.name(for: task.hostApp))") { ClaudeHost.activate(task.hostApp) }
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(Color(hex: task.color).opacity(0.7))

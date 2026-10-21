@@ -140,23 +140,6 @@ enum ClaudeCLIChatTests {
 
     // MARK: Аргументы
 
-    /// Разрешённый список чата в проекте (П3, решение человека 20.10.2026): ровно один `--tools`,
-    /// набор — чтение, поиск по файлам и поиск в сети, за значением идёт флаг.
-    static func projectAllowlistChecks(_ args: [String], label: String) {
-        let indices = args.indices.filter { args[$0] == "--tools" }
-        check("\(label): в проекте ровно один --tools", indices.count == 1)
-        guard let i = indices.first, args.indices.contains(i + 1) else {
-            check("\(label): разрешённый список — Read, Glob, Grep, WebSearch, WebFetch", false)
-            return
-        }
-        let allowed = Set(args[i + 1].split(separator: ",").map(String.init))
-        check("\(label): разрешённый список — Read, Glob, Grep, WebSearch, WebFetch",
-              allowed == ["Read", "Glob", "Grep", "WebSearch", "WebFetch"]
-                && args[i + 1].split(separator: ",").count == allowed.count)
-        check("\(label): за разрешённым списком идёт флаг: вариадический --tools не съест следующее",
-              args.indices.contains(i + 2) && args[i + 2].hasPrefix("--"))
-    }
-
     static func argumentTests() {
         print("ClaudeCLIArguments")
         let id = "11111111-2222-4333-8444-555555555555"
@@ -183,41 +166,9 @@ enum ClaudeCLIChatTests {
                         "--allowedTools", "WebSearch,WebFetch", "--system-prompt", "SYS",
                         "--model", "sonnet", "--session-id", id])
 
-        print("ClaudeCLIArguments: вопрос в проекте (решение В1 = B)")
-        let proj = ClaudeCLIArguments.build(systemPrompt: "SYS", model: "sonnet", sessionID: id, resume: false, inProject: true)
-        check("без --safe-mode и --strict-mcp-config: CLAUDE.md, хуки и MCP проекта работают",
-              !proj.contains("--safe-mode") && !proj.contains("--strict-mcp-config"))
-        projectAllowlistChecks(proj, label: "первый ход")
-        check("веб разрешён заранее: --allowedTools WebSearch,WebFetch",
-              zip(proj, proj.dropFirst()).contains { $0 == "--allowedTools" && $1 == "WebSearch,WebFetch" })
-        check("промпт Luna дописан к промпту Claude Code, не заменяет его",
-              zip(proj, proj.dropFirst()).contains { $0 == "--append-system-prompt" && $1 == "SYS" } && !proj.contains("--system-prompt"))
-        check("в проекте только чтение: --disallowedTools Bash,Edit,Write,NotebookEdit,mcp__* одним значением",
-              zip(proj, proj.dropFirst()).contains { $0 == "--disallowedTools" && $1 == "Bash,Edit,Write,NotebookEdit,mcp__*" }
-                && proj.filter { $0 == "--disallowedTools" }.count == 1)
-        if let i = proj.firstIndex(of: "--disallowedTools") {
-            let denied = Set(proj[i + 1].split(separator: ",").map(String.init))
-            check("запрещены команды, правки и все MCP-инструменты",
-                  denied == ["Bash", "Edit", "Write", "NotebookEdit", "mcp__*"])
-            check("за списком запретов идёт флаг: вариадический --disallowedTools не съест промпт",
-                  proj.indices.contains(i + 2) && proj[i + 2].hasPrefix("--"))
-        } else {
-            check("запрещены команды, правки и все MCP-инструменты", false)
-        }
-        let projResume = ClaudeCLIArguments.build(systemPrompt: "SYS", model: nil, sessionID: id, resume: true, inProject: true)
-        check("продолжение разговора в проекте — с теми же запретами",
-              zip(projResume, projResume.dropFirst()).contains { $0 == "--disallowedTools" && $1 == "Bash,Edit,Write,NotebookEdit,mcp__*" })
-        projectAllowlistChecks(projResume, label: "--resume")
-        check("без проекта --disallowedTools нет (там --safe-mode и --tools веб)",
-              !first.contains("--disallowedTools") && !second.contains("--disallowedTools"))
-        check("запрещённого нет и в проекте: --dangerously-skip-permissions, --bare, --permission-mode",
-              !proj.contains("--dangerously-skip-permissions") && !proj.contains("--bare") && !proj.contains("--permission-mode"))
-        check("stream-json, --session-id, модель — как без проекта",
-              zip(proj, proj.dropFirst()).contains { $0 == "--output-format" && $1 == "stream-json" }
-                && zip(proj, proj.dropFirst()).contains { $0 == "--session-id" && $1 == id }
-                && zip(proj, proj.dropFirst()).contains { $0 == "--model" && $1 == "sonnet" })
-        check("без проекта аргументы те же, что раньше (по умолчанию inProject = false)",
-              first == ClaudeCLIArguments.build(systemPrompt: "SYS", model: "sonnet", sessionID: id, resume: false, inProject: false))
+        check("режима «только чтение» в проекте нет: --disallowedTools и --append-system-prompt не бывает (LUNA-80)",
+              !first.contains("--disallowedTools") && !second.contains("--disallowedTools")
+                && !first.contains("--append-system-prompt"))
     }
 
     // MARK: Сообщения
@@ -315,49 +266,6 @@ enum ClaudeCLIChatTests {
         let result2 = await ClaudeCLIProcess().run(r2) { _ in }
         let args2 = read("\(work)/resume/args").split(separator: "\n").map(String.init)
         check("--resume с тем же uuid", result2 == .success("Hi") && args2.contains("--resume") && args2.contains(id) && !args2.contains("--session-id"))
-
-        print("ClaudeCLIProcess: вопрос в проекте")
-        let projectDir = "\(work)/project-луна"
-        try? FileManager.default.createDirectory(atPath: projectDir, withIntermediateDirectories: true)
-        let projectSession = "bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee"
-        var p1 = request(mode: "stream", id: projectSession, name: "project1", env: ["ANTHROPIC_API_KEY": "sk-test-secret"])
-        p1.workingDirectory = URL(fileURLWithPath: projectDir, isDirectory: true)
-        p1.inProject = true
-        let pr1 = await ClaudeCLIProcess().run(p1) { _ in }
-        let pargs1 = read("\(work)/project1/args").split(separator: "\n").map(String.init)
-        let penv1 = read("\(work)/project1/env")
-        let realProject = ChatProjectPath.normalize(projectDir) ?? projectDir
-        check("ответ получен", pr1 == .success("Привет"))
-        check("рабочая папка — папка проекта", read("\(work)/project1/cwd-seen").trimmingCharacters(in: .whitespacesAndNewlines) == realProject)
-        check("аргументы проекта: без --safe-mode, с --append-system-prompt, --session-id",
-              !pargs1.contains("--safe-mode") && pargs1.contains("--append-system-prompt") && pargs1.contains("--session-id") && pargs1.contains(projectSession))
-        check("процессу в проекте ушёл --disallowedTools Bash,Edit,Write,NotebookEdit,mcp__*",
-              zip(pargs1, pargs1.dropFirst()).contains { $0 == "--disallowedTools" && $1 == "Bash,Edit,Write,NotebookEdit,mcp__*" })
-        check("процессу в проекте ушёл --tools Read,Glob,Grep,WebSearch,WebFetch",
-              zip(pargs1, pargs1.dropFirst()).contains { $0 == "--tools" && $1 == "Read,Glob,Grep,WebSearch,WebFetch" }
-                && pargs1.filter { $0 == "--tools" }.count == 1)
-        check("в окружении метка чата LUNA_CHAT_SESSION=<id> и нет ключа API",
-              penv1.contains("LUNA_CHAT_SESSION=\(projectSession)") && !penv1.contains("ANTHROPIC_API_KEY") && !penv1.contains("CLAUDECODE="))
-        check("запрос в stdin без изменений", read("\(work)/project1/stdin") == "Секретный вопрос пользователя")
-        var p2 = request(mode: "stream", fixture: "success-turn2-resume.jsonl", id: projectSession, resume: true, name: "project2")
-        p2.workingDirectory = URL(fileURLWithPath: projectDir, isDirectory: true)
-        p2.inProject = true
-        let pr2 = await ClaudeCLIProcess().run(p2) { _ in }
-        let pargs2 = read("\(work)/project2/args").split(separator: "\n").map(String.init)
-        check("второй ход в проекте: процессу ушёл тот же --tools Read,Glob,Grep,WebSearch,WebFetch",
-              zip(pargs2, pargs2.dropFirst()).contains { $0 == "--tools" && $1 == "Read,Glob,Grep,WebSearch,WebFetch" })
-        check("второй ход: --resume тот же id из той же папки",
-              pr2 == .success("Hi") && pargs2.contains("--resume") && pargs2.contains(projectSession) && !pargs2.contains("--session-id")
-                && read("\(work)/project2/cwd-seen").trimmingCharacters(in: .whitespacesAndNewlines) == realProject)
-
-        print("ClaudeCLIProcess: папка проекта пропала")
-        var p3 = request(mode: "stream", name: "project-gone")
-        p3.workingDirectory = URL(fileURLWithPath: "\(work)/нет-такого-проекта", isDirectory: true)
-        p3.inProject = true
-        let pr3 = await ClaudeCLIProcess().run(p3) { _ in }
-        check("ошибка «папка проекта не найдена»", pr3 == .failure(.projectFolderMissing("\(work)/нет-такого-проекта")))
-        check("claude не запускался: файла аргументов нет", !FileManager.default.fileExists(atPath: "\(work)/project-gone/args"))
-        check("папку проекта Luna не создала", !FileManager.default.fileExists(atPath: "\(work)/нет-такого-проекта"))
 
         print("ClaudeCLITurn: --resume сессии, которой нет → один повтор в новой сессии (LUNA-76)")
         var attempts: [(id: String, resume: Bool, name: String)] = []

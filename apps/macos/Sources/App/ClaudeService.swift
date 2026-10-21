@@ -549,9 +549,9 @@ final class ClaudeService {
             state.claudeCodeStatus = await ClaudeAuthProbe.check()   // для подписи; запуск не блокирует
         }
 
-        // Проект: папка запуска. Сессия привязана к папке — другая папка начинает новую сессию.
-        let project = state.activeChatProject
-        let turn = cliSession.turn(projectPath: project?.path)
+        // Чат — только без проекта: запрос с проектом запускает агента (LUNA-80, `ClaudeAgentController`).
+        // Сессия привязана к папке: чат из истории, начатый в проекте, продолжается новой сессией.
+        let turn = cliSession.turn(projectPath: nil)
 
         // Контекст окна или файла — только в первом ходе сессии, как у API.
         func prompt(resume: Bool) -> String {
@@ -573,20 +573,20 @@ final class ClaudeService {
 
         let source = ChatSourceLabel.claudeCode(
             model: state.claudeCodeChatModel, status: state.claudeCodeStatus,
-            subscriptionWord: ChatCLIMessages.subscriptionWord, project: project?.name)
+            subscriptionWord: ChatCLIMessages.subscriptionWord)
         let placeholder = ChatMessage(role: .assistant, content: "", source: source)
         let msgId = placeholder.id
         state.chatHistory.append(placeholder)
         state.stateOverride = .thinking
 
-        let workingDirectory = project.map { URL(fileURLWithPath: $0.path, isDirectory: true) } ?? ClaudeCLIChatFolder.url
+        let workingDirectory = ClaudeCLIChatFolder.url
         let environment = CLIResolver.environment(base: ProcessInfo.processInfo.environment, executable: executable)
         let model = ClaudeCodeModels.cliModel(for: state.claudeCodeChatModel)
         let outcome = await ClaudeCLITurn.run(sessionID: turn.id, resume: turn.resume, launch: { sessionID, resume in
             let process = ClaudeCLIProcess()
             self.cliRun = process
             LunaChatSessions.register(sessionID)
-            var request = ClaudeCLIRequest(
+            let request = ClaudeCLIRequest(
                 executable: executable,
                 prompt: prompt(resume: resume),
                 systemPrompt: self.systemPrompt,
@@ -595,7 +595,6 @@ final class ClaudeService {
                 resume: resume,
                 workingDirectory: workingDirectory,
                 environment: environment)
-            request.inProject = project != nil
             let result = await process.run(request) { [state] visible in
                 // Очередь main — FIFO: куски ответа приходят в порядке вывода.
                 DispatchQueue.main.async {
@@ -613,7 +612,7 @@ final class ClaudeService {
             // Прежней сессии нет: новая в той же папке, пометка в чате перед ответом.
             guard state.chatOpen.accepts(ticket) else { return }
             self.cliSession = ChatCLISession(id: fresh)
-            _ = self.cliSession.turn(projectPath: project?.path)
+            _ = self.cliSession.turn(projectPath: nil)
             var notice = ChatMessage(role: .assistant, content: ChatCLIMessages.sessionLostNotice)
             notice.isNotice = true
             if let idx = state.chatHistory.firstIndex(where: { $0.id == msgId }) {
@@ -649,8 +648,6 @@ final class ClaudeService {
             state.stateOverride = nil
             if error == .notFound { state.claudeCodeStatus = .missing }
             if error == .notLoggedIn { state.claudeCodeStatus = .notLoggedIn }
-            if case .projectFolderMissing = error { state.chatProjectsChanged() }
-            if case .projectFolderNoAccess = error { state.chatProjectsChanged() }
             await fail(error)
         }
     }

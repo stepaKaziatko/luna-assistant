@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Запуск агента из Luna (LUNA-77): план запуска без окна (tests/AgentLaunchTests.swift) и
-# инварианты исполнителя — только ссылки и папки через NSWorkspace.
+# Запуск агента из Luna (LUNA-77): план запуска без окна (tests/AgentLaunchTests.swift).
+# Кнопки и исполнителя нет с LUNA-80; план и проверка установленных приложений остались для
+# «Открыть в…» (LUNA-79).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 TEST_DIR="$(mktemp -d "${TMPDIR:-/tmp}/luna-agent-launch.XXXXXX")"
@@ -28,23 +29,15 @@ if [ -z "$hits" ] || echo "$hits" | grep -v "contentsOfDirectory" >/dev/null; th
     echo "  ✗ the extensions folder is read other than by the list of names:"; echo "$hits"; exit 1
 fi
 echo "  ✓ the extensions folder: the list of names only"
-# Исполнитель и кнопка — не в App Store-сборке.
+# Остатки — не в App Store-сборке.
 for f in apps/macos/Sources/App/AgentLaunch.swift apps/macos/Sources/App/AgentLaunchViews.swift; do
     head -20 "$f" | grep -q "^#if !APPSTORE" || { echo "  ✗ $f is not under #if !APPSTORE"; exit 1; }
 done
-echo "  ✓ executor and button: GitHub build only"
-# Ссылку VS Code исполнитель шлёт тем же шагом «папка → ссылка», что и «Перейти к агенту».
-grep -q "AgentJump.openFolderThenLink(" apps/macos/Sources/App/AgentLaunch.swift \
-    || { echo "  ✗ AgentLaunch does not reuse the folder → link step of AgentJump"; exit 1; }
-[ "$(grep -c "func sendWhenEditorIsUp" apps/macos/Sources/App/AgentJump.swift)" = 1 ] \
-    && ! grep -q "sendWhenEditorIsUp\|linkReady" apps/macos/Sources/App/AgentLaunch.swift \
-    || { echo "  ✗ a second copy of the wait for the editor window"; exit 1; }
-echo "  ✓ VS Code: the shared folder → link step, no copy"
-# Запуск не пишет в историю чатов и сворачивает остров.
-body=$(awk '/func launchAgent\(/ { on = 1 } on { print } on && /^    }$/ { exit }' apps/macos/Sources/App/AppState.swift)
-[ -n "$body" ] || { echo "  ✗ AppState.launchAgent not found"; exit 1; }
-if echo "$body" | grep -n "chatHistory\|recordChat\|ChatMessage"; then
-    echo "  ✗ the launch touches the chat history"; exit 1
+echo "  ✓ installed apps and target names: GitHub build only"
+# Кнопки «Запустить агента» нет (LUNA-80): запрос с проектом сам запускает агента в фоне.
+# Остались план и проверка установленных приложений — на них опирается «Открыть в…» (LUNA-79).
+if grep -n "AgentLaunchButton\|AgentLaunchMenuView\|func launchAgent\|static func run(" \
+        apps/macos/Sources/App/AgentLaunch*.swift apps/macos/Sources/App/AppState.swift apps/macos/Sources/App/IslandViewContent.swift; then
+    echo "  ✗ the Launch agent button or its executor is still there"; exit 1
 fi
-echo "$body" | grep -q "islandCollapseAfterJump" || { echo "  ✗ the launch does not fold the island"; exit 1; }
-echo "  ✓ launch: not in the chat history, the island folds"
+echo "  ✓ no Launch agent button and no executor (LUNA-80)"

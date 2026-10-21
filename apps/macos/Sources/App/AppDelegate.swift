@@ -12,11 +12,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         HotKeyCenter.shared.unregisterAll()
         #if !APPSTORE
         ClaudeCLIProcess.terminateAll()   // ни одного осиротевшего `claude` после выхода
+        ClaudeAgentProcess.terminateAllAndWait()   // и ни одного агента в фоне (LUNA-80)
         #endif
+    }
+
+    /// ⌘Q, пока агент посреди хода (решение В4 = c): «Агенты работают (N). Остановить и выйти?».
+    /// Между ходами процессов нет — выход без вопроса. SIGTERM и выключение системы не спрашивают.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        #if !APPSTORE
+        let working = ClaudeAgentProcess.liveCount
+        guard working > 0, !Self.quitBySignal else { return .terminateNow }
+        let alert = NSAlert()
+        alert.messageText = String(localized: "agent.run.quit.title",
+                                   defaultValue: "Agents are working (\(working)). Stop them and quit?")
+        alert.informativeText = String(localized: "agent.run.quit.info",
+                                       defaultValue: "The current turn is interrupted. The conversation stays in Claude Code: `claude --resume` in the project folder.")
+        alert.addButton(withTitle: String(localized: "agent.run.quit.stop", defaultValue: "Stop and Quit"))
+        alert.addButton(withTitle: String(localized: "agent.run.quit.cancel", defaultValue: "Cancel"))
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }
+        ClaudeAgentProcess.terminateAllAndWait()
+        #endif
+        return .terminateNow
     }
 
     #if !APPSTORE
     private var sigtermSource: (any DispatchSourceSignal)?
+    /// Выход по SIGTERM: подтверждение не показывается, агенты останавливаются молча.
+    nonisolated(unsafe) private static var quitBySignal = false
 
     /// `pkill Luna` и выключение системы шлют SIGTERM: без перехвата Cocoa-приложение умирает, не
     /// вызвав `applicationWillTerminate`, и запущенный `claude` остаётся на фоне.
@@ -29,7 +52,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         signal(SIGTERM, SIG_IGN)
         let source = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .global())
         source.setEventHandler {
+            quitBySignal = true
             ClaudeCLIProcess.terminateAll()
+            ClaudeAgentProcess.terminateAll()
             DispatchQueue.main.async { MainActor.assumeIsolated { NSApp.terminate(nil) } }
             // Главный поток завис — выходим сами.
             DispatchQueue.global().asyncAfter(deadline: .now() + 2) { exit(0) }

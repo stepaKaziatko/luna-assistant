@@ -57,6 +57,8 @@ struct ClaudeHost: Equatable {
 
     /// The app name for a task's host; nil host means VS Code (the original routing).
     static func name(for hostBundleId: String?) -> String {
+        // Агент, которого Luna запустила в фоне (LUNA-80): ни терминала, ни редактора.
+        if hostBundleId == AgentHost.lunaBackground { return AgentHost.lunaBackgroundName }
         guard let id = hostBundleId, let name = terminals[id] else { return "VS Code" }
         return name
     }

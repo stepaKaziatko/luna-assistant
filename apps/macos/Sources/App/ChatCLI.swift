@@ -255,10 +255,9 @@ struct ChatCLISession: Equatable, Sendable {
     mutating func reset() { self = ChatCLISession() }
 }
 
-/// Сессии чата Luna. Чат в проекте запускает `claude` без `--safe-mode`, и хуки пользователя
-/// (в том числе хуки самой Luna) срабатывают и для него: такие события — не сессия агента.
-/// Метка окружения `LUNA_CHAT_SESSION` гасит их в релее `luna-hook`, а этот список — на
-/// стороне Luna, если релей ещё прежний.
+/// Сессии чата Luna. Чат идёт с `--safe-mode` (без хуков пользователя), но если хук всё же
+/// сработал, его событие — не сессия агента. Метка окружения `LUNA_CHAT_SESSION` гасит такие
+/// события в релее `luna-hook`, а этот список — на стороне Luna, если релей ещё прежний.
 enum LunaChatSessions {
     static let environmentKey = "LUNA_CHAT_SESSION"
 
@@ -277,5 +276,41 @@ enum LunaChatSessions {
     static func isChatEvent(_ payload: [String: Any]) -> Bool {
         guard let id = payload["session_id"] as? String, !id.isEmpty else { return false }
         return contains(id)
+    }
+}
+
+/// Агенты, которых Luna запустила в папке проекта (LUNA-80): `claude -p` в фоне, без терминала и
+/// редактора. Их хуки приходят обычным путём (без новых ключей payload и без правки релея), и Luna
+/// узнаёт их по `session_id` из этого списка: событие становится плиткой «Luna (в фоне)», запрос
+/// разрешения — карточкой в острове. Список живёт до выхода из Luna (решение В5).
+enum LunaAgentSessions {
+    nonisolated(unsafe) private static var ids: Set<String> = []
+    private static let lock = NSLock()
+
+    static func register(_ id: String) {
+        lock.withLock { _ = ids.insert(id.lowercased()) }
+    }
+
+    static func contains(_ id: String) -> Bool {
+        lock.withLock { ids.contains(id.lowercased()) }
+    }
+
+    /// Событие хука от агента, запущенного Luna: `session_id` — один из запусков.
+    static func isAgentEvent(_ payload: [String: Any]) -> Bool {
+        guard let id = payload["session_id"] as? String, !id.isEmpty else { return false }
+        return contains(id)
+    }
+}
+
+/// Чьё событие хука: чата Luna (гасится), агента, запущенного Luna (плитка «Luna (в фоне)»,
+/// разрешения — в остров), или чужой сессии (прежний маршрут по терминалу и редактору).
+/// Чат проверяется первым: его события в остров не попадают никогда.
+enum LunaHookOrigin: Equatable, Sendable {
+    case chat, agent, other
+
+    static func of(_ payload: [String: Any]) -> LunaHookOrigin {
+        if LunaChatSessions.isChatEvent(payload) { return .chat }
+        if LunaAgentSessions.isAgentEvent(payload) { return .agent }
+        return .other
     }
 }

@@ -29487,86 +29487,6 @@
         }
       }
     },
-    "agent.launch.button.help": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Launch an agent in the project"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Запустить агента в проекте"
-          }
-        }
-      }
-    },
-    "agent.launch.title": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Launch agent"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Запустить агента"
-          }
-        }
-      }
-    },
-    "agent.launch.hint": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The task is typed into a new Claude Code chat in the project folder. The agent starts when you press Enter there."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Задача будет вписана в новый чат Claude Code в папке проекта. Агент начнёт работу, когда вы нажмёте там Enter."
-          }
-        }
-      }
-    },
-    "agent.launch.none": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No apps to launch in: VS Code with the Claude Code extension, Claude Desktop or Claude Code in a terminal."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Нет приложений для запуска: VS Code с расширением Claude Code, Claude Desktop или Claude Code в терминале."
-          }
-        }
-      }
-    },
-    "agent.launch.app-missing": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The app is not found — it may have been removed."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Приложение не найдено — возможно, его удалили."
-          }
-        }
-      }
-    },
     "agent.launch.target.terminal": {
       "localizations": {
         "en": {
@@ -29611,102 +29531,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Запустите claude в терминале один раз"
-          }
-        }
-      }
-    },
-    "agent.launch.refusal.no-project": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose a project first"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Сначала выберите проект"
-          }
-        }
-      }
-    },
-    "agent.launch.refusal.empty": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Type the task first"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Сначала напишите задачу"
-          }
-        }
-      }
-    },
-    "agent.launch.refusal.too-long": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The task is longer than 5000 characters — shorten it"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Задача длиннее 5000 символов — сократите"
-          }
-        }
-      }
-    },
-    "agent.launch.refusal.invalid-folder": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The project folder path cannot be used"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Путь к папке проекта не подходит"
-          }
-        }
-      }
-    },
-    "agent.launch.refusal.missing": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Project folder not found"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Папка проекта не найдена"
-          }
-        }
-      }
-    },
-    "agent.launch.refusal.no-access": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No access to the project folder"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Нет доступа к папке проекта"
           }
         }
       }
@@ -29963,6 +29787,262 @@
           "stringUnit": {
             "state": "translated",
             "value": "Отменить"
+          }
+        }
+      }
+    },
+    "agents.host.luna-background": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luna (background)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luna (в фоне)"
+          }
+        }
+      }
+    },
+    "agents.status.stopped": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopped · %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Остановлен · %@"
+          }
+        }
+      }
+    },
+    "agent.run.refusal.not-found": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code not found. Install the CLI, run `claude` and sign in with /login."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code не найден. Установите CLI, запустите `claude` и войдите командой /login."
+          }
+        }
+      }
+    },
+    "agent.run.refusal.not-logged-in": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code is not signed in. In Terminal: `claude auth login`."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code не вошёл в аккаунт. В Терминале: `claude auth login`."
+          }
+        }
+      }
+    },
+    "agent.run.refusal.folder-missing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project folder not found: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Папка проекта не найдена: %@"
+          }
+        }
+      }
+    },
+    "agent.run.refusal.folder-no-access": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No access to the project folder: %@. Allow it in System Settings → Privacy & Security → Files and Folders."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет доступа к папке проекта: %@. Разрешите его в Системных настройках → Конфиденциальность и безопасность → Файлы и папки."
+          }
+        }
+      }
+    },
+    "agent.run.refusal.no-hooks": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To see the agent and confirm its actions, connect Claude Code in Settings → Agents."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Чтобы видеть агента и подтверждать его действия, подключите Claude Code в Настройки → Агенты."
+          }
+        }
+      }
+    },
+    "agent.run.refusal.open-settings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings → Agents"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть Настройки → Агенты"
+          }
+        }
+      }
+    },
+    "agent.run.error.session-not-found": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The session is not available: Claude Code no longer has it."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сессия недоступна: в Claude Code её больше нет."
+          }
+        }
+      }
+    },
+    "agent.run.approval.expired": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The request expired — the agent was denied. Continue the conversation to let it try again."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запрос истёк — агенту отказано. Продолжите разговор, чтобы он попробовал снова."
+          }
+        }
+      }
+    },
+    "agent.run.quit.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agents are working (%lld). Stop them and quit?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Агенты работают (%lld). Остановить и выйти?"
+          }
+        }
+      }
+    },
+    "agent.run.quit.info": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The current turn is interrupted. The conversation stays in Claude Code: `claude --resume` in the project folder."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Текущий ход прервётся. Разговор останется в Claude Code: `claude --resume` в папке проекта."
+          }
+        }
+      }
+    },
+    "agent.run.quit.stop": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop and Quit"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Остановить и выйти"
+          }
+        }
+      }
+    },
+    "agent.run.quit.cancel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отмена"
+          }
+        }
+      }
+    },
+    "agent.run.continue.placeholder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Продолжить…"
+          }
+        }
+      }
+    },
+    "agent.run.stop": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Остановить"
           }
         }
       }

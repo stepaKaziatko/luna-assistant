@@ -48,6 +48,7 @@
 		1BB7096266904114DE751014 /* UploadSequenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85B1CBE46C672155B6FD817 /* UploadSequenceEngine.swift */; };
 		1BD30A327F38F34C8AA3D187 /* AppLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DFF648B3AFA7A00691A495 /* AppLog.swift */; };
 		1BD9C89C68F6E77B6AD0A299 /* PillColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535DF74B2C536D2388CDFE34 /* PillColors.swift */; };
+		1EBA27BE0E4FC83165240FCB /* ClaudeAgentController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF66E7878E9990B9593009D6 /* ClaudeAgentController.swift */; };
 		1F0839A7CE493BD83423BDAF /* ServiceSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71DEDB8B17317FDD5F24D6B9 /* ServiceSnapshot.swift */; };
 		1F2043DDA8163C58FBAE1B44 /* AgentNotchViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3F259EEBB0C246479863A0B /* AgentNotchViews.swift */; };
 		1FDB17C0DF5A2D5F3AA3E952 /* LunaLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9573F4E2855355F0EC8AF88F /* LunaLook.swift */; };
@@ -68,6 +69,7 @@
 		28A3BE36C12C1F0CECFD3AEA /* DesktopLuna.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD17A25E05CECE5E81915E81 /* DesktopLuna.swift */; };
 		28DD744EC58135F7C84F64C0 /* LunaLive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E718FB9480A9BC52B2E0E /* LunaLive.swift */; };
 		2909145671FDCB52DE4E9916 /* QuestionPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16589E556CE71C24F1997921 /* QuestionPayload.swift */; };
+		2B40AC98BF14EF3D601DC9E2 /* ClaudeAgentRun.swift in Sources */ = {isa = PBXBuildFile; fileRef = C695B92E5957F94294E46307 /* ClaudeAgentRun.swift */; };
 		2B9332C91C470DB889C66AEB /* VoiceDataSources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 263359A987BA6E002CD9A847 /* VoiceDataSources.swift */; };
 		2F4AF8EB23190D2B6EE7EDD1 /* ApprovalRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2182C30224BE101104796194 /* ApprovalRelay.swift */; };
 		320DFBF96FCFFF19BBC433FD /* ServiceDetailRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FA8C4AEB37162AC3B6F3716 /* ServiceDetailRunner.swift */; };
@@ -184,6 +186,7 @@
 		746FFB1F9B5D270DE71704F5 /* LunaLook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9573F4E2855355F0EC8AF88F /* LunaLook.swift */; };
 		75568D2E9A4E7726245365CB /* CryptoViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1225496ADCE3F4F661D734 /* CryptoViews.swift */; };
 		7593FCBD793567B8CFF9E32D /* ShortcutsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527FC61461CF4E01E3886994 /* ShortcutsSettingsView.swift */; };
+		75C4BCEAEA7D21132C58CD1A /* ClaudeAgentRun.swift in Sources */ = {isa = PBXBuildFile; fileRef = C695B92E5957F94294E46307 /* ClaudeAgentRun.swift */; };
 		76F49F0B34C07C7BAA252B23 /* ServiceDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BD2FE2AB9F1357E583606F /* ServiceDetail.swift */; };
 		77CBC99AB65F4C8B6930C5D1 /* AgentLaunchPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A9ECAA7A0E10F53D37E6578 /* AgentLaunchPlan.swift */; };
 		7839853729BBAEFD85059644 /* TurnEndPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9DE34C1B69FB5248086052 /* TurnEndPolicy.swift */; };
@@ -297,6 +300,7 @@
 		BB513BB030897465FCD42128 /* N8nPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57B192F5E1847A38B83754CC /* N8nPoller.swift */; };
 		BB65E54546A06004328288C0 /* ChatCLIMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06993E50468A329B45FBA0BE /* ChatCLIMessages.swift */; };
 		BCBBA08F92440C9598AF4350 /* FileDropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCC968D7DDE920469C79876 /* FileDropView.swift */; };
+		BCF52E424861AA9B62030EC9 /* ClaudeAgentController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF66E7878E9990B9593009D6 /* ClaudeAgentController.swift */; };
 		BF397EFC7763CD88E88AF78A /* GitHubPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32C6DE22D24A4B0B51F1004 /* GitHubPageView.swift */; };
 		C02F3E39EBAEBCB87A5D7F64 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E86289D772C66391D49714 /* AppState.swift */; };
 		C1BDFA5D6FBCF0B48416D2A2 /* TurnRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E28E3B041CAA137E2124FF37 /* TurnRecorder.swift */; };
@@ -584,6 +588,7 @@
 		BAE2FF106BBDFF9073AA5F63 /* IslandWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandWindowController.swift; sourceTree = "<group>"; };
 		BCE8C46AB4A0AEDA86E8DF48 /* AgentLaunchViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentLaunchViews.swift; sourceTree = "<group>"; };
 		BE051747B1F8B78F89FD9A7C /* LinkTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkTestView.swift; sourceTree = "<group>"; };
+		BF66E7878E9990B9593009D6 /* ClaudeAgentController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAgentController.swift; sourceTree = "<group>"; };
 		BFB70DF3315F52BC4F715ECF /* GitHubPulse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubPulse.swift; sourceTree = "<group>"; };
 		C16C88728348A71D53AC94BC /* ShortcutLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutLogic.swift; sourceTree = "<group>"; };
 		C3AD288A0ABCE2D17F30C7C4 /* question.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = question.wav; sourceTree = "<group>"; };
@@ -592,6 +597,7 @@
 		C4E86289D772C66391D49714 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		C5538A312CCFDA743DB907AC /* AgentSessions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSessions.swift; sourceTree = "<group>"; };
 		C67FF0E068B5BA5EF3AA814D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		C695B92E5957F94294E46307 /* ClaudeAgentRun.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAgentRun.swift; sourceTree = "<group>"; };
 		C6E866D5D416DC7EB39DBDF6 /* ClaudeSettingsFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeSettingsFile.swift; sourceTree = "<group>"; };
 		C81ECF42AB7A03CB76FFE977 /* AgentPeek.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPeek.swift; sourceTree = "<group>"; };
 		CA1956DAD469ED15565F36EC /* AgentPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPreviewView.swift; sourceTree = "<group>"; };
@@ -675,6 +681,8 @@
 				A6DBE14071DAC16C4AA76D46 /* ChatMarkdownView.swift */,
 				B96CA2C74B6596FB6E064A7E /* ChatProjects.swift */,
 				25A53C07A5E98094E51F55B5 /* ChatProjectViews.swift */,
+				BF66E7878E9990B9593009D6 /* ClaudeAgentController.swift */,
+				C695B92E5957F94294E46307 /* ClaudeAgentRun.swift */,
 				20C230BFEAA2C3F4DB477216 /* ClaudeCLIChat.swift */,
 				477B625D1001235BB94CB288 /* ClaudeHookDetection.swift */,
 				A7688ECE88213AA75981E64D /* ClaudeHost.swift */,
@@ -1248,6 +1256,8 @@
 				09798C59602BBA20E682866E /* ChatMarkdownView.swift in Sources */,
 				421FC7074BB8C1566DA01211 /* ChatProjectViews.swift in Sources */,
 				DEA7589D620A9AE70B380AE4 /* ChatProjects.swift in Sources */,
+				BCF52E424861AA9B62030EC9 /* ClaudeAgentController.swift in Sources */,
+				75C4BCEAEA7D21132C58CD1A /* ClaudeAgentRun.swift in Sources */,
 				3E736A8EA0A8A18661A151D2 /* ClaudeCLIChat.swift in Sources */,
 				7364A0306596B01AC107F0AF /* ClaudeHookDetection.swift in Sources */,
 				97CB4E6391DD5FC051CDB3E8 /* ClaudeHost.swift in Sources */,
@@ -1434,6 +1444,8 @@
 				6FDC1E26F244DD12B68D9767 /* ChatMarkdownView.swift in Sources */,
 				F35EB412BF15595C01B458E2 /* ChatProjectViews.swift in Sources */,
 				9AF64A21AA4181F004BBF694 /* ChatProjects.swift in Sources */,
+				1EBA27BE0E4FC83165240FCB /* ClaudeAgentController.swift in Sources */,
+				2B40AC98BF14EF3D601DC9E2 /* ClaudeAgentRun.swift in Sources */,
 				A520D2BF84596176D1BCF786 /* ClaudeCLIChat.swift in Sources */,
 				46AF2675BCADCE84C52F02E7 /* ClaudeHookDetection.swift in Sources */,
 				4B8000FCB3E4A2DED5566B43 /* ClaudeHost.swift in Sources */,
