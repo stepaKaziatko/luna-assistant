@@ -547,6 +547,18 @@ enum AgentSessionsTests {
             let failed = info(b, k, now: at(42))
             check("сбой хода → ошибка с текстом", failed?.phase == .error && failed?.errorText == "Subscription limit reached.")
 
+            // Плитки агентов Luna живут до перезапуска Luna (решение В5): тишина их не убирает.
+            do {
+                var kept = AgentSessionBook()
+                let idle = key("33333333-2222-4333-8444-555555555555")
+                kept.registerLunaRun(key: idle, who: lunaWho, prompt: "q", now: at(0))
+                kept.lunaRunEnded(key: idle, outcome: .finished(text: "готово"), now: at(1))
+                let late = 1 + AgentSessionBook.maxSilence + 60
+                kept.apply(event: "SessionStart", key: key("prune-trigger"), who: who("x"), now: at(late))
+                check("закончивший ход агент Luna после долгой тишины — на плитке",
+                      info(kept, idle, now: at(late))?.phase == .finished)
+            }
+
             // Хуков не было: ход закончил процесс, ответ — из его вывода.
             let quiet = key("22222222-2222-4333-8444-555555555555")
             b.registerLunaRun(key: quiet, who: lunaWho, prompt: "q", now: at(50))

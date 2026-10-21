@@ -523,7 +523,8 @@ struct AgentSessionBook: Sendable {
             var phase = rec.phase
             // Ход агента Luna идёт, пока жив его процесс: долгая команда без хуков — не тишина.
             if phase == .working, silence > Self.maxTurnSilence, !rec.lunaRun { phase = .idle }
-            if wait == nil {
+            // Плитка агента Luna живёт до перезапуска Luna (решение В5): тишина её не убирает.
+            if wait == nil, !rec.lunaRun {
                 if silence > Self.maxSilence { continue }
                 if phase != .working, silence > Self.maxIdleSilence { continue }
             }
@@ -551,8 +552,10 @@ struct AgentSessionBook: Sendable {
 
     private mutating func prune(now: Date) {
         for (key, rec) in records {
+            // Запись агента Luna — до перезапуска Luna (решение В5): со страницы агента разговор продолжается.
+            if rec.lunaRun { continue }
             let silence = now.timeIntervalSince(rec.lastEvent)
-            let working = rec.phase == .working && (rec.lunaRun || silence <= Self.maxTurnSilence)
+            let working = rec.phase == .working && silence <= Self.maxTurnSilence
             if silence > Self.maxSilence || (!working && silence > Self.maxIdleSilence) {
                 records.removeValue(forKey: key)
             }
