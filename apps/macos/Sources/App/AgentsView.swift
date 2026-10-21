@@ -23,7 +23,7 @@ struct AgentsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            AgentsSummaryBar(summary: state.agentsSummary)
+            AgentsSummaryBar(summary: state.agentsSummary, groupByProject: $state.agentsGroupByProject)
                 .padding(.horizontal, 4)
             if state.agentSessions.isEmpty {
                 AgentsEmptyState(hooksInstalled: hooksInstalled)
@@ -58,16 +58,17 @@ struct AgentsView: View {
         return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVGrid(columns: Self.columns, spacing: 8) {
-                    ForEach(state.agentSessions) { session in
-                        AgentTile(session: session,
-                                  animated: livelyIds.contains(session.id),
-                                  selected: state.agentsSelectionId == session.id,
-                                  now: now,
-                                  onTap: {
-                                      state.agentsSelectionId = session.id
-                                      state.openAgent(id: session.id)
-                                  })
-                        .id(session.id)
+                    if state.agentsGroupByProject {
+                        // «По проектам» (LUNA-75): те же группы и ряды, что у стрелок (`AppState.agentTileSections`).
+                        ForEach(AgentProjectGrouping.groups(state.agentSessions, projects: state.chatProjects.projects)) { group in
+                            Section {
+                                ForEach(group.sessions) { session in tile(session, lively: livelyIds) }
+                            } header: {
+                                groupHeader(group)
+                            }
+                        }
+                    } else {
+                        ForEach(state.agentSessions) { session in tile(session, lively: livelyIds) }
                     }
                 }
                 .padding(.horizontal, 2)
@@ -78,6 +79,33 @@ struct AgentsView: View {
                 if let id { proxy.scrollTo(id) }
             }
         }
+    }
+
+    private func tile(_ session: AgentSessionInfo, lively: Set<String>) -> some View {
+        AgentTile(session: session,
+                  animated: lively.contains(session.id),
+                  selected: state.agentsSelectionId == session.id,
+                  now: now,
+                  onTap: {
+                      state.agentsSelectionId = session.id
+                      state.openAgent(id: session.id)
+                  })
+        .id(session.id)
+    }
+
+    private func groupHeader(_ group: AgentProjectGroup) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: group.project == nil ? "tray" : "folder.fill")
+                .font(.system(size: 9))
+            Text(group.project?.name ?? String(localized: "agents.group.other", defaultValue: "Other"))
+                .font(.system(size: 10.5, weight: .semibold))
+                .lineLimit(1).truncationMode(.tail)
+            Spacer(minLength: 0)
+        }
+        .foregroundColor(Color(hex: "#8E939C"))
+        .padding(.horizontal, 4)
+        .padding(.top, 2)
+        .help(group.project?.path ?? "")
     }
 
     /// The first `maxLively` tiles that work, wait or have failed: the list is in display
@@ -113,12 +141,14 @@ struct AgentsView: View {
 
 private struct AgentsSummaryBar: View {
     let summary: AgentsSummary
+    @Binding var groupByProject: Bool
 
     var body: some View {
         HStack(spacing: 12) {
             Text(String(localized: "agents.title", defaultValue: "Agents"))
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(Color(hex: "#F5F6F8"))
+            groupToggle
             Spacer(minLength: 0)
             counter(summary.waiting, AgentLook.waiting, "bell.fill",
                     String(localized: "agents.summary.waiting", defaultValue: "Waiting for you"))
@@ -130,6 +160,25 @@ private struct AgentsSummaryBar: View {
                     String(localized: "agents.summary.errors", defaultValue: "Errors"))
         }
         .frame(height: 20)
+    }
+
+    /// «По проектам»: плитки собираются в группы по проекту агента (Settings → Проекты).
+    private var groupToggle: some View {
+        Button { groupByProject.toggle() } label: {
+            HStack(spacing: 4) {
+                Image(systemName: groupByProject ? "folder.fill" : "folder")
+                    .font(.system(size: 9))
+                Text(String(localized: "agents.group.toggle", defaultValue: "By project"))
+                    .font(.system(size: 10, weight: .medium))
+            }
+            .foregroundColor(Color(hex: groupByProject ? "#F5F6F8" : "#8E939C"))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Color.white.opacity(groupByProject ? 0.14 : 0.06))
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(groupByProject ? .isSelected : [])
     }
 
     private func counter(_ count: Int, _ hex: String, _ symbol: String, _ title: String) -> some View {

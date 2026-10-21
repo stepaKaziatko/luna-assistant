@@ -1,0 +1,13 @@
+{
+  "numStartups": 42,
+  "oauthAccount": {"emailAddress": "someone@example.com"},
+  "mcpServers": {"secret": {"command": "do-not-read"}},
+  "projects": {
+    "HOME/code/alpha": {"allowedTools": ["Bash"], "history": [{"display": "private prompt"}]},
+    "HOME/code/beta/": {"allowedTools": []},
+    "HOME": {"allowedTools": []},
+    "/": {},
+    "HOME/Library/Application Support/Luna/chat": {},
+    "HOME/code/gone": {}
+  }
+}

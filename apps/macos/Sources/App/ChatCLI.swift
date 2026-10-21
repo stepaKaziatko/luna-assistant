@@ -138,7 +138,8 @@ enum ChatSourceSelection {
 
 enum ChatSourceLabel {
     /// «Claude Code · подписка · sonnet»; при входе не по подписке — «Claude Code · <способ> · sonnet».
-    static func claudeCode(model: String, status: CLIStatus, subscriptionWord: String) -> String {
+    /// Вопрос в проекте — имя проекта в конце: «Claude Code · подписка · sonnet · luna-assistant».
+    static func claudeCode(model: String, status: CLIStatus, subscriptionWord: String, project: String? = nil) -> String {
         var parts = ["Claude Code"]
         if status.isSubscription {
             parts.append(subscriptionWord)
@@ -146,6 +147,7 @@ enum ChatSourceLabel {
             parts.append(method)
         }
         parts.append(model)
+        if let project, !project.isEmpty { parts.append(project) }
         return parts.joined(separator: " · ")
     }
 
@@ -209,5 +211,106 @@ enum ChatCLIPrompt {
               !binaryExtensions.contains(fileExtension.lowercased()),
               let text = String(data: data, encoding: .utf8) else { return .notPassed(name: name) }
         return .text(name: name, contents: text)
+    }
+}
+
+// MARK: Сессия чата
+
+/// Своя сессия чата по подписке: `--session-id` на первом ходе, `--resume` дальше. Сессия
+/// привязана к папке, в которой начата (Claude Code хранит сессии по папке): ход в другой
+/// папке — новая сессия, не `--resume`.
+struct ChatCLISession: Equatable, Sendable {
+    private(set) var id: String
+    private(set) var started = false
+    /// Папка проекта, в которой идёт сессия; nil — служебная папка чата («Без проекта»).
+    private(set) var projectPath: String?
+
+    init(id: String = ChatCLISession.newID()) { self.id = id }
+
+    /// Сессия чата из истории (LUNA-76): тот же id, та же папка, «начата» — следующий ход в той же
+    /// папке продолжит её `--resume`, в другой — начнёт новую.
+    init(restoring id: String, projectPath: String?, started: Bool) {
+        self.id = id
+        self.projectPath = projectPath
+        self.started = started
+    }
+
+    static func newID() -> String { UUID().uuidString.lowercased() }
+
+    /// Ход в папке `projectPath`: id сессии и `resume`. Другая папка после начала — новая сессия.
+    mutating func turn(projectPath: String?) -> (id: String, resume: Bool) {
+        if started, projectPath != self.projectPath { self = ChatCLISession() }
+        if !started { self.projectPath = projectPath }
+        return (id, started)
+    }
+
+    mutating func markStarted() { started = true }
+
+    /// Ход не состоялся: если сессия ещё не начата, следующий начнёт новую, а не «возобновит» несуществующую.
+    mutating func turnFailed() {
+        if !started { id = Self.newID() }
+    }
+
+    /// «Новый разговор».
+    mutating func reset() { self = ChatCLISession() }
+}
+
+/// Сессии чата Luna. Чат идёт с `--safe-mode` (без хуков пользователя), но если хук всё же
+/// сработал, его событие — не сессия агента. Метка окружения `LUNA_CHAT_SESSION` гасит такие
+/// события в релее `luna-hook`, а этот список — на стороне Luna, если релей ещё прежний.
+enum LunaChatSessions {
+    static let environmentKey = "LUNA_CHAT_SESSION"
+
+    nonisolated(unsafe) private static var ids: Set<String> = []
+    private static let lock = NSLock()
+
+    static func register(_ id: String) {
+        lock.withLock { _ = ids.insert(id.lowercased()) }
+    }
+
+    static func contains(_ id: String) -> Bool {
+        lock.withLock { ids.contains(id.lowercased()) }
+    }
+
+    /// Событие хука от чата Luna: `session_id` — одна из сессий чата.
+    static func isChatEvent(_ payload: [String: Any]) -> Bool {
+        guard let id = payload["session_id"] as? String, !id.isEmpty else { return false }
+        return contains(id)
+    }
+}
+
+/// Агенты, которых Luna запустила в папке проекта (LUNA-80): `claude -p` в фоне, без терминала и
+/// редактора. Их хуки приходят обычным путём (без новых ключей payload и без правки релея), и Luna
+/// узнаёт их по `session_id` из этого списка: событие становится плиткой «Luna (в фоне)», запрос
+/// разрешения — карточкой в острове. Список живёт до выхода из Luna (решение В5).
+enum LunaAgentSessions {
+    nonisolated(unsafe) private static var ids: Set<String> = []
+    private static let lock = NSLock()
+
+    static func register(_ id: String) {
+        lock.withLock { _ = ids.insert(id.lowercased()) }
+    }
+
+    static func contains(_ id: String) -> Bool {
+        lock.withLock { ids.contains(id.lowercased()) }
+    }
+
+    /// Событие хука от агента, запущенного Luna: `session_id` — один из запусков.
+    static func isAgentEvent(_ payload: [String: Any]) -> Bool {
+        guard let id = payload["session_id"] as? String, !id.isEmpty else { return false }
+        return contains(id)
+    }
+}
+
+/// Чьё событие хука: чата Luna (гасится), агента, запущенного Luna (плитка «Luna (в фоне)»,
+/// разрешения — в остров), или чужой сессии (прежний маршрут по терминалу и редактору).
+/// Чат проверяется первым: его события в остров не попадают никогда.
+enum LunaHookOrigin: Equatable, Sendable {
+    case chat, agent, other
+
+    static func of(_ payload: [String: Any]) -> LunaHookOrigin {
+        if LunaChatSessions.isChatEvent(payload) { return .chat }
+        if LunaAgentSessions.isAgentEvent(payload) { return .agent }
+        return .other
     }
 }

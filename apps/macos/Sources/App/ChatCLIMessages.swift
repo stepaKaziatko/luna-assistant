@@ -15,7 +15,10 @@ enum ChatCLIMessages {
         }
     }
 
-    static func text(for error: ClaudeCLIError, hasAPIKey: Bool, locale: Locale = .current) -> String {
+    /// `keyHint: false` — без подсказки про ключ API: у агента в проекте ключа нет, он только по
+    /// подписке (LUNA-80).
+    static func text(for error: ClaudeCLIError, hasAPIKey: Bool, locale: Locale = .current,
+                     keyHint: Bool = true) -> String {
         let base: String
         switch error {
         case .notFound:
@@ -55,8 +58,18 @@ enum ChatCLIMessages {
         case .unavailable:
             base = String(localized: "chat.cli.error.unavailable",
                           defaultValue: "Claude Code chat is not available in this build.")
+        case .projectFolderMissing(let path):
+            base = String(localized: "chat.cli.error.project-missing",
+                          defaultValue: "Project folder not found: \(path)")
+        case .projectFolderNoAccess(let path):
+            base = String(localized: "chat.cli.error.project-no-access",
+                          defaultValue: "No access to the project folder: \(path)")
+        case .sessionNotFound:
+            // Обычно не показывается: ход сам повторяется в новой сессии (ClaudeCLITurn).
+            base = String(localized: "chat.cli.error.session-not-found",
+                          defaultValue: "The previous Claude Code session is not available.")
         }
-        guard suggestsAPIKey(error) else { return base }
+        guard keyHint, suggestsAPIKey(error) else { return base }
         let hint = hasAPIKey
             ? String(localized: "chat.cli.hint.switch-to-key", defaultValue: "You can switch to your API key.")
             : String(localized: "chat.cli.hint.add-key", defaultValue: "Or add an API key in Settings → Chat.")
@@ -79,6 +92,11 @@ enum ChatCLIMessages {
     }
     static var useAPIKeyButton: String {
         String(localized: "chat.cli.use-key.button", defaultValue: "Answer with API key")
+    }
+    /// Пометка в чате: `--resume` не удался, ответ — в новой сессии (LUNA-76, решение В4).
+    static var sessionLostNotice: String {
+        String(localized: "chat.history.session-lost",
+               defaultValue: "The previous Claude Code session is not available — answering in a new session, without the earlier context.")
     }
     static var subscriptionWord: String {
         String(localized: "chat.cli.subscription", defaultValue: "subscription")

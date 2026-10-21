@@ -29,6 +29,7 @@ struct SettingsView: View {
     }
     @State private var launchAtStartup: Bool = (SMAppService.mainApp.status == .enabled)
     @State private var statusMessage: String = ""
+    @State private var confirmClearChatHistory = false
     @State private var showDiff: Bool = false
     @State private var pendingHookJSON: String = ""
     @State private var hookNeedsUpdate: Bool = HookServer.hooksNeedUpdate()
@@ -181,6 +182,9 @@ struct SettingsView: View {
                         SettingsSidebarRow(title: "Active pills", icon: "square.grid.2x2.fill",              color: "#F5A524").tag("activepills")
                         SettingsSidebarRow(title: "Agents",       icon: "terminal.fill",                     color: "#3B9EFF").tag("agents")
                         SettingsSidebarRow(title: "Chat",         icon: "bubble.left.and.bubble.right.fill", color: "#E07950").tag("chat")
+                        #if !APPSTORE
+                        SettingsSidebarRow(title: "Projects",     icon: "folder.fill",                       color: "#10B981").tag("projects")
+                        #endif
                         SettingsSidebarRow(title: "Integrations", icon: "puzzlepiece.extension.fill",        color: "#7C5CFF").tag("integrations")
                         #if !APPSTORE
                         SettingsSidebarRow(title: "Voice",        icon: "mic.fill",                          color: "#F97316").tag("voice")
@@ -252,6 +256,7 @@ struct SettingsView: View {
         case "activepills":  return String(localized: "Active pills")
         case "agents":       return String(localized: "Agents")
         case "chat":         return String(localized: "Chat")
+        case "projects":     return String(localized: "Projects")
         case "integrations": return String(localized: "Integrations")
         case "voice":        return String(localized: "Voice")
         case "shortcuts":    return String(localized: "Shortcuts")
@@ -264,6 +269,9 @@ struct SettingsView: View {
         case "activepills":  activePillsSection
         case "agents":       agentsSection
         case "chat":         chatSection
+        #if !APPSTORE
+        case "projects":     ProjectsSettingsView(state: state)
+        #endif
         case "integrations": integrationsSection
         #if !APPSTORE
         case "voice":        voiceSection
@@ -1041,6 +1049,32 @@ struct SettingsView: View {
                             defaultValue: "Who answers in the chat: your subscription through Claude Code, your API key, or a local model. Each answer shows its source. Luna never switches between them on its own."))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
+            }
+            .padding(6)
+        }
+
+        // История чатов (LUNA-76): хранение и очистка.
+        GroupBox(String(localized: "chat.history.settings.title", defaultValue: "Chat history")) {
+            VStack(alignment: .leading, spacing: 8) {
+                Toggle(String(localized: "chat.history.settings.enabled", defaultValue: "Keep chat history"),
+                       isOn: $state.chatHistoryEnabled)
+                Text(String(localized: "chat.history.settings.description",
+                            defaultValue: "Luna keeps your last 100 chats on this Mac, unencrypted, in ~/Library/Application Support/Luna/ChatHistory. Attached files are not saved, only their names. Turning this off keeps what is already saved. Deleting a chat does not touch Claude Code's own transcripts in ~/.claude/projects."))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button(String(localized: "chat.history.settings.clear", defaultValue: "Clear history…")) {
+                    confirmClearChatHistory = true
+                }
+                .confirmationDialog(String(localized: "chat.history.settings.clear.title", defaultValue: "Clear chat history?"),
+                                    isPresented: $confirmClearChatHistory) {
+                    Button(String(localized: "chat.history.settings.clear.confirm", defaultValue: "Clear"), role: .destructive) {
+                        state.clearChatHistory()
+                    }
+                } message: {
+                    Text(String(localized: "chat.history.settings.clear.message",
+                                defaultValue: "All saved chats are deleted. This cannot be undone."))
+                }
             }
             .padding(6)
         }

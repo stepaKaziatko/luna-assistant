@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Живой прогон тех же аргументов, что у чата, настоящим `claude` на дешёвой модели (haiku).
 # Тратит подписку (несколько токенов), поэтому по умолчанию пропускается: LUNA_LIVE_CLI=1.
+# LUNA_LIVE_SECTION=history — только проверки истории чатов (LUNA-76): два хода haiku.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 if [ "${LUNA_LIVE_CLI:-}" != "1" ]; then
@@ -14,5 +15,7 @@ swiftc \
     apps/macos/Sources/App/ClaudeStreamParser.swift \
     apps/macos/Sources/App/ChatCLIMessages.swift \
     apps/macos/Sources/App/ClaudeCLIChat.swift \
+    apps/macos/Sources/App/ChatProjects.swift \
+    apps/macos/Sources/App/ChatHistory.swift \
     tests/ClaudeCLILiveTest.swift -o "$TEST_DIR/claude-cli-live"
 "$TEST_DIR/claude-cli-live" "$TEST_DIR"

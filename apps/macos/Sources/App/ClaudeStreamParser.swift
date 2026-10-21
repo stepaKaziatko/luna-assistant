@@ -6,7 +6,7 @@ import Foundation
 //   stream_event / content_block_delta (text_delta)  — куски ответа;
 //   assistant (с полем error)                        — «не вошёл» (authentication_failed);
 //   rate_limit_event                                 — статус лимита подписки и время сброса;
-//   result                                           — итог: is_error, текст, api_error_status.
+//   result                                           — итог: is_error, текст, api_error_status, errors.
 // Остальное (init, status, usage) пропускается. Битая строка и пустой вывод разбор не роняют.
 
 enum ClaudeCLIError: Error, Equatable {
@@ -19,6 +19,9 @@ enum ClaudeCLIError: Error, Equatable {
     case empty                          // завершился без текста
     case cancelled                      // «Новый разговор» или выход из Luna
     case unavailable                    // сборка без запуска процессов
+    case projectFolderMissing(String)   // папки проекта нет: `claude` не запускался
+    case projectFolderNoAccess(String)  // macOS не дала доступ к папке проекта
+    case sessionNotFound                // `--resume` сессии, которой у Claude Code нет (LUNA-76)
 }
 
 struct ClaudeStreamParser {
@@ -35,6 +38,8 @@ struct ClaudeStreamParser {
     private(set) var resultIsError = false
     private(set) var resultText: String?
     private(set) var resultAPIStatus: Int?
+    /// `errors` итога: у `--resume` несуществующей сессии — «No conversation found with session ID: …».
+    private(set) var resultErrors: [String] = []
     /// Текст из полных `assistant`-сообщений: запасной путь, если кусков не было.
     private var assistantText = ""
     private var sawDelta = false
@@ -96,6 +101,7 @@ struct ClaudeStreamParser {
             resultIsError = object["is_error"] as? Bool ?? false
             resultText = object["result"] as? String
             resultAPIStatus = (object["api_error_status"] as? NSNumber)?.intValue
+            resultErrors = (object["errors"] as? [Any])?.compactMap { $0 as? String } ?? []
             return false
         default:
             return false
@@ -127,12 +133,21 @@ struct ClaudeStreamParser {
         }
     }
 
+    /// Так `claude` (2.1.x) сообщает, что сессии для `--resume` нет: в `errors` итога и в stderr.
+    static let sessionNotFoundMarker = "No conversation found with session ID"
+
     /// Итог по тому, что разобрано, и коду выхода. `stderrTail` — хвост stderr для сообщения о сбое.
     func outcome(exitStatus: Int32, stderrTail: String = "") -> Result<String, ClaudeCLIError> {
         let reply = (sawDelta ? text : assistantText).trimmingCharacters(in: .whitespacesAndNewlines)
         if assistantError == "authentication_failed"
             || (resultIsError && (resultText ?? "").localizedCaseInsensitiveContains("not logged in")) {
             return .failure(.notLoggedIn)
+        }
+        if !sawDelta, assistantText.isEmpty, resultIsError || exitStatus != 0,
+           (resultErrors + [resultText ?? "", stderrTail]).contains(where: {
+               $0.localizedCaseInsensitiveContains(Self.sessionNotFoundMarker)
+           }) {
+            return .failure(.sessionNotFound)
         }
         if rateLimited, assistantError != nil || resultIsError {
             return .failure(.rateLimited(resetsAt: rateLimitResetsAt))

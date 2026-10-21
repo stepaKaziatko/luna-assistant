@@ -99,6 +99,8 @@ enum AgentPreviewLogic {
     ]
 
     static func noCards(pill: String, hostBundleId: String, terminalCardsEnabled: Bool) -> NoCards? {
+        // Агент, запущенный Luna (LUNA-80): его запросы всегда приходят в остров.
+        if hostBundleId == AgentHost.lunaBackground { return nil }
         guard carded.contains(pill) else { return .observedOnly }
         // Claude Code in a terminal: asks itself unless the setting is on.
         let editorHost = hostBundleId.isEmpty || AgentEditors.editor(bundleId: hostBundleId) != nil

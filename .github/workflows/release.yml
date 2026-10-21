@@ -110,7 +110,8 @@ jobs:
           codesign --verify --strict "$app"
           lipo "$app/Contents/MacOS/Luna" -verify_arch arm64 x86_64
       - name: Приложение запускается и завершается
-        # Чистый HOME, SIGTERM и SIGKILL, 5 с на выход — правила smoke.sh.
+        # Правила smoke.sh: запускается копия бандла с Bundle ID dev.luna.Luna.smoke и домом во
+        # временной папке (CFFIXED_USER_HOME), SIGTERM и SIGKILL, 5 с на выход.
         run: apps/macos/scripts/smoke.sh "$RUNNER_TEMP/Applications/Luna.app"
       # Последним: расхождение минимума не должно прятать результат запуска.
       - name: Минимум macOS в бандле совпадает с install.sh

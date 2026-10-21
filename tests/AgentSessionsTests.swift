@@ -502,6 +502,82 @@ enum AgentSessionsTests {
                   AgentHost.bundleId(pill: "agent_gemini", reported: "").isEmpty)
         }
 
+        // ── Агент, запущенный Luna (LUNA-80) ────────────────────────────────────
+        print("\nLuna background agent")
+        do {
+            var b = AgentSessionBook()
+            let k = key("11111111-2222-4333-8444-555555555555")
+            let lunaWho = who("shop", host: AgentHost.lunaBackground)
+            b.registerLunaRun(key: k, who: lunaWho, prompt: "сделай задачу", now: at(0))
+            let started = info(b, k, now: at(1))
+            check("плитка есть сразу, до первого хука: «работает», шаг — запрос",
+                  started?.phase == .working && started?.isLunaRun == true
+                    && started?.steps.last == AgentStep(kind: .prompt, text: "сделай задачу"))
+            check("хост — «Luna (в фоне)»", started?.who.hostBundleId == AgentHost.lunaBackground)
+            b.apply(event: "SessionStart", key: k, who: lunaWho, now: at(2))
+            check("SessionStart хода не сбивает «работает»", info(b, k, now: at(3))?.phase == .working)
+            b.apply(event: "UserPromptSubmit", key: k, who: lunaWho, step: "сделай задачу", now: at(3))
+            b.apply(event: "PreToolUse", key: k, who: lunaWho, tool: "Bash", step: "$ make", now: at(4))
+            check("долгая команда без хуков — всё ещё «работает»",
+                  info(b, k, now: at(4 + AgentSessionBook.maxTurnSilence + 60))?.phase == .working)
+            let long = String(repeating: "строка ответа ", count: 40)
+            b.apply(event: "Stop", key: k, who: lunaWho, finalText: "short", fullText: long, now: at(10))
+            b.apply(event: "SessionEnd", key: k, who: lunaWho, now: at(11))
+            let ended = info(b, k, now: at(12))
+            check("после Stop + SessionEnd плитка остаётся: «ход закончен»",
+                  ended?.phase == .finished && ended?.finishedUnseen == true)
+            check("последний ответ целиком, не обрезан до 80 символов",
+                  ended?.answer == long.trimmingCharacters(in: .whitespacesAndNewlines)
+                    && (ended?.answer?.count ?? 0) > AgentSessionBook.maxTextLength)
+            b.lunaRunEnded(key: k, outcome: .finished(text: "другое"), now: at(12))
+            check("итог процесса не заменяет ответ из Stop", info(b, k, now: at(13))?.answer == ended?.answer)
+            let before = b.snapshot(now: at(13)).count
+            b.registerLunaRun(key: k, who: lunaWho, prompt: "добавь строку", now: at(20))
+            b.apply(event: "UserPromptSubmit", key: k, who: lunaWho, step: "добавь строку", now: at(21))
+            let again = info(b, k, now: at(22))
+            check("следующий ход того же id — та же плитка, не новая",
+                  b.snapshot(now: at(22)).count == before && again?.phase == .working && again?.answer == nil)
+            b.apply(event: "Stop", key: k, who: lunaWho, finalText: "x", fullText: "x", now: at(30))
+            b.apply(event: "SessionEnd", key: k, who: lunaWho, now: at(31))
+            b.lunaRunEnded(key: k, outcome: .stopped, now: at(31))
+            check("«Остановить» → «остановлен», плитка тихая",
+                  info(b, k, now: at(32))?.phase == .stopped && info(b, k, now: at(32))?.rank == .quiet)
+            b.registerLunaRun(key: k, who: lunaWho, prompt: "ещё", now: at(40))
+            b.lunaRunEnded(key: k, outcome: .failed("Subscription limit reached."), now: at(41))
+            let failed = info(b, k, now: at(42))
+            check("сбой хода → ошибка с текстом", failed?.phase == .error && failed?.errorText == "Subscription limit reached.")
+
+            // Плитки агентов Luna живут до перезапуска Luna (решение В5): тишина их не убирает.
+            do {
+                var kept = AgentSessionBook()
+                let idle = key("33333333-2222-4333-8444-555555555555")
+                kept.registerLunaRun(key: idle, who: lunaWho, prompt: "q", now: at(0))
+                kept.lunaRunEnded(key: idle, outcome: .finished(text: "готово"), now: at(1))
+                let late = 1 + AgentSessionBook.maxSilence + 60
+                kept.apply(event: "SessionStart", key: key("prune-trigger"), who: who("x"), now: at(late))
+                check("закончивший ход агент Luna после долгой тишины — на плитке",
+                      info(kept, idle, now: at(late))?.phase == .finished)
+            }
+
+            // Хуков не было: ход закончил процесс, ответ — из его вывода.
+            let quiet = key("22222222-2222-4333-8444-555555555555")
+            b.registerLunaRun(key: quiet, who: lunaWho, prompt: "q", now: at(50))
+            b.lunaRunEnded(key: quiet, outcome: .finished(text: "ответ из вывода"), now: at(51))
+            check("без хуков: «ход закончен», ответ из вывода",
+                  info(b, quiet, now: at(52))?.phase == .finished && info(b, quiet, now: at(52))?.answer == "ответ из вывода")
+
+            // Чужая сессия — как раньше.
+            let other = key("other")
+            b.apply(event: "SessionStart", key: other, who: who("x"), now: at(60))
+            b.apply(event: "Stop", key: other, who: who("x"), finalText: "y", fullText: "y", now: at(61))
+            check("чужой сессии полный ответ не хранится", info(b, other, now: at(62))?.answer == nil
+                    && info(b, other, now: at(62))?.isLunaRun == false)
+            b.apply(event: "SessionEnd", key: other, who: who("x"), now: at(63))
+            check("чужая сессия по SessionEnd уходит", info(b, other, now: at(64)) == nil)
+            b.lunaRunEnded(key: other, outcome: .stopped, now: at(64))
+            check("итог процесса чужой сессии ничего не заводит", info(b, other, now: at(65)) == nil)
+        }
+
         print(failures == 0 ? "\nAll agent session checks passed" : "\n\(failures) check(s) FAILED")
         exit(failures == 0 ? 0 : 1)
     }

@@ -9,14 +9,15 @@ import Foundation
 // - Запрос идёт в stdin, не в argv: его не видно в `ps`, длина не ограничена.
 // - Свои сессии: `--session-id <uuid>` на первом ходе, `--resume <uuid>` дальше. Чужие
 //   идущие сессии агентов не затрагиваются.
-// - `--safe-mode`: без хуков, плагинов, CLAUDE.md и MCP пользователя. Подпроцесс не шлёт
-//   события хуков, поэтому ответ чата не появляется в острове как сессия агента.
+// - Только «Без проекта»: служебная папка и `--safe-mode` — без хуков, плагинов, CLAUDE.md и MCP
+//   пользователя, инструменты только веб. Подпроцесс не шлёт события хуков. Запрос с выбранным
+//   проектом — не чат, а агент в проекте (`ClaudeAgentRun.swift`, LUNA-80).
 // - Без `--bare` (он отключает вход по подписке) и без флагов, отключающих запросы разрешений.
 // - Из окружения убираются ключ API и метки родительской сессии (`CLIResolver.environment`).
 
 enum ClaudeCLIArguments {
-    /// Инструменты чата: поиск и чтение страниц в сети, как web_search у API-пути. Файлы
-    /// пользователя CLI не читает (`Read` не включён), оболочки у него нет.
+    /// Инструменты чата: поиск и чтение страниц в сети, как web_search у API-пути.
+    /// Файлы пользователя CLI не читает (`Read` не включён), оболочки у него нет.
     static let tools = "WebSearch,WebFetch"
 
     static func build(systemPrompt: String, model: String?, sessionID: String, resume: Bool) -> [String] {
@@ -44,6 +45,7 @@ struct ClaudeCLIRequest: Sendable {
     var model: String?
     var sessionID: String
     var resume: Bool
+    /// Служебная папка чата.
     var workingDirectory: URL
     var environment: [String: String]
     /// Сколько ждать нового вывода. Куски ответа и события сбрасывают отсчёт.
@@ -195,6 +197,37 @@ final class ClaudeCLIProcess: @unchecked Sendable {
         String(text.trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "\n", with: " ")
             .suffix(400))
+    }
+}
+
+// MARK: - Ход с повтором в новой сессии (LUNA-76)
+
+/// Ход чата по подписке. `--resume` сессии, которой у Claude Code нет (транскрипт удалён, другой
+/// аккаунт), — тот же вопрос один раз в новой сессии (`--session-id`), решение человека В4.
+/// Прежняя переписка в промпт новой сессии не подставляется.
+enum ClaudeCLITurn {
+    struct Outcome {
+        var result: Result<String, ClaudeCLIError>
+        /// Сессия, в которой прошёл последний запуск.
+        var sessionID: String
+        var retried: Bool
+    }
+
+    /// `launch(id, resume)` — один запуск `claude`; `beforeRetry(newID)` — перед повтором (пометка в
+    /// чате, новая сессия). Повтор — только после `--resume` и только один.
+    @MainActor
+    static func run(sessionID: String, resume: Bool,
+                    newSessionID: () -> String = ChatCLISession.newID,
+                    launch: (_ sessionID: String, _ resume: Bool) async -> Result<String, ClaudeCLIError>,
+                    beforeRetry: (_ newSessionID: String) -> Void) async -> Outcome {
+        let first = await launch(sessionID, resume)
+        guard resume, case .failure(.sessionNotFound) = first else {
+            return Outcome(result: first, sessionID: sessionID, retried: false)
+        }
+        let fresh = newSessionID()
+        beforeRetry(fresh)
+        let second = await launch(fresh, false)
+        return Outcome(result: second, sessionID: fresh, retried: true)
     }
 }
 

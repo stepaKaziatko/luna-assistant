@@ -416,7 +416,7 @@ Règles communes : une touche sans ⌘ ⌃ ⌥ n'est prise que si aucun champ de
 | Pilules actives | ← → ↑ ↓ ↩ | Pilule précédente / suivante, lignes de la carte, ouvrir |
 | Pilules actives, GitHub, garde-robe | ⌫ | Retour aux Agents |
 | GitHub | ← → ↑ ↓ ↩ | Choisir une ligne, l'ouvrir dans le navigateur |
-| Chat | ⌘↩, ⌘K | Envoyer, nouvelle conversation |
+| Chat | ⌘↩, ⌘K | Envoyer, nouvelle conversation (comme le bouton « + » de la page de question, à côté de l'historique des chats) |
 
 Réponse en deux temps : le choix (flèche, chiffre) est lié à l'identifiant de la demande affichée ; si la demande change, est retirée ailleurs ou si la question avance, le choix tombe et ↩ ne fait rien. L'envoi passe par les mêmes entrées que le clic (`sendApprovalDecision(_:for:)`, `sendQuestionAnswers(_:for:)`), avec cet identifiant. ⌫ n'est pas lié sur les cartes d'alerte (quitter la carte d'une question la rend au terminal).
 

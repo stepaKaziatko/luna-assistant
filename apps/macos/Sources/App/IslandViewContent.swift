@@ -362,7 +362,8 @@ struct ApprovalView: View {
                             .monospacedDigit()
                     }
                 }
-                CodeBlock(text: approval?.command ?? approval?.tool ?? "…")
+                // Длинная команда прокручивается, кнопки под ней видны всегда (LUNA-78).
+                ScrollingCodeBlock(text: approval?.command ?? approval?.tool ?? "…", maxLines: 3)
                 HStack(spacing: 8) {
                     SecondaryButton("Deny") {
                         HookServer.shared.sendApprovalDecision("deny", for: shownId)
@@ -490,116 +491,125 @@ struct QuestionPanel: View {
                             .foregroundColor(Color(hex: "#6B7079"))
                             .underline()
                     }
-                    // Optional short header label above question text
-                    if !item.header.isEmpty {
-                        Text(item.header)
-                            .font(.system(size: 10))
-                            .foregroundColor(Color(hex: "#6B7079"))
-                    }
-                    Text(item.question)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(Color(hex: "#F5F6F8"))
-                        .fixedSize(horizontal: false, vertical: true)
-                    // Options (wrapping) or "Other…" compact inline row
-                    if curOther {
-                        HStack(spacing: 6) {
-                            TextField("Your answer…", text: Binding(
-                                get: { qi < otherTexts.count ? otherTexts[qi] : "" },
-                                set: { v in if qi < otherTexts.count { otherTexts[qi] = v } }
-                            ))
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 12))
-                            .foregroundColor(Color(hex: "#F5F6F8"))
-                            .focused($otherFieldFocused)
-                            .onAppear { otherFieldFocused = true }
-                            .onSubmit { commitOtherAndProceed(q: q, qi: qi, isLast: isLast) }
-                            .onExitCommand { if qi < showOther.count { showOther[qi] = false } }
-                            .padding(.horizontal, 8).padding(.vertical, 5)
-                            .background(Color.white.opacity(0.07))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            Button(isLast ? "Send" : "Next") {
-                                commitOtherAndProceed(q: q, qi: qi, isLast: isLast)
-                            }
-                            .buttonStyle(.plain)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(curOtherText.isEmpty ? Color(hex: "#6B7079") : Color(hex: "#F5F6F8"))
-                            .padding(.horizontal, 8).padding(.vertical, 5)
-                            .background(Color.white.opacity(curOtherText.isEmpty ? 0.05 : 0.15))
-                            .clipShape(Capsule())
-                            .disabled(curOtherText.isEmpty)
-                            Button { if qi < showOther.count { showOther[qi] = false } } label: {
-                                Text("✕").font(.system(size: 9))
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundColor(Color(hex: "#6B7079"))
+                    // Текст вопроса и варианты: не помещаются в карточку — прокручиваются (LUNA-78).
+                    QuestionFitLayout(pickedRow: pickedRow) {
+                        // Optional short header label above question text
+                        if !item.header.isEmpty {
+                            Text(item.header)
+                                .font(.system(size: 10))
+                                .foregroundColor(Color(hex: "#6B7079"))
                         }
-                    } else if item.hasDescriptions {
-                        VStack(alignment: .leading, spacing: 6) {
-                            ForEach(Array(item.options.enumerated()), id: \.offset) { idx, opt in
-                                let isSelected = curSel.contains(opt.label)
-                                Button {
-                                    if isMulti {
-                                        toggleSelection(qi: qi, label: opt.label)
-                                    } else {
-                                        selectAndProceed(q: q, qi: qi, label: opt.label, isLast: isLast)
-                                    }
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(opt.label)
-                                            .font(.system(size: 12, weight: .medium))
-                                            .foregroundColor(isSelected ? Color(hex: "#67E8F9") : Color(hex: "#F5F6F8"))
-                                        if !opt.description.isEmpty {
-                                            Text(opt.description)
-                                                .font(.system(size: 11))
-                                                .foregroundColor(Color(hex: "#9AA0A8"))
-                                                .multilineTextAlignment(.leading)
-                                                .fixedSize(horizontal: false, vertical: true)
-                                        }
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 10).padding(.vertical, 6)
-                                    .background(isSelected ? Color(hex: "#22D3EE").opacity(0.22) : Color.white.opacity(0.07))
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(isSelected ? Color(hex: "#22D3EE").opacity(0.55) : Color.white.opacity(0.1), lineWidth: 1))
+                        Text(item.question)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(Color(hex: "#F5F6F8"))
+                            .fixedSize(horizontal: false, vertical: true)
+                    } options: {
+                        // Options (wrapping) or "Other…" compact inline row
+                        if curOther {
+                            HStack(spacing: 6) {
+                                TextField("Your answer…", text: Binding(
+                                    get: { qi < otherTexts.count ? otherTexts[qi] : "" },
+                                    set: { v in if qi < otherTexts.count { otherTexts[qi] = v } }
+                                ))
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 12))
+                                .foregroundColor(Color(hex: "#F5F6F8"))
+                                .focused($otherFieldFocused)
+                                .onAppear { otherFieldFocused = true }
+                                .onSubmit { commitOtherAndProceed(q: q, qi: qi, isLast: isLast) }
+                                .onExitCommand { if qi < showOther.count { showOther[qi] = false } }
+                                .padding(.horizontal, 8).padding(.vertical, 5)
+                                .background(Color.white.opacity(0.07))
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                Button(isLast ? "Send" : "Next") {
+                                    commitOtherAndProceed(q: q, qi: qi, isLast: isLast)
                                 }
                                 .buttonStyle(.plain)
-                                .keyPickRounded(pickedRow == idx)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(curOtherText.isEmpty ? Color(hex: "#6B7079") : Color(hex: "#F5F6F8"))
+                                .padding(.horizontal, 8).padding(.vertical, 5)
+                                .background(Color.white.opacity(curOtherText.isEmpty ? 0.05 : 0.15))
+                                .clipShape(Capsule())
+                                .disabled(curOtherText.isEmpty)
+                                Button { if qi < showOther.count { showOther[qi] = false } } label: {
+                                    Text("✕").font(.system(size: 9))
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundColor(Color(hex: "#6B7079"))
                             }
-                            SecondaryButton("Other…") {
-                                if qi < showOther.count { showOther[qi] = true }
-                            }
-                            .keyPickCapsule(pickedRow == item.options.count)
-                        }
-                    } else {
-                        ChipFlowLayout(spacing: 6) {
-                            ForEach(Array(item.options.enumerated()), id: \.offset) { idx, opt in
-                                let isSelected = curSel.contains(opt.label)
-                                if isMulti {
+                        } else if item.hasDescriptions {
+                            VStack(alignment: .leading, spacing: 6) {
+                                ForEach(Array(item.options.enumerated()), id: \.offset) { idx, opt in
+                                    let isSelected = curSel.contains(opt.label)
                                     Button {
-                                        toggleSelection(qi: qi, label: opt.label)
+                                        if isMulti {
+                                            toggleSelection(qi: qi, label: opt.label)
+                                        } else {
+                                            selectAndProceed(q: q, qi: qi, label: opt.label, isLast: isLast)
+                                        }
                                     } label: {
-                                        Text(opt.label)
-                                            .font(.system(size: 12, weight: .medium))
-                                            .padding(.horizontal, 8).padding(.vertical, 4)
-                                            .background(isSelected ? Color(hex: "#22D3EE").opacity(0.22) : Color.white.opacity(0.07))
-                                            .foregroundColor(isSelected ? Color(hex: "#67E8F9") : Color(hex: "#C5C8CD"))
-                                            .clipShape(RoundedRectangle(cornerRadius: 7))
-                                            .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color(hex: "#22D3EE").opacity(0.55) : Color.white.opacity(0.1), lineWidth: 1))
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(opt.label)
+                                                .font(.system(size: 12, weight: .medium))
+                                                .foregroundColor(isSelected ? Color(hex: "#67E8F9") : Color(hex: "#F5F6F8"))
+                                            if !opt.description.isEmpty {
+                                                Text(opt.description)
+                                                    .font(.system(size: 11))
+                                                    .foregroundColor(Color(hex: "#9AA0A8"))
+                                                    .multilineTextAlignment(.leading)
+                                                    .fixedSize(horizontal: false, vertical: true)
+                                            }
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.horizontal, 10).padding(.vertical, 6)
+                                        .background(isSelected ? Color(hex: "#22D3EE").opacity(0.22) : Color.white.opacity(0.07))
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(isSelected ? Color(hex: "#22D3EE").opacity(0.55) : Color.white.opacity(0.1), lineWidth: 1))
                                     }
                                     .buttonStyle(.plain)
-                                    .keyPickRounded(pickedRow == idx, radius: 7)
-                                } else {
-                                    SecondaryButton(verbatim: opt.label) {
-                                        selectAndProceed(q: q, qi: qi, label: opt.label, isLast: isLast)
-                                    }
-                                    .keyPickCapsule(pickedRow == idx)
+                                    .keyPickRounded(pickedRow == idx)
+                                    .id(QuestionRowID(row: idx))
                                 }
+                                SecondaryButton("Other…") {
+                                    if qi < showOther.count { showOther[qi] = true }
+                                }
+                                .keyPickCapsule(pickedRow == item.options.count)
+                                .id(QuestionRowID(row: item.options.count))
                             }
-                            // "Other…" implicit free-text option
-                            SecondaryButton("Other…") {
-                                if qi < showOther.count { showOther[qi] = true }
+                        } else {
+                            ChipFlowLayout(spacing: 6) {
+                                ForEach(Array(item.options.enumerated()), id: \.offset) { idx, opt in
+                                    let isSelected = curSel.contains(opt.label)
+                                    if isMulti {
+                                        Button {
+                                            toggleSelection(qi: qi, label: opt.label)
+                                        } label: {
+                                            Text(opt.label)
+                                                .font(.system(size: 12, weight: .medium))
+                                                .padding(.horizontal, 8).padding(.vertical, 4)
+                                                .background(isSelected ? Color(hex: "#22D3EE").opacity(0.22) : Color.white.opacity(0.07))
+                                                .foregroundColor(isSelected ? Color(hex: "#67E8F9") : Color(hex: "#C5C8CD"))
+                                                .clipShape(RoundedRectangle(cornerRadius: 7))
+                                                .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color(hex: "#22D3EE").opacity(0.55) : Color.white.opacity(0.1), lineWidth: 1))
+                                        }
+                                        .buttonStyle(.plain)
+                                        .keyPickRounded(pickedRow == idx, radius: 7)
+                                        .id(QuestionRowID(row: idx))
+                                    } else {
+                                        SecondaryButton(verbatim: opt.label) {
+                                            selectAndProceed(q: q, qi: qi, label: opt.label, isLast: isLast)
+                                        }
+                                        .keyPickCapsule(pickedRow == idx)
+                                        .id(QuestionRowID(row: idx))
+                                    }
+                                }
+                                // "Other…" implicit free-text option
+                                SecondaryButton("Other…") {
+                                    if qi < showOther.count { showOther[qi] = true }
+                                }
+                                .keyPickCapsule(pickedRow == item.options.count)
+                                .id(QuestionRowID(row: item.options.count))
                             }
-                            .keyPickCapsule(pickedRow == item.options.count)
                         }
                     }
                     // Send/Next — only for multi-select (and not while "Other…" field is open)
@@ -713,6 +723,57 @@ struct QuestionPanel: View {
         let answers = AskQuestion.buildAnswers(questions: q.questions, selections: selections)
         if let id = shownQuestionId { onAnswered(id) }
         HookServer.shared.sendQuestionAnswers(answers, for: shownQuestionId)
+    }
+}
+
+/// Строка варианта вопроса (вариант или «Other…») — цель прокрутки к выбранному клавишами.
+struct QuestionRowID: Hashable {
+    let row: Int
+}
+
+/// Текст вопроса и варианты ответа в карточке, высота которой ограничена (LUNA-78). Всё
+/// помещается — как было, без прокрутки. Не помещается текст — он прокручивается, варианты под
+/// ним остаются на месте. Не помещаются и варианты — прокручивается всё вместе, а вариант,
+/// выбранный клавишами, сам въезжает в видимую часть.
+struct QuestionFitLayout<QuestionText: View, Options: View>: View {
+    /// Строка, выбранная клавишами (`QuestionRowID`).
+    let pickedRow: Int?
+    @ViewBuilder let text: () -> QuestionText
+    @ViewBuilder let options: () -> Options
+
+    /// Меньше трёх строк текста над закреплёнными вариантами не оставляем: тогда прокручивается всё.
+    private static var minTextHeight: CGFloat { 50 }
+
+    var body: some View {
+        ViewThatFits(in: .vertical) {
+            VStack(alignment: .leading, spacing: 4) {
+                text()
+                options()
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 4) { text() }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .frame(minHeight: Self.minTextHeight, idealHeight: Self.minTextHeight, maxHeight: .infinity)
+                options()
+            }
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        text()
+                        options()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .onChange(of: pickedRow) { _, row in
+                    guard let row else { return }
+                    proxy.scrollTo(QuestionRowID(row: row))
+                }
+            }
+        }
     }
 }
 
@@ -1398,6 +1459,10 @@ struct PromptView: View {
     @State private var text: String = ""
     @FocusState private var focused: Bool
     @State private var showModelPicker = false
+    @State private var showProjectPicker = false
+    @State private var showChatHistory = false
+    /// Агент в проекте запускается (проверка входа, папки и хуков): вторая отправка не уходит.
+    @State private var launchingAgent = false
 
     #if !APPSTORE
     @State private var dictation = MacDictation()
@@ -1448,8 +1513,23 @@ struct PromptView: View {
                     Spacer()
                 }
 
-                HStack(spacing: 0) {
+                // Пометки чата из истории: источник другой, проект недоступен (LUNA-76).
+                if !state.chatNotices.isEmpty {
+                    ChatHistoryNoticeBanner(state: state)
+                }
+
+                HStack(spacing: 6) {
+                    // История чатов и «+» — новый чат, как ⌘K (LUNA-76).
+                    ChatHistoryButton(state: state, isPresented: $showChatHistory)
+                    NewChatButton(state: state)
                     Spacer()
+                    #if !APPSTORE
+                    // Проект — только у Claude Code по подписке (LUNA-75). С проектом отправка
+                    // запускает агента в его папке (LUNA-80).
+                    if state.chatProvider == .claudeCode {
+                        ProjectChip(state: state, isPresented: $showProjectPicker)
+                    }
+                    #endif
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                             showModelPicker.toggle()
@@ -1514,7 +1594,7 @@ struct PromptView: View {
                             .foregroundColor(Color(hex: "#0B0C0E"))
                     }
                     .buttonStyle(SendButtonStyle())
-                    .disabled(text.isEmpty)
+                    .disabled(text.isEmpty || launchingAgent)
                 }
                 .padding(.horizontal, 10).padding(.vertical, 6)
                 .background(Color.white.opacity(0.07))
@@ -1552,8 +1632,8 @@ struct PromptView: View {
         .onReceive(NotificationCenter.default.publisher(for: .islandNewConversation)) { _ in
             guard state.view == .prompt else { return }
             text = ""
-            state.chatHistory = []
-            ClaudeService.shared.clearConversation()
+            // Новый чат: открытый остаётся в истории, ответ его идущего хода сюда не попадёт.
+            state.startNewChat()
             focused = true
         }
     }
@@ -1571,6 +1651,14 @@ struct PromptView: View {
         #endif
         let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return }
+        #if !APPSTORE
+        // С проектом — не чат, а агент в папке проекта (LUNA-80, решение В6): каждая отправка —
+        // новый агент, страница вопроса очищается и ведёт на страницу агента.
+        if let project = state.activeChatProject {
+            sendToAgent(query, project: project)
+            return
+        }
+        #endif
         text = ""
         focused = false
         state.chatHistory.append(ChatMessage(role: .user, content: query))
@@ -1580,6 +1668,21 @@ struct PromptView: View {
             await MainActor.run { focused = true }
         }
     }
+
+    #if !APPSTORE
+    private func sendToAgent(_ query: String, project: ChatProject) {
+        guard !launchingAgent else { return }
+        launchingAgent = true
+        Task {
+            // Агент не запустился — текст остаётся в поле, заметка говорит почему.
+            if await ClaudeAgentController.shared.send(query: query, project: project, state: state) {
+                text = ""
+                focused = false
+            }
+            launchingAgent = false
+        }
+    }
+    #endif
 }
 
 
@@ -1766,7 +1869,18 @@ struct ChatBubble: View {
     let message: ChatMessage
 
     var body: some View {
-        if !message.content.isEmpty {
+        if message.isNotice, !message.content.isEmpty {
+            // Пометка Luna в чате (LUNA-76): не реплика модели.
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 9.5))
+                Text(message.content)
+                    .font(.system(size: 10.5))
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+            }
+            .foregroundColor(Color(hex: "#8A8F98"))
+        } else if !message.content.isEmpty {
             HStack(alignment: .top) {
                 if message.role == .user {
                     Spacer(minLength: 32)
@@ -1913,13 +2027,25 @@ struct NoteView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(state.noteMessage ?? "")
                     .font(.system(size: 15, weight: .semibold))
-                if let action = state.noteAction {
+                if let action = state.noteAction, let section = action.settingsSection {
+                    SecondaryButton(verbatim: action.title) {
+                        state.noteAction = nil
+                        NotificationCenter.default.post(name: .openFullSettings, object: section)
+                    }
+                } else if let action = state.noteAction {
                     SecondaryButton(verbatim: action.title) {
                         // Источник меняет сам пользователь этим кликом; вопрос уходит заново.
                         state.noteAction = nil
                         state.chatProvider = action.provider
                         state.stateOverride = .thinking
                         state.view = .prompt
+                        #if !APPSTORE
+                        // С выбранным проектом Claude Code — не чат, а агент в проекте (LUNA-80).
+                        if let project = state.activeChatProject {
+                            Task { _ = await ClaudeAgentController.shared.send(query: action.query, project: project, state: state) }
+                            return
+                        }
+                        #endif
                         Task {
                             await ClaudeService.shared.chat(query: action.query, context: state.promptContext, state: state)
                         }
@@ -2341,7 +2467,10 @@ struct IntegrationCardView: View {
                 .padding(.top, 2)
 
                 HStack(spacing: 8) {
-                    if task.id == "integration_claude", task.hostApp != nil {
+                    if task.id == "integration_claude", task.hostApp == AgentHost.lunaBackground {
+                        // Агент в фоне (LUNA-80): окна нет, открывать нечего.
+                        EmptyView()
+                    } else if task.id == "integration_claude", task.hostApp != nil {
                         Button("Open \(ClaudeHost.name(for: task.hostApp))") { ClaudeHost.activate(task.hostApp) }
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(Color(hex: task.color).opacity(0.7))
@@ -4876,6 +5005,28 @@ struct CodeBlock: View {
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.06)))
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .foregroundColor(Color(hex: "#E8E9EC"))
+    }
+}
+
+/// Команда запроса разрешения: до `maxLines` строк — как `CodeBlock`, длиннее — прокручивается
+/// в той же высоте, а кнопки под ней остаются видны (LUNA-78).
+struct ScrollingCodeBlock: View {
+    let text: String
+    let maxLines: Int
+
+    /// Строка моноширинного 12 pt и внутренние отступы `CodeBlock`.
+    private var maxHeight: CGFloat { CGFloat(maxLines) * 15 + 10 }
+
+    var body: some View {
+        ScrollView(.vertical) {
+            CodeBlock(text: text)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        // Короткая команда — высотой по себе, длинная — не выше maxHeight.
+        .frame(maxHeight: maxHeight)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

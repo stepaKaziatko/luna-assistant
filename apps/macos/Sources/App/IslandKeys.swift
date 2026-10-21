@@ -455,6 +455,36 @@ enum AgentsSelection {
         let current = reconcile(id, ids: ids).flatMap { ids.firstIndex(of: $0) }
         return IslandGrid.move(selection: current, step: step, count: ids.count).map { ids[$0] }
     }
+
+    /// Шаг по плиткам, разложенным группами («По проектам», LUNA-75): каждая группа на экране
+    /// начинается с нового ряда по `columns` плиток.
+    /// - Одна группа (или без группировки) — ровно `move(id:step:ids:)`.
+    /// - ← и → — по сплошному порядку групп, как раньше: с конца группы на начало следующей.
+    /// - ↑ и ↓ — на ряд выше или ниже на экране, через заголовок группы тоже; столбец сохраняется,
+    ///   у короткого ряда шаг попадает на его последнюю плитку. С первого ряда ↑ и с последнего ↓
+    ///   выбор стоит на месте.
+    static func move(id: String?, step: IslandGridStep, sections: [[String]],
+                     columns: Int = IslandGrid.columns) -> String? {
+        let sections = sections.filter { !$0.isEmpty }
+        let ids = sections.flatMap { $0 }
+        guard sections.count > 1, columns > 0 else { return move(id: id, step: step, ids: ids) }
+        guard let current = reconcile(id, ids: ids) else { return move(id: nil, step: step, ids: ids) }
+        switch step {
+        case .left, .right:
+            return move(id: current, step: step, ids: ids)
+        case .up, .down:
+            let rows = sections.flatMap { section in
+                stride(from: 0, to: section.count, by: columns).map {
+                    Array(section[$0..<min($0 + columns, section.count)])
+                }
+            }
+            guard let row = rows.firstIndex(where: { $0.contains(current) }),
+                  let column = rows[row].firstIndex(of: current) else { return current }
+            let target = step == .up ? row - 1 : row + 1
+            guard rows.indices.contains(target) else { return current }
+            return rows[target][min(column, rows[target].count - 1)]
+        }
+    }
 }
 
 // MARK: - GitHub page

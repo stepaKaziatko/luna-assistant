@@ -252,6 +252,291 @@ final class AppState: ObservableObject {
         return claudeCodeStatus
     }
 
+    // MARK: Проекты (LUNA-75)
+
+    /// Привязанные папки: Settings → «Проекты». UserDefaults `chatProjects`.
+    @Published var chatProjects = ChatProjectList() {
+        didSet {
+            if let data = chatProjects.encoded() { UserDefaults.standard.set(data, forKey: ChatProjectList.defaultsKey) }
+            // Убранный проект не остаётся выбранным: вопрос уходит «Без проекта».
+            if chatProjectID != nil, chatProjects.project(id: chatProjectID) == nil { selectChatProject(nil) }
+            chatProjectsChanged()
+        }
+    }
+
+    /// Проект, выбранный на странице запроса; nil — «Без проекта». UserDefaults `chatProjectID`.
+    @Published private(set) var chatProjectID: UUID? = nil {
+        didSet { UserDefaults.standard.set(chatProjectID?.uuidString, forKey: ChatProjectList.selectionKey) }
+    }
+
+    /// Растёт, когда папки проектов стоит проверить заново (сбой отправки, правка списка).
+    @Published private(set) var chatProjectsRevision = 0
+
+    func chatProjectsChanged() { chatProjectsRevision &+= 1 }
+
+    /// Проект, в котором уйдёт вопрос: только у источника Claude Code (подписка). Папка здесь не
+    /// проверяется — пропавшую проверит запуск и скажет об этом заметкой.
+    var activeChatProject: ChatProject? {
+        #if APPSTORE
+        return nil
+        #else
+        guard chatProvider == .claudeCode else { return nil }
+        return chatProjects.project(id: chatProjectID)
+        #endif
+    }
+
+    /// Смена проекта при непустой истории — новый разговор, как «Новый разговор».
+    func selectChatProject(_ id: UUID?) {
+        guard id != chatProjectID else { return }
+        if !chatHistory.isEmpty { startNewChat() }
+        chatProjectID = id
+    }
+
+    /// Выбранный проект, если он ещё годится; иначе — сброс на «Без проекта».
+    func reconcileChatProjectSelection() {
+        let resolved = ChatProjectSelection.resolve(savedID: chatProjectID?.uuidString, in: chatProjects)
+        if resolved?.id != chatProjectID { selectChatProject(resolved?.id) }
+    }
+
+    // MARK: Перенос сессии (LUNA-79)
+
+    #if !APPSTORE
+    /// Строка переноса на странице агента: ждём закрытия сессии, открываем, отменён… Только в памяти.
+    @Published private(set) var agentHandoffStatus: AgentHandoffStatus? = nil
+    private var agentHandoffBook = AgentHandoffBook()
+    /// Срок ожидания: одна отложенная задача на перенос, без опроса.
+    private var agentHandoffTimer: Task<Void, Never>? = nil
+    /// Итоговая строка (отменён, открываю, скопировано) гаснет сама.
+    private var agentHandoffNoteTimer: Task<Void, Never>? = nil
+    private static let agentHandoffNoteLifetime: Duration = .seconds(10)
+
+    /// Клик «Открыть в…» → цель: перенос ждёт `SessionEnd` этой сессии (решение В1 = A). Остров не
+    /// сворачивается и фокус не уходит — до закрытия сессии. false — сессия или цель не годятся.
+    @discardableResult
+    func requestAgentHandoff(_ target: AgentHandoffTarget, session: AgentSessionInfo) -> Bool {
+        guard session.phase != .working, session.wait == nil,
+              let plan = AgentHandoffPlan.make(target: target, pill: session.pill,
+                                               sessionId: session.key.session, who: session.who) else { return false }
+        // Агент, запущенный Luna (LUNA-80): между ходами процесса нет, сессия уже закрыта —
+        // ждать `SessionEnd` нечего, перенос сразу.
+        if session.isLunaRun, !ClaudeAgentProcess.isRunning(sessionID: session.key.session) {
+            _ = agentHandoffBook.cancel()
+            applyAgentHandoff(.open(plan, sessionKey: session.id))
+            return true
+        }
+        let pending = agentHandoffBook.request(plan, sessionKey: session.id,
+                                               hostBundleId: session.who.hostBundleId, now: Date())
+        setAgentHandoffStatus(.waiting(pending))
+        agentHandoffTimer?.cancel()
+        agentHandoffTimer = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(AgentHandoffBook.waitLimit))
+            guard !Task.isCancelled, let self else { return }
+            self.applyAgentHandoff(self.agentHandoffBook.expire(now: Date()))
+        }
+        return true
+    }
+
+    /// «Отменить».
+    func cancelAgentHandoff() {
+        applyAgentHandoff(agentHandoffBook.cancel())
+    }
+
+    /// «Скопировать команду для терминала»: `cd '<папка>' && claude --resume <uuid>` в буфер обмена.
+    func copyAgentResumeCommand(_ session: AgentSessionInfo) {
+        guard AgentHandoffPlan.isEligible(pill: session.pill, sessionId: session.key.session,
+                                          hostBundleId: session.who.hostBundleId),
+              let command = AgentHandoffPlan.terminalCommand(who: session.who, sessionId: session.key.session)
+        else { return }
+        AgentHandoff.copy(command)
+        // Ждущий перенос другой сессии строку не уступает.
+        if agentHandoffStatus?.isWaiting != true { setAgentHandoffStatus(.copied(sessionKey: session.id)) }
+    }
+
+    /// Событие хука сессии (`HookServer.recordAgentEvent`): `SessionEnd` исполняет перенос, новый
+    /// ход его снимает. Ничего не ждёт — ничего не делает.
+    func agentHandoffEvent(_ name: String, sessionKey: String) {
+        guard agentHandoffBook.pending != nil else { return }
+        applyAgentHandoff(agentHandoffBook.event(name, sessionKey: sessionKey, now: Date()))
+    }
+
+    private func applyAgentHandoff(_ step: AgentHandoffStep) {
+        switch step {
+        case .none:
+            return
+        case .cancelled(let reason, let key):
+            agentHandoffTimer?.cancel()
+            agentHandoffTimer = nil
+            appendAppLog("luna.log", "Handoff: cancelled (\(reason))")
+            // «Отменить» — строка просто исчезает.
+            setAgentHandoffStatus(reason == .byUser ? nil : .cancelled(reason, sessionKey: key))
+        case .open(let plan, let key):
+            agentHandoffTimer?.cancel()
+            agentHandoffTimer = nil
+            switch AgentHandoff.run(plan) {
+            case .opened:
+                setAgentHandoffStatus(.opening(plan.target, sessionKey: key))
+                NotificationCenter.default.post(name: .islandCollapseAfterJump, object: nil)
+            case .appMissing:
+                setAgentHandoffStatus(.appMissing(plan.target, sessionKey: key))
+            case .folderMissing:
+                setAgentHandoffStatus(.folderMissing(sessionKey: key))
+            case .refused:
+                setAgentHandoffStatus(nil)
+            }
+        }
+    }
+
+    private func setAgentHandoffStatus(_ status: AgentHandoffStatus?) {
+        agentHandoffNoteTimer?.cancel()
+        agentHandoffNoteTimer = nil
+        if status != agentHandoffStatus { agentHandoffStatus = status }
+        guard let status, !status.isWaiting else { return }
+        agentHandoffNoteTimer = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.agentHandoffNoteLifetime)
+            guard !Task.isCancelled, let self, self.agentHandoffStatus == status else { return }
+            self.agentHandoffStatus = nil
+        }
+    }
+    #endif
+
+    // MARK: История чатов (LUNA-76)
+
+    /// Settings → Chat → «Хранить историю чатов». UserDefaults `chatHistoryEnabled`, по умолчанию
+    /// включено (решение человека В1). Выключение не стирает записанное — для этого «Очистить историю».
+    @Published var chatHistoryEnabled: Bool =
+        (UserDefaults.standard.object(forKey: ChatHistory.defaultsKey) as? Bool) ?? true {
+        didSet { UserDefaults.standard.set(chatHistoryEnabled, forKey: ChatHistory.defaultsKey) }
+    }
+
+    /// `~/Library/Application Support/Luna/ChatHistory`. Читается при первом открытии списка или
+    /// первой записи; пишется только по законченному ответу и удалению — таймеров нет.
+    private let chatHistoryStore = ChatHistoryStore(directory: ChatHistoryStore.defaultDirectory)
+
+    /// Строки окна истории, новые сверху.
+    @Published private(set) var chatHistoryEntries: [ChatHistoryEntry] = []
+
+    /// Какой чат открыт на странице запроса. Ход берёт билет (`chatOpen.ticket()`): ответ после «+»
+    /// или открытия другого чата в открытый чат не попадает.
+    @Published private(set) var chatOpen = ChatOpenState()
+    private var openChatCreated: Date?
+    private var openChatContextLabel: String?
+
+    /// Пометки над полем ввода у чата, открытого из истории (источник другой, проект недоступен).
+    @Published var chatNotices: [ChatHistoryNotice] = []
+
+    func loadChatHistory() {
+        chatHistoryEntries = chatHistoryStore.load()
+    }
+
+    /// «+», ⌘K, смена проекта: новый чат вместо открытого. Открытый остаётся в истории.
+    func startNewChat() {
+        chatOpen.newChat()
+        resetOpenChatPage()
+    }
+
+    private func resetOpenChatPage() {
+        chatHistory = []
+        ClaudeService.shared.clearConversation()
+        openChatCreated = nil
+        openChatContextLabel = nil
+        chatNotices = []
+        if stateOverride == .thinking { stateOverride = nil }
+    }
+
+    /// Законченный ответ открытого чата → запись в историю. Не в демо и не при выключенном хранении.
+    func recordOpenChat(provider: ChatProvider, cliSession: ChatHistoryCLISession?) {
+        guard ChatHistory.shouldRecord(enabled: chatHistoryEnabled, demo: DemoEngine.shared.isActive) else { return }
+        if openChatContextLabel == nil { openChatContextLabel = Self.historyContextLabel(promptContext) }
+        // Проект чата — папка его сессии Claude Code (вопрос в проекте бывает только у неё).
+        let project: ChatHistoryProject? = cliSession?.projectPath.map { path in
+            if let known = chatProjects.projects.first(where: { $0.path == path }) {
+                return ChatHistoryProject(id: known.id, name: known.name, path: known.path)
+            }
+            return ChatHistoryProject(id: nil, name: URL(fileURLWithPath: path).lastPathComponent, path: path)
+        }
+        guard let record = ChatHistoryRecord.make(
+            id: chatOpen.chatID, messages: chatHistory, created: openChatCreated, now: Date(),
+            provider: provider.rawValue, project: project, cliSession: cliSession,
+            contextLabel: openChatContextLabel) else { return }
+        openChatCreated = record.created
+        chatHistoryStore.save(record, openID: chatOpen.chatID)
+        chatHistoryEntries = chatHistoryStore.entries
+    }
+
+    /// Чат из истории — на страницу запроса. Источник и модель не меняются (инвариант: между
+    /// подпиской и ключом Luna сама не переключается) — только пометка с кнопкой.
+    func openHistoryChat(_ id: UUID) {
+        guard id != chatOpen.chatID || chatHistory.isEmpty else { return }
+        guard let record = chatHistoryStore.record(id) else {
+            chatHistoryEntries = chatHistoryStore.entries   // файла нет или испорчен: строка убрана
+            return
+        }
+        let projectID: UUID? = record.project.flatMap { saved in
+            let match = saved.id.flatMap { chatProjects.project(id: $0) }
+                ?? chatProjects.projects.first(where: { $0.path == saved.path })
+            return match.flatMap { ChatProjectFolder.inspect($0.path).isUsable ? $0.id : nil }
+        }
+        let chatSource = record.source ?? ChatProvider(rawValue: record.provider)?.displayName ?? record.provider
+        let plan = ChatContinuation.plan(for: record, currentProvider: chatProvider.rawValue,
+                                         chatSourceName: chatSource, projectID: projectID)
+        chatOpen.open(record.id)
+        resetOpenChatPage()
+        ClaudeService.shared.restoreConversation(turns: ChatHistory.apiTurns(from: record.messages),
+                                                 cliSession: plan.cliSession)
+        openChatCreated = record.created
+        openChatContextLabel = record.contextLabel
+        chatHistory = record.messages
+        switch plan.project {
+        case .keep: break
+        case .none: chatProjectID = nil              // без очистки истории, в отличие от selectChatProject
+        case .project(let id): chatProjectID = id
+        }
+        chatNotices = plan.notices
+    }
+
+    /// Кнопка пометки «Продолжить через …»: единственное место, где открытый чат меняет источник,
+    /// и только по клику.
+    func continueChat(with provider: ChatProvider) {
+        chatProvider = provider
+        chatNotices.removeAll { if case .sourceDiffers = $0 { true } else { false } }
+    }
+
+    /// Корзина в списке. Удалён открытый — страница становится новым чатом. Транскрипт Claude Code
+    /// в `~/.claude/projects` не трогается.
+    func deleteHistoryChat(_ id: UUID) {
+        chatHistoryStore.delete(id)
+        chatHistoryEntries = chatHistoryStore.entries
+        if chatOpen.deleted(id) { resetOpenChatPage() }
+    }
+
+    /// Settings → Chat → «Очистить историю».
+    func clearChatHistory() {
+        let wasSaved = chatHistoryStore.load().contains { $0.id == chatOpen.chatID }
+        chatHistoryStore.clear()
+        chatHistoryEntries = []
+        if wasSaved { startNewChat() }
+    }
+
+    /// Подпись контекста первого вопроса: только имена, не содержимое файла.
+    private static func historyContextLabel(_ context: PromptContext?) -> String? {
+        switch context {
+        case .window(let app, let title, _)?: return title.isEmpty ? app : "\(app) — \(title)"
+        case .file(let name, _)?: return name
+        case nil: return nil
+        }
+    }
+
+    /// Страница «Агенты» по проектам. UserDefaults `agentsGroupByProject`, по умолчанию выключено.
+    @Published var agentsGroupByProject = false {
+        didSet { UserDefaults.standard.set(agentsGroupByProject, forKey: AgentProjectGrouping.defaultsKey) }
+    }
+
+    /// Плитки страницы «Агенты» в порядке на экране, по группам: по ним ходят стрелки острова
+    /// (←/→ по порядку, ↑/↓ по рядам групп).
+    var agentTileSections: [[String]] {
+        AgentProjectGrouping.displaySections(agentSessions, projects: chatProjects.projects, grouped: agentsGroupByProject)
+    }
+
     @Published var googleChatModel: String = ChatProvider.google.defaultModel {
         didSet { UserDefaults.standard.set(googleChatModel, forKey: "googleChatModel") }
     }
@@ -832,6 +1117,11 @@ final class AppState: ObservableObject {
            !v.trimmingCharacters(in: .whitespaces).isEmpty { claudeModel = v }
         if let v = ud.string(forKey: "chatProvider"), let p = ChatProvider(rawValue: v) { chatProvider = p }
         if let v = ud.string(forKey: "claudeCodeChatModel"), !v.isEmpty { claudeCodeChatModel = v }
+        chatProjects = ChatProjectList.decode(ud.data(forKey: ChatProjectList.defaultsKey))
+        // Проект убран или папка пропала — «Без проекта».
+        chatProjectID = ChatProjectSelection.resolve(savedID: ud.string(forKey: ChatProjectList.selectionKey),
+                                                     in: chatProjects)?.id
+        agentsGroupByProject = ud.bool(forKey: AgentProjectGrouping.defaultsKey)
         if let v = ud.string(forKey: "googleChatModel"), !v.isEmpty { googleChatModel = v }
         if let v = ud.string(forKey: "openAIChatModel"), !v.isEmpty { openAIChatModel = v }
         if let v = ud.string(forKey: "ollamaChatModel"), !v.isEmpty { ollamaChatModel = v }
@@ -1241,20 +1531,13 @@ struct NotionPage: Identifiable {
 }
 
 // MARK: - Chat
-
-enum ChatRole { case user, assistant }
-
-struct ChatMessage: Identifiable, Equatable {
-    let id = UUID()
-    let role: ChatRole
-    var content: String   // var for streaming updates
-    /// Чем отвечено: «Claude Code · подписка · sonnet». nil — без подписи (сообщения пользователя, старый путь).
-    var source: String? = nil
-}
+// ChatRole и ChatMessage — в ChatHistory.swift (сохраняются в истории чатов, под тестами).
 
 /// Действие под заметкой: переключить источник чата и повторить вопрос.
 struct NoteAction: Equatable {
     let title: String
     let provider: ChatProvider
     let query: String
+    /// Кнопка ведёт в этот раздел настроек, а не повторяет вопрос (агенту нужны хуки, LUNA-80).
+    var settingsSection: String? = nil
 }

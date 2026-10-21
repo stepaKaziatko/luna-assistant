@@ -19,6 +19,8 @@ enum AgentHostApps {
     }
 
     static func name(for bundleId: String) -> String? {
+        // Агент, которого Luna запустила в фоне (LUNA-80): «Luna (в фоне)», а не просто «Luna».
+        if bundleId == AgentHost.lunaBackground { return AgentHost.lunaBackgroundName }
         if let cached = names[bundleId] { return cached }
         let name = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId)
             .map { FileManager.default.displayName(atPath: $0.path) }
